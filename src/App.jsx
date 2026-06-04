@@ -5,7 +5,7 @@ const SUPABASE_URL = "https://qjbfoooshpvjlqiepxxb.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqYmZvb29zaHB2amxxaWVweHhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NTIxNDAsImV4cCI6MjA5NjEyODE0MH0.5psVFUbii5Wi5MHhoR3FVVs4C8UPMwgt2K1Tzb6VTxQ";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const ADMIN_PASSWORD = "hotolounge2024";
+const ADMIN_PASSWORD = "hotolounge2026";
 const TABLES = [1,2,3,4,5,6,7,8,9,10];
 const TAX_RATE = 0.06;
 const CAFE_NAME = "HOTO LOUNGE";
@@ -404,15 +404,18 @@ function TabletScreen({ tableNo, goHome }) {
       )}
 
       {view === "menu" && (
-        <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
-          {/* Category sidebar */}
-          <div style={{ width:100, background:C.panel, borderRight:`1px solid ${C.border}`, display:"flex", flexDirection:"column", gap:4, padding:8, flexShrink:0, overflowY:"auto" }}>
+        <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+          {/* Category tabs - horizontal on mobile */}
+          <div style={{ display:"flex", background:C.panel, borderBottom:`1px solid ${C.border}`, overflowX:"auto", flexShrink:0 }}>
             {CATEGORIES.map(cat => (
-              <button key={cat} onClick={() => setActiveCategory(cat)} style={btn({ background:activeCategory===cat?`linear-gradient(135deg,${C.gold},#a07020)`:"transparent", border:activeCategory===cat?"none":`1px solid ${C.border}`, color:activeCategory===cat?C.dark:C.muted, padding:"12px 6px", fontSize:10, fontWeight:activeCategory===cat?"bold":"normal", textAlign:"center", lineHeight:1.4 })}>
-                {cat==="Coffee & Drinks"?"☕\nCoffee &\nDrinks":cat==="Food & Snacks"?"🍽️\nFood &\nSnacks":"🍰\nDesserts"}
+              <button key={cat} onClick={() => setActiveCategory(cat)} style={btn({ background:activeCategory===cat?`linear-gradient(135deg,${C.gold},#a07020)`:"transparent", border:"none", borderBottom: activeCategory===cat?`2px solid ${C.gold}`:"2px solid transparent", color:activeCategory===cat?C.dark:C.muted, padding:"10px 16px", fontSize:12, fontWeight:activeCategory===cat?"bold":"normal", whiteSpace:"nowrap", flexShrink:0 })}>
+                {cat==="Coffee & Drinks"?"☕ Drinks":cat==="Food & Snacks"?"🍽️ Food":"🍰 Desserts"}
               </button>
             ))}
           </div>
+
+          {/* Bottom half: menu + order panel side by side */}
+          <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
 
           {/* Menu items */}
           <div style={{ flex:1, overflowY:"auto", padding:12 }}>
@@ -423,7 +426,7 @@ function TabletScreen({ tableNo, goHome }) {
             ) : (
               <>
                 <div style={{ fontSize:11, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>{activeCategory}</div>
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px,1fr))", gap:10 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(120px,1fr))", gap:8 }}>
                   {currentMenuItems.map(item => {
                     const qty = cart[item.id]?.qty || 0;
                     const soldOut = item.is_available === false;
@@ -459,8 +462,8 @@ function TabletScreen({ tableNo, goHome }) {
             )}
           </div>
 
-          {/* Order panel */}
-          <div style={{ width:220, background:"#0f0a04", borderLeft:`1px solid ${C.border}`, display:"flex", flexDirection:"column", flexShrink:0 }}>
+          {/* Order panel - narrower on mobile */}
+          <div style={{ width:160, background:"#0f0a04", borderLeft:`1px solid ${C.border}`, display:"flex", flexDirection:"column", flexShrink:0 }}>
             <div style={{ padding:"10px 14px", borderBottom:`1px solid ${C.border}`, fontSize:12, color:C.gold, fontWeight:"bold", letterSpacing:1 }}>YOUR ORDER</div>
             <div style={{ flex:1, overflowY:"auto", padding:"8px 10px" }}>
               {cartItems.length === 0
@@ -494,6 +497,7 @@ function TabletScreen({ tableNo, goHome }) {
               </div>
             )}
           </div>
+          </div>{/* end bottom half */}
         </div>
       )}
     </div>
@@ -628,12 +632,4 @@ function KitchenScreen({ goHome }) {
             {done.map(o => (
               <div key={o.id} style={{ background:"#1a2c1a", border:"1px solid #2d4a2d", borderRadius:12, padding:12, opacity:0.7 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#5aaa5a", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
-                {o.items.map(item => <div key={item.id} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji || "🍽️"} {item.name} ×{item.qty}</div>)}
-              </div>
-            ))}
-          </div>
-        </>}
-      </div>
-    </div>
-  );
-}
+                {o.items.map(item => <div key={item.id} style={
