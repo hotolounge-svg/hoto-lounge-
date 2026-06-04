@@ -405,99 +405,87 @@ function TabletScreen({ tableNo, goHome }) {
 
       {view === "menu" && (
         <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-          {/* Category tabs - horizontal on mobile */}
-          <div style={{ display:"flex", background:C.panel, borderBottom:`1px solid ${C.border}`, overflowX:"auto", flexShrink:0 }}>
+
+          {/* Category tabs - horizontal scrollable */}
+          <div style={{ display:"flex", background:C.panel, borderBottom:`1px solid ${C.border}`, overflowX:"auto", flexShrink:0, WebkitOverflowScrolling:"touch" }}>
             {CATEGORIES.map(cat => (
-              <button key={cat} onClick={() => setActiveCategory(cat)} style={btn({ background:activeCategory===cat?`linear-gradient(135deg,${C.gold},#a07020)`:"transparent", border:"none", borderBottom: activeCategory===cat?`2px solid ${C.gold}`:"2px solid transparent", color:activeCategory===cat?C.dark:C.muted, padding:"10px 16px", fontSize:12, fontWeight:activeCategory===cat?"bold":"normal", whiteSpace:"nowrap", flexShrink:0 })}>
+              <button key={cat} onClick={() => setActiveCategory(cat)} style={btn({ background:activeCategory===cat?`linear-gradient(135deg,${C.gold},#a07020)`:"transparent", border:"none", borderBottom:activeCategory===cat?`3px solid ${C.goldLight}`:"3px solid transparent", color:activeCategory===cat?C.dark:C.muted, padding:"10px 18px", fontSize:13, fontWeight:activeCategory===cat?"bold":"normal", whiteSpace:"nowrap", flexShrink:0 })}>
                 {cat==="Coffee & Drinks"?"☕ Drinks":cat==="Food & Snacks"?"🍽️ Food":"🍰 Desserts"}
               </button>
             ))}
           </div>
 
-          {/* Bottom half: menu + order panel side by side */}
-          <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
-
-          {/* Menu items */}
-          <div style={{ flex:1, overflowY:"auto", padding:12 }}>
+          {/* Menu items scrollable */}
+          <div style={{ flex:1, overflowY:"auto", padding:10 }}>
             {menuLoading ? (
               <div style={{ color:C.muted, textAlign:"center", padding:40 }}>Loading menu...</div>
             ) : currentMenuItems.length === 0 ? (
-              <div style={{ color:C.muted, textAlign:"center", padding:40 }}>No items in this category yet</div>
+              <div style={{ color:C.muted, textAlign:"center", padding:40 }}>No items yet</div>
             ) : (
-              <>
-                <div style={{ fontSize:11, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>{activeCategory}</div>
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(120px,1fr))", gap:8 }}>
-                  {currentMenuItems.map(item => {
-                    const qty = cart[item.id]?.qty || 0;
-                    const soldOut = item.is_available === false;
-                    return (
-                      <div key={item.id} style={{ background:`linear-gradient(145deg,${C.panel},#241508)`, border:soldOut?`1px solid ${C.border}`:qty>0?`1.5px solid ${C.gold}`:`1px solid ${C.border}`, borderRadius:12, overflow:"hidden", position:"relative", opacity:soldOut?0.6:1 }}>
-                        <div style={{ position:"absolute", top:6, left:6, background:"rgba(0,0,0,0.6)", color:C.gold, borderRadius:4, padding:"1px 6px", fontSize:10, fontWeight:"bold", zIndex:1 }}>#{item.item_no}</div>
-                        {soldOut && <div style={{ position:"absolute", top:6, right:6, background:"#6a2d2d", color:"#ff7777", borderRadius:4, padding:"1px 6px", fontSize:10, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
-                        {item.image_url
-                          ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:110, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
-                          : <div style={{ height:90, display:"flex", alignItems:"center", justifyContent:"center", fontSize:38 }}>{item.emoji}</div>
-                        }
-                        <div style={{ padding:"8px 10px 10px" }}>
-                          <div style={{ fontWeight:"bold", fontSize:12, marginBottom:2 }}>{item.name}</div>
-                          <div style={{ fontSize:10, color:"#7a5a30", marginBottom:6, lineHeight:1.3 }}>{item.description}</div>
-                          <div style={{ color:C.gold, fontWeight:"bold", fontSize:13, marginBottom:8 }}>RM {parseFloat(item.price).toFixed(2)}</div>
-                          {soldOut ? (
-                            <div style={{ textAlign:"center", color:"#ff7777", fontSize:12, fontWeight:"bold", padding:"6px 0" }}>Sold Out</div>
-                          ) : qty === 0 ? (
-                            <button onClick={() => addToCart(item)} style={btn({ width:"100%", background:C.gold, border:"none", color:C.dark, padding:"6px 0", fontSize:13, fontWeight:"bold" })}>+ Add</button>
-                          ) : (
-                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                              <button onClick={() => removeFromCart(item.id)} style={btn({ background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, width:32, height:32, fontSize:18, fontWeight:"bold" })}>−</button>
-                              <span style={{ color:C.goldLight, fontWeight:"bold", fontSize:16 }}>{qty}</span>
-                              <button onClick={() => addToCart(item)} style={btn({ background:C.gold, border:"none", color:C.dark, width:32, height:32, fontSize:18, fontWeight:"bold" })}>+</button>
-                            </div>
-                          )}
-                        </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:8 }}>
+                {currentMenuItems.map(item => {
+                  const qty = cart[item.id]?.qty || 0;
+                  const soldOut = item.is_available === false;
+                  return (
+                    <div key={item.id} style={{ background:`linear-gradient(145deg,${C.panel},#241508)`, border:soldOut?`1px solid ${C.border}`:qty>0?`1.5px solid ${C.gold}`:`1px solid ${C.border}`, borderRadius:10, overflow:"hidden", position:"relative", opacity:soldOut?0.6:1 }}>
+                      <div style={{ position:"absolute", top:5, left:5, background:"rgba(0,0,0,0.7)", color:C.gold, borderRadius:4, padding:"1px 5px", fontSize:9, fontWeight:"bold", zIndex:1 }}>#{item.item_no}</div>
+                      {soldOut && <div style={{ position:"absolute", top:5, right:5, background:"#6a2d2d", color:"#ff7777", borderRadius:4, padding:"1px 5px", fontSize:9, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
+                      {item.image_url
+                        ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:90, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
+                        : <div style={{ height:70, display:"flex", alignItems:"center", justifyContent:"center", fontSize:32 }}>{item.emoji}</div>
+                      }
+                      <div style={{ padding:"6px 8px 8px" }}>
+                        <div style={{ fontWeight:"bold", fontSize:11, marginBottom:1 }}>{item.name}</div>
+                        <div style={{ color:C.gold, fontWeight:"bold", fontSize:12, marginBottom:6 }}>RM {parseFloat(item.price).toFixed(2)}</div>
+                        {soldOut ? (
+                          <div style={{ textAlign:"center", color:"#ff7777", fontSize:11, fontWeight:"bold", padding:"4px 0" }}>Sold Out</div>
+                        ) : qty === 0 ? (
+                          <button onClick={() => addToCart(item)} style={btn({ width:"100%", background:C.gold, border:"none", color:C.dark, padding:"5px 0", fontSize:12, fontWeight:"bold" })}>+ Add</button>
+                        ) : (
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                            <button onClick={() => removeFromCart(item.id)} style={btn({ background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, width:28, height:28, fontSize:16, fontWeight:"bold" })}>−</button>
+                            <span style={{ color:C.goldLight, fontWeight:"bold", fontSize:15 }}>{qty}</span>
+                            <button onClick={() => addToCart(item)} style={btn({ background:C.gold, border:"none", color:C.dark, width:28, height:28, fontSize:16, fontWeight:"bold" })}>+</button>
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Order panel - narrower on mobile */}
-          <div style={{ width:160, background:"#0f0a04", borderLeft:`1px solid ${C.border}`, display:"flex", flexDirection:"column", flexShrink:0 }}>
-            <div style={{ padding:"10px 14px", borderBottom:`1px solid ${C.border}`, fontSize:12, color:C.gold, fontWeight:"bold", letterSpacing:1 }}>YOUR ORDER</div>
-            <div style={{ flex:1, overflowY:"auto", padding:"8px 10px" }}>
-              {cartItems.length === 0
-                ? <div style={{ color:C.border, fontSize:12, textAlign:"center", marginTop:30 }}>No items yet</div>
-                : cartItems.map(item => (
-                  <div key={item.id} style={{ marginBottom:10, background:C.panel, borderRadius:8, padding:"8px 10px" }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:4 }}>
-                      <div style={{ fontSize:12, fontWeight:"bold", flex:1, lineHeight:1.3 }}>{item.name}</div>
-                      <button onClick={() => clearItem(item.id)} style={btn({ background:"transparent", border:"none", color:"#cc4444", fontSize:16, padding:"0 2px", lineHeight:1 })}>×</button>
                     </div>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:6 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                        <button onClick={() => removeFromCart(item.id)} style={btn({ background:"#1a1208", border:`1px solid ${C.border}`, color:C.goldLight, width:22, height:22, fontSize:14 })}>−</button>
-                        <span style={{ fontSize:13, color:C.goldLight, fontWeight:"bold" }}>{item.qty}</span>
-                        <button onClick={() => addToCart(item)} style={btn({ background:C.gold, border:"none", color:C.dark, width:22, height:22, fontSize:14, fontWeight:"bold" })}>+</button>
-                      </div>
-                      <span style={{ fontSize:12, color:C.gold, fontWeight:"bold" }}>RM {(item.price*item.qty).toFixed(2)}</span>
-                    </div>
-                  </div>
-                ))
-              }
-            </div>
-            {cartItems.length > 0 && (
-              <div style={{ padding:"10px 14px", borderTop:`1px solid ${C.border}` }}>
-                <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:C.muted, marginBottom:4 }}><span>Subtotal</span><span>RM {subtotal.toFixed(2)}</span></div>
-                <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:C.muted, marginBottom:8 }}><span>Tax 6%</span><span>RM {tax.toFixed(2)}</span></div>
-                <div style={{ display:"flex", justifyContent:"space-between", fontSize:14, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}><span>Total</span><span>RM {total.toFixed(2)}</span></div>
-                <button onClick={placeOrder} style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 0", fontSize:14, fontWeight:"bold" })}>
-                  Place Order ✓
-                </button>
+                  );
+                })}
               </div>
             )}
           </div>
-          </div>{/* end bottom half */}
+
+          {/* Order summary bar at bottom */}
+          {cartItems.length > 0 && (
+            <div style={{ background:"#0f0a04", borderTop:`2px solid ${C.gold}`, flexShrink:0 }}>
+              {/* Items list */}
+              <div style={{ maxHeight:120, overflowY:"auto", padding:"6px 12px" }}>
+                {cartItems.map(item => (
+                  <div key={item.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+                    <span style={{ fontSize:12, color:C.text, flex:1 }}>{item.name}</span>
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      <button onClick={() => removeFromCart(item.id)} style={btn({ background:"#1a1208", border:`1px solid ${C.border}`, color:C.goldLight, width:22, height:22, fontSize:14 })}>−</button>
+                      <span style={{ fontSize:12, color:C.goldLight, fontWeight:"bold", minWidth:16, textAlign:"center" }}>{item.qty}</span>
+                      <button onClick={() => addToCart(item)} style={btn({ background:C.gold, border:"none", color:C.dark, width:22, height:22, fontSize:14, fontWeight:"bold" })}>+</button>
+                      <button onClick={() => clearItem(item.id)} style={btn({ background:"transparent", border:"none", color:"#cc4444", fontSize:16, padding:"0 2px" })}>×</button>
+                      <span style={{ fontSize:11, color:C.gold, fontWeight:"bold", minWidth:50, textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Total + button */}
+              <div style={{ padding:"8px 12px", borderTop:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                <div>
+                  <div style={{ fontSize:11, color:C.muted }}>Total (incl. 6% tax)</div>
+                  <div style={{ fontSize:16, color:C.goldLight, fontWeight:"bold" }}>RM {total.toFixed(2)}</div>
+                </div>
+                <button onClick={placeOrder} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 20px", fontSize:14, fontWeight:"bold", borderRadius:10 })}>
+                  Place Order ✓
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -632,4 +620,12 @@ function KitchenScreen({ goHome }) {
             {done.map(o => (
               <div key={o.id} style={{ background:"#1a2c1a", border:"1px solid #2d4a2d", borderRadius:12, padding:12, opacity:0.7 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#5aaa5a", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
-                {o.items.map(item => <div key={item.id} style={
+                {o.items.map(item => <div key={item.id} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji || "🍽️"} {item.name} ×{item.qty}</div>)}
+              </div>
+            ))}
+          </div>
+        </>}
+      </div>
+    </div>
+  );
+}
