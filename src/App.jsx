@@ -238,6 +238,277 @@ function TabletScreen({ tableNo, goHome }) {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [specialRequest, setSpecialRequest] = useState("");
 
+  // Bright colours for customer screen — easier for older eyes
+  const T = {
+    bg: "#fdf6ec",
+    panel: "#ffffff",
+    border: "#e8c97a",
+    gold: "#b8780a",
+    goldDark: "#8a5a00",
+    text: "#2a1a00",
+    muted: "#7a6040",
+    green: "#1a6a1a",
+    greenLight: "#e8f8e8",
+    red: "#cc2222",
+    shadow: "0 2px 8px rgba(0,0,0,0.12)",
+  };
+
+  useEffect(() => {
+    const initSession = async () => {
+      const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
+      if (data) {
+        const stored = sessionStorage.getItem(`session_table_${tableNo}`);
+        if (stored && stored !== data.session_id) { setSessionExpired(true); return; }
+        if (!stored) sessionStorage.setItem(`session_table_${tableNo}`, data.session_id);
+      } else {
+        const s = Date.now().toString();
+        await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
+        sessionStorage.setItem(`session_table_${tableNo}`, s);
+      }
+    };
+    initSession();
+    const ch = supabase.channel(`session-${tableNo}`)
+      .on("postgres_changes", { event:"*", schema:"public", table:"table_sessions", filter:`table_no=eq.${tableNo}` }, (payload) => {
+        const stored = sessionStorage.getItem(`session_table_${tableNo}`);
+        if (payload.new?.session_id && stored && payload.new.session_id !== stored) setSessionExpired(true);
+      }).subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [tableNo]);
+
+  useEffect(() => {
+    const fetchMenu = async () => {
+      const { data } = await supabase.from("menu_items").select("*").order("item_no", { ascending:true });
+      if (data && data.length > 0) {
+        const grouped = {};
+        CATEGORIES.forEach(c => { grouped[c] = []; });
+        data.forEach(item => { if (grouped[item.category]) grouped[item.category].push(item); });
+        setMenu(grouped);
+      }
+      setMenuLoading(false);
+    };
+    fetchMenu();
+  }, []);
+
+  useEffect(() => {
+    const fetchMyOrders = async () => {
+      const { data } = await supabase.from("orders").select("*").eq("table_no", tableNo)
+        .not("status", "in", '("cancelled","paid")').order("created_at", { ascending:true });
+      setMyOrders(data || []);
+    };
+    fetchMyOrders();
+    const ch = supabase.channel(`table-${tableNo}`)
+      .on("postgres_changes", { event:"*", schema:"public", table:"orders", filter:`table_no=eq.${tableNo}` }, fetchMyOrders).subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [tableNo]);
+
+  const addToCart = (item) => setCart(p => ({ ...p, [item.id]: { ...item, qty:(p[item.id]?.qty||0)+1 } }));
+  const removeFromCart = (id) => setCart(p => { const u={...p}; if (!u[id]) return u; if (u[id].qty>1) u[id]={...u[id],qty:u[id].qty-1}; else delete u[id]; return u; });
+  const clearItem = (id) => setCart(p => { const u={...p}; delete u[id]; return u; });
+
+  const cartItems = Object.values(cart);
+  const subtotal = cartItems.reduce((s,i) => s+i.price*i.qty, 0);
+  const tax = subtotal * TAX_RATE;
+  const total = subtotal + tax;
+
+  const placeOrder = async () => {
+    await supabase.from("orders").insert({ table_no:tableNo, items:cartItems, subtotal, tax, total, status:"pending", special_request:specialRequest.trim()||null, time:new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"}) });
+    setCart({}); setSpecialRequest(""); setView("orders");
+  };
+  const callWaiter = async () => {
+    await supabase.from("waiter_calls").upsert({ table_no:tableNo, time:new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"}) });
+    setWaiterCalled(true); setTimeout(() => setWaiterCalled(false), 3000);
+  };
+
+  const pendingOrders = myOrders.filter(o => o.status==="pending");
+  const doneOrders = myOrders.filter(o => o.status==="done");
+  const currentMenuItems = menu[activeCategory] || [];
+  const hasOrders = myOrders.length > 0;
+
+  if (sessionExpired) return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:20, padding:24, textAlign:"center", background:T.bg }}>
+      <div style={{ fontSize:70 }}>🔒</div>
+      <div style={{ fontSize:26, color:T.goldDark, fontWeight:"bold" }}>Session Ended</div>
+      <div style={{ color:T.muted, fontSize:18, lineHeight:1.8 }}>This table has been reset.<br/>Thank you for visiting {CAFE_NAME}! 😊</div>
+    </div>
+  );
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden", background:T.bg, fontFamily:"Georgia,serif" }}>
+
+      {/* Header */}
+      <div style={{ background:"#8a5a00", padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0, boxShadow:T.shadow }}>
+        <div>
+          <div style={{ fontSize:20, fontWeight:"bold", color:"#fff" }}>☕ {CAFE_NAME}</div>
+          <div style={{ fontSize:15, color:"#ffe099", fontWeight:"bold" }}>TABLE {tableNo}</div>
+        </div>
+        <button onClick={callWaiter} style={{ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:12, background:waiterCalled?"#1a6a1a":"#fff", border:"none", color:waiterCalled?"#fff":"#8a5a00", padding:"10px 18px", fontSize:16, fontWeight:"bold", boxShadow:T.shadow }}>
+          {waiterCalled ? "✅ Coming!" : "🔔 Call Waiter"}
+        </button>
+      </div>
+
+      {/* Tab bar */}
+      <div style={{ display:"flex", background:"#fff", borderBottom:`3px solid ${T.border}`, flexShrink:0 }}>
+        <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:view==="menu"?"#fff8ee":"#fff", border:"none", borderBottom:view==="menu"?`4px solid #8a5a00`:"4px solid transparent", color:view==="menu"?"#8a5a00":"#7a6040", padding:"14px 0", fontSize:17, fontWeight:view==="menu"?"bold":"normal" }}>
+          🍽️ Menu
+        </button>
+        <button onClick={() => setView("orders")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:view==="orders"?"#fff8ee":"#fff", border:"none", borderBottom:view==="orders"?`4px solid #8a5a00`:"4px solid transparent", color:view==="orders"?"#8a5a00":"#7a6040", padding:"14px 0", fontSize:17, fontWeight:view==="orders"?"bold":"normal" }}>
+          📋 My Orders {hasOrders && <span style={{ background:pendingOrders.length>0?"#cc8800":"#1a6a1a", color:"#fff", borderRadius:12, padding:"2px 9px", fontSize:13, marginLeft:6 }}>{myOrders.length}</span>}
+        </button>
+      </div>
+
+      {/* MY ORDERS */}
+      {view === "orders" && (
+        <div style={{ flex:1, overflowY:"auto", padding:16, background:T.bg }}>
+          {myOrders.length === 0 ? (
+            <div style={{ textAlign:"center", color:T.muted, marginTop:60 }}>
+              <div style={{ fontSize:52, marginBottom:16 }}>🍽️</div>
+              <div style={{ fontSize:18 }}>No orders yet — browse the menu to order!</div>
+              <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", marginTop:20, background:"#8a5a00", border:"none", color:"#fff", padding:"14px 32px", fontSize:18, fontWeight:"bold", borderRadius:12, boxShadow:T.shadow }}>Browse Menu</button>
+            </div>
+          ) : (
+            <>
+              {pendingOrders.length > 0 && (
+                <div style={{ marginBottom:20 }}>
+                  <div style={{ fontSize:15, color:T.muted, letterSpacing:1, textTransform:"uppercase", marginBottom:12, fontWeight:"bold" }}>🟡 Being Prepared</div>
+                  {pendingOrders.map(order => (
+                    <div key={order.id} style={{ background:"#fff8ee", border:`2px solid #cc8800`, borderRadius:14, padding:18, marginBottom:12, boxShadow:T.shadow }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
+                        <span style={{ fontSize:15, color:T.muted }}>{order.time}</span>
+                        <span style={{ background:"#cc8800", color:"#fff", borderRadius:8, padding:"4px 12px", fontSize:14, fontWeight:"bold" }}>🍳 Preparing...</span>
+                      </div>
+                      {order.items.map(item => (
+                        <div key={item.id} style={{ display:"flex", justifyContent:"space-between", fontSize:17, marginBottom:6 }}>
+                          <span style={{ color:T.text }}>{item.emoji||"🍽️"} {item.name}</span>
+                          <span style={{ color:"#8a5a00", fontWeight:"bold" }}>×{item.qty}</span>
+                        </div>
+                      ))}
+                      <div style={{ borderTop:`1px solid ${T.border}`, marginTop:10, paddingTop:10 }}>
+                        <span style={{ color:T.goldDark, fontWeight:"bold", fontSize:18 }}>RM {order.total.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {doneOrders.length > 0 && (
+                <div>
+                  <div style={{ fontSize:15, color:T.muted, letterSpacing:1, textTransform:"uppercase", marginBottom:12, fontWeight:"bold" }}>✅ Served & Complete</div>
+                  {doneOrders.map(order => (
+                    <div key={order.id} style={{ background:T.greenLight, border:`2px solid #3a9a3a`, borderRadius:14, padding:18, marginBottom:12, boxShadow:T.shadow }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
+                        <span style={{ fontSize:15, color:T.muted }}>{order.time}</span>
+                        <span style={{ background:T.green, color:"#fff", borderRadius:8, padding:"4px 12px", fontSize:14, fontWeight:"bold" }}>✅ Served!</span>
+                      </div>
+                      {order.items.map(item => (
+                        <div key={item.id} style={{ display:"flex", justifyContent:"space-between", fontSize:17, marginBottom:6, color:T.muted }}>
+                          <span>{item.emoji||"🍽️"} {item.name}</span><span>×{item.qty}</span>
+                        </div>
+                      ))}
+                      <div style={{ borderTop:`1px solid #3a9a3a`, marginTop:10, paddingTop:10 }}>
+                        <span style={{ color:T.green, fontWeight:"bold", fontSize:18 }}>RM {order.total.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", marginTop:10, background:"#fff", border:`2px solid #8a5a00`, color:"#8a5a00", padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:12 }}>+ Add More Items</button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* MENU */}
+      {view === "menu" && (
+        <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", background:T.bg }}>
+
+          {/* Category tabs */}
+          <div style={{ display:"flex", background:"#fff", borderBottom:`2px solid ${T.border}`, overflowX:"auto", flexShrink:0 }}>
+            {CATEGORIES.map(cat => (
+              <button key={cat} onClick={() => setActiveCategory(cat)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:activeCategory===cat?"#8a5a00":"#fff", border:"none", borderBottom:activeCategory===cat?"4px solid #5a3a00":"4px solid transparent", color:activeCategory===cat?"#fff":"#7a6040", padding:"14px 20px", fontSize:16, fontWeight:activeCategory===cat?"bold":"normal", whiteSpace:"nowrap", flexShrink:0 }}>
+                {cat==="Coffee & Drinks"?"☕ Drinks":cat==="Food & Snacks"?"🍽️ Food":"🍰 Desserts"}
+              </button>
+            ))}
+          </div>
+
+          {/* Items grid */}
+          <div style={{ flex:1, overflowY:"auto", padding:12 }}>
+            {menuLoading ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>Loading menu...</div>
+              : currentMenuItems.length===0 ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>No items yet</div>
+              : (
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                  {currentMenuItems.map(item => {
+                    const qty = cart[item.id]?.qty || 0;
+                    const soldOut = item.is_available===false;
+                    return (
+                      <div key={item.id} style={{ background:"#fff", border:soldOut?`2px solid #ccc`:qty>0?`2px solid #8a5a00`:`2px solid ${T.border}`, borderRadius:14, overflow:"hidden", position:"relative", opacity:soldOut?0.5:1, boxShadow:T.shadow }}>
+                        <div style={{ position:"absolute", top:8, left:8, background:"#8a5a00", color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>#{item.item_no}</div>
+                        {soldOut && <div style={{ position:"absolute", top:8, right:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
+                        {item.image_url
+                          ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:110, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
+                          : <div style={{ height:90, display:"flex", alignItems:"center", justifyContent:"center", fontSize:44, background:"#fff8ee" }}>{item.emoji}</div>
+                        }
+                        <div style={{ padding:"10px 12px 12px" }}>
+                          <div style={{ fontWeight:"bold", fontSize:15, marginBottom:2, color:T.text }}>{item.name}</div>
+                          <div style={{ color:"#8a5a00", fontWeight:"bold", fontSize:16, marginBottom:10 }}>RM {parseFloat(item.price).toFixed(2)}</div>
+                          {soldOut ? (
+                            <div style={{ textAlign:"center", color:T.red, fontSize:14, fontWeight:"bold", padding:"8px 0", background:"#fff0f0", borderRadius:8 }}>Sold Out</div>
+                          ) : qty===0 ? (
+                            <button onClick={() => addToCart(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"#8a5a00", border:"none", color:"#fff", padding:"10px 0", fontSize:16, fontWeight:"bold", borderRadius:10 }}>+ Add</button>
+                          ) : (
+                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:4 }}>
+                              <button onClick={() => removeFromCart(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:`2px solid #8a5a00`, color:"#8a5a00", width:38, height:38, fontSize:22, fontWeight:"bold", borderRadius:10 }}>−</button>
+                              <span style={{ color:"#8a5a00", fontWeight:"bold", fontSize:20 }}>{qty}</span>
+                              <button onClick={() => addToCart(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#8a5a00", border:"none", color:"#fff", width:38, height:38, fontSize:22, fontWeight:"bold", borderRadius:10 }}>+</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+          </div>
+
+          {/* Cart summary bar */}
+          {cartItems.length > 0 && (
+            <div style={{ background:"#fff", borderTop:`3px solid #8a5a00`, flexShrink:0, boxShadow:"0 -2px 10px rgba(0,0,0,0.1)" }}>
+              <div style={{ maxHeight:140, overflowY:"auto", padding:"8px 14px" }}>
+                {cartItems.map(item => (
+                  <div key={item.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+                    <span style={{ fontSize:15, color:T.text, flex:1 }}>{item.name}</span>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <button onClick={() => removeFromCart(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:`2px solid ${T.border}`, color:"#8a5a00", width:28, height:28, fontSize:16, borderRadius:6 }}>−</button>
+                      <span style={{ fontSize:15, color:"#8a5a00", fontWeight:"bold", minWidth:20, textAlign:"center" }}>{item.qty}</span>
+                      <button onClick={() => addToCart(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#8a5a00", border:"none", color:"#fff", width:28, height:28, fontSize:16, fontWeight:"bold", borderRadius:6 }}>+</button>
+                      <button onClick={() => clearItem(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", color:T.red, fontSize:20, padding:"0 2px" }}>×</button>
+                      <span style={{ fontSize:14, color:"#8a5a00", fontWeight:"bold", minWidth:55, textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ padding:"10px 14px", borderTop:`1px solid ${T.border}` }}>
+                <div style={{ fontSize:13, color:T.muted, marginBottom:6 }}>Special Request (optional)</div>
+                <input value={specialRequest} onChange={e => setSpecialRequest(e.target.value)} placeholder="e.g. no sugar, extra ice..."
+                  style={{ width:"100%", background:"#fff8ee", border:`2px solid ${T.border}`, color:T.text, padding:"8px 12px", borderRadius:8, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }} />
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div>
+                    <div style={{ fontSize:13, color:T.muted }}>Total (incl. 6% tax)</div>
+                    <div style={{ fontSize:22, color:"#8a5a00", fontWeight:"bold" }}>RM {total.toFixed(2)}</div>
+                  </div>
+                  <button onClick={placeOrder} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#8a5a00", border:"none", color:"#fff", padding:"14px 24px", fontSize:18, fontWeight:"bold", borderRadius:12, boxShadow:T.shadow }}>
+                    Place Order ✓
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
   useEffect(() => {
     const initSession = async () => {
       const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
@@ -446,32 +717,6 @@ function TabletScreen({ tableNo, goHome }) {
                       <button onClick={() => removeFromCart(item.id)} style={btn({ background:"#1a1208", border:`1px solid ${C.border}`, color:C.goldLight, width:22, height:22, fontSize:14 })}>−</button>
                       <span style={{ fontSize:12, color:C.goldLight, fontWeight:"bold", minWidth:16, textAlign:"center" }}>{item.qty}</span>
                       <button onClick={() => addToCart(item)} style={btn({ background:C.gold, border:"none", color:C.dark, width:22, height:22, fontSize:14, fontWeight:"bold" })}>+</button>
-                      <button onClick={() => clearItem(item.id)} style={btn({ background:"transparent", border:"none", color:"#cc4444", fontSize:16, padding:"0 2px" })}>×</button>
-                      <span style={{ fontSize:11, color:C.gold, fontWeight:"bold", minWidth:50, textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ padding:"8px 12px", borderTop:`1px solid ${C.border}` }}>
-                <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Special Request (optional)</div>
-                <input value={specialRequest} onChange={e => setSpecialRequest(e.target.value)} placeholder="e.g. no sugar, extra ice..."
-                  style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"6px 10px", borderRadius:6, fontSize:12, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:8 }} />
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                  <div>
-                    <div style={{ fontSize:11, color:C.muted }}>Total (incl. 6% tax)</div>
-                    <div style={{ fontSize:16, color:C.goldLight, fontWeight:"bold" }}>RM {total.toFixed(2)}</div>
-                  </div>
-                  <button onClick={placeOrder} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 20px", fontSize:14, fontWeight:"bold", borderRadius:10 })}>Place Order ✓</button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function QRScreen({ goHome }) {
   const baseUrl = window.location.href.split("?")[0];
   return (
