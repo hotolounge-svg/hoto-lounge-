@@ -5,7 +5,7 @@ const SUPABASE_URL = "https://qjbfoooshpvjlqiepxxb.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqYmZvb29zaHB2amxxaWVweHhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NTIxNDAsImV4cCI6MjA5NjEyODE0MH0.5psVFUbii5Wi5MHhoR3FVVs4C8UPMwgt2K1Tzb6VTxQ";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const ADMIN_PASSWORD = "hotolounge2026";
+const ADMIN_PASSWORD = "hotolounge2024";
 const TABLES = [1,2,3,4,5,6,7,8,9,10];
 const TAX_RATE = 0.06;
 const CAFE_NAME = "HOTO LOUNGE";
@@ -311,13 +311,14 @@ function AdminScreen({ goHome }) {
 function TabletScreen({ tableNo, goHome }) {
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
   const [cart, setCart] = useState({});
-  const [view, setView] = useState("menu");
+  const [view, setView] = useState("menu"); // menu | orders
   const [waiterCalled, setWaiterCalled] = useState(false);
-  const [lastOrderId, setLastOrderId] = useState(null);
-  const [cancelling, setCancelling] = useState(false);
+  const [cancelling, setCancelling] = useState(null);
   const [menu, setMenu] = useState({});
   const [menuLoading, setMenuLoading] = useState(true);
+  const [myOrders, setMyOrders] = useState([]);
 
+  // Fetch menu
   useEffect(() => {
     const fetchMenu = async () => {
       const { data } = await supabase.from("menu_items").select("*").order("item_no", { ascending:true });
@@ -332,6 +333,23 @@ function TabletScreen({ tableNo, goHome }) {
     fetchMenu();
   }, []);
 
+  // Live order tracking for this table
+  useEffect(() => {
+    const fetchMyOrders = async () => {
+      const { data } = await supabase.from("orders")
+        .select("*")
+        .eq("table_no", tableNo)
+        .not("status", "eq", "cancelled")
+        .order("created_at", { ascending:true });
+      setMyOrders(data || []);
+    };
+    fetchMyOrders();
+    const ch = supabase.channel(`table-${tableNo}`)
+      .on("postgres_changes", { event:"*", schema:"public", table:"orders", filter:`table_no=eq.${tableNo}` }, fetchMyOrders)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [tableNo]);
+
   const addToCart = (item) => setCart(p => ({ ...p, [item.id]: { ...item, qty:(p[item.id]?.qty||0)+1 } }));
   const removeFromCart = (id) => setCart(p => {
     const u = {...p};
@@ -343,8 +361,7 @@ function TabletScreen({ tableNo, goHome }) {
   const clearItem = (id) => setCart(p => { const u = {...p}; delete u[id]; return u; });
 
   const cartItems = Object.values(cart);
-  const totalItems = cartItems.reduce((s,i) => s+i.qty, 0);
-  const subtotal   = cartItems.reduce((s,i) => s+i.price*i.qty, 0);
+  const subtotal = cartItems.reduce((s,i) => s+i.price*i.qty, 0);
   const tax = subtotal * TAX_RATE;
   const total = subtotal + tax;
 
@@ -354,19 +371,14 @@ function TabletScreen({ tableNo, goHome }) {
       subtotal, tax, total, status:"pending",
       time: new Date().toLocaleTimeString("en-MY", { hour:"2-digit", minute:"2-digit" }),
     }).select().single();
-    if (data) setLastOrderId(data.id);
-    setView("success");
     setCart({});
-    setTimeout(() => { setView("menu"); setLastOrderId(null); }, 8000);
+    setView("orders");
   };
 
-  const cancelOrder = async () => {
-    if (!lastOrderId) return;
-    setCancelling(true);
-    await supabase.from("orders").delete().eq("id", lastOrderId);
-    setCancelling(false);
-    setLastOrderId(null);
-    setView("menu");
+  const cancelOrder = async (id) => {
+    setCancelling(id);
+    await supabase.from("orders").delete().eq("id", id);
+    setCancelling(null);
   };
 
   const callWaiter = async () => {
@@ -375,10 +387,14 @@ function TabletScreen({ tableNo, goHome }) {
     setTimeout(() => setWaiterCalled(false), 3000);
   };
 
+  const pendingOrders = myOrders.filter(o => o.status === "pending");
+  const doneOrders = myOrders.filter(o => o.status === "done");
   const currentMenuItems = menu[activeCategory] || [];
+  const hasOrders = myOrders.length > 0;
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden" }}>
+      {/* Header */}
       <div style={{ background:C.panel, borderBottom:`2px solid ${C.gold}`, padding:"10px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
         <div>
           <div style={{ fontSize:16, fontWeight:"bold", color:C.goldLight }}>☕ {CAFE_NAME}</div>
@@ -389,20 +405,86 @@ function TabletScreen({ tableNo, goHome }) {
         </button>
       </div>
 
-      {view === "success" && (
-        <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
-          <div style={{ fontSize:70 }}>✅</div>
-          <div style={{ fontSize:24, color:C.goldLight, fontWeight:"bold" }}>Order Sent!</div>
-          <div style={{ color:C.muted }}>Table {tableNo} — your order is being prepared 🍳</div>
-          <div style={{ marginTop:10, textAlign:"center" }}>
-            <div style={{ fontSize:12, color:C.muted, marginBottom:10 }}>Made a mistake? Cancel quickly!</div>
-            <button onClick={cancelOrder} disabled={cancelling} style={btn({ background:"transparent", border:"1.5px solid #cc4444", color:"#ff7777", padding:"10px 24px", fontSize:14 })}>
-              {cancelling ? "Cancelling..." : "❌ Cancel This Order"}
-            </button>
-          </div>
+      {/* Tab bar */}
+      <div style={{ display:"flex", background:C.panel, borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+        <button onClick={() => setView("menu")} style={btn({ flex:1, background:"transparent", border:"none", borderBottom:view==="menu"?`3px solid ${C.gold}`:"3px solid transparent", color:view==="menu"?C.goldLight:C.muted, padding:"10px 0", fontSize:13, fontWeight:view==="menu"?"bold":"normal" })}>
+          🍽️ Menu
+        </button>
+        <button onClick={() => setView("orders")} style={btn({ flex:1, background:"transparent", border:"none", borderBottom:view==="orders"?`3px solid ${C.gold}`:"3px solid transparent", color:view==="orders"?C.goldLight:C.muted, padding:"10px 0", fontSize:13, fontWeight:view==="orders"?"bold":"normal", position:"relative" })}>
+          📋 My Orders {hasOrders && <span style={{ background:pendingOrders.length>0?"#c8973a":"#2d6a2d", color:"#fff", borderRadius:10, padding:"1px 7px", fontSize:11, marginLeft:4 }}>{myOrders.length}</span>}
+        </button>
+      </div>
+
+      {/* MY ORDERS VIEW */}
+      {view === "orders" && (
+        <div style={{ flex:1, overflowY:"auto", padding:16 }}>
+          {myOrders.length === 0 ? (
+            <div style={{ textAlign:"center", color:C.muted, marginTop:60 }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>🍽️</div>
+              <div>No orders yet — browse the menu to order!</div>
+              <button onClick={() => setView("menu")} style={btn({ marginTop:16, background:C.gold, border:"none", color:C.dark, padding:"10px 24px", fontSize:14, fontWeight:"bold" })}>Browse Menu</button>
+            </div>
+          ) : (
+            <>
+              {pendingOrders.length > 0 && (
+                <div style={{ marginBottom:20 }}>
+                  <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>🟡 Being Prepared</div>
+                  {pendingOrders.map(order => (
+                    <div key={order.id} style={{ background:C.panel, border:`1.5px solid ${C.gold}`, borderRadius:12, padding:14, marginBottom:10 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                        <span style={{ fontSize:12, color:C.muted }}>{order.time}</span>
+                        <span style={{ background:"#3d2a00", color:C.gold, borderRadius:6, padding:"2px 10px", fontSize:11, fontWeight:"bold" }}>🍳 Preparing...</span>
+                      </div>
+                      {order.items.map(item => (
+                        <div key={item.id} style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:4 }}>
+                          <span>{item.emoji || "🍽️"} {item.name}</span>
+                          <span style={{ color:C.gold }}>×{item.qty}</span>
+                        </div>
+                      ))}
+                      <div style={{ borderTop:`1px solid ${C.border}`, marginTop:8, paddingTop:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                        <span style={{ color:C.goldLight, fontWeight:"bold" }}>RM {order.total.toFixed(2)}</span>
+                        <button onClick={() => cancelOrder(order.id)} disabled={cancelling===order.id}
+                          style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"5px 12px", fontSize:12 })}>
+                          {cancelling===order.id ? "..." : "❌ Cancel"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {doneOrders.length > 0 && (
+                <div>
+                  <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>✅ Served & Complete</div>
+                  {doneOrders.map(order => (
+                    <div key={order.id} style={{ background:"#1a2c1a", border:"1px solid #3a6a3a", borderRadius:12, padding:14, marginBottom:10 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                        <span style={{ fontSize:12, color:C.muted }}>{order.time}</span>
+                        <span style={{ background:"#1a3a1a", color:"#5aaa5a", borderRadius:6, padding:"2px 10px", fontSize:11, fontWeight:"bold" }}>✅ Served!</span>
+                      </div>
+                      {order.items.map(item => (
+                        <div key={item.id} style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:4, color:C.muted }}>
+                          <span>{item.emoji || "🍽️"} {item.name}</span>
+                          <span>×{item.qty}</span>
+                        </div>
+                      ))}
+                      <div style={{ borderTop:`1px solid #2d4a2d`, marginTop:8, paddingTop:8 }}>
+                        <span style={{ color:"#5aaa5a", fontWeight:"bold" }}>RM {order.total.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button onClick={() => setView("menu")} style={btn({ width:"100%", marginTop:10, background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:"12px 0", fontSize:14 })}>
+                + Add More Items
+              </button>
+            </>
+          )}
         </div>
       )}
 
+      {/* MENU VIEW */}
       {view === "menu" && (
         <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
@@ -422,7 +504,7 @@ function TabletScreen({ tableNo, goHome }) {
             ) : currentMenuItems.length === 0 ? (
               <div style={{ color:C.muted, textAlign:"center", padding:40 }}>No items yet</div>
             ) : (
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:8 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                 {currentMenuItems.map(item => {
                   const qty = cart[item.id]?.qty || 0;
                   const soldOut = item.is_available === false;
@@ -480,7 +562,7 @@ function TabletScreen({ tableNo, goHome }) {
                   <div style={{ fontSize:11, color:C.muted }}>Total (incl. 6% tax)</div>
                   <div style={{ fontSize:16, color:C.goldLight, fontWeight:"bold" }}>RM {total.toFixed(2)}</div>
                 </div>
-                <button onClick={placeOrder} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 20px", fontSize:14, fontWeight:"bold", borderRadius:10 })}>
+                <button onClick={async () => { await placeOrder(); setView("orders"); }} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 20px", fontSize:14, fontWeight:"bold", borderRadius:10 })}>
                   Place Order ✓
                 </button>
               </div>
