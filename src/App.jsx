@@ -390,7 +390,7 @@ function TabletScreen({ tableNo, goHome }) {
       const { data } = await supabase.from("orders")
         .select("*")
         .eq("table_no", tableNo)
-        .not("status", "eq", "cancelled")
+        .not("status", "in", '("cancelled","paid")')
         .order("created_at", { ascending:true });
       setMyOrders(data || []);
     };
@@ -746,10 +746,9 @@ function KitchenScreen({ goHome }) {
   const markDone      = (id) => supabase.from("orders").update({ status:"done" }).eq("id", id).then(fetchAll);
   const cancelOrder   = (id) => supabase.from("orders").update({ status:"cancelled" }).eq("id", id).then(fetchAll);
   const dismissWaiter = (t)  => supabase.from("waiter_calls").delete().eq("table_no", t).then(fetchAll);
-  const clearFinished = ()   => supabase.from("orders").delete().in("status", ["done","cancelled"]).then(fetchAll);
+  const clearFinished = ()   => supabase.from("orders").delete().in("status", ["cancelled"]).then(fetchAll);
   const clearTable = async (t) => {
-    await supabase.from("orders").delete().eq("table_no", t);
-    // Generate new session ID — invalidates old customer browsers
+    await supabase.from("orders").update({ status:"paid" }).eq("table_no", t).in("status", ["pending","done","cancelled"]);
     const newSession = Date.now().toString();
     await supabase.from("table_sessions").upsert({ table_no: parseInt(t), session_id: newSession, updated_at: new Date().toISOString() });
     fetchAll();
@@ -881,7 +880,7 @@ function SalesScreen({ goHome }) {
       setLoading(true);
       const { data } = await supabase.from("orders")
         .select("*")
-        .eq("status", "done")
+        .eq("status", "paid")
         .order("created_at", { ascending:true });
       // Filter by selected date in local time
       const filtered = (data || []).filter(o => {
@@ -1028,8 +1027,6 @@ function CashierScreen({ goHome }) {
     setOrders(o || []);
     setLoading(false);
   };
-
-  useEffect(() => {
     fetchAll();
     const ch = supabase.channel("cashier-ch")
       .on("postgres_changes", { event:"*", schema:"public", table:"orders" }, fetchAll)
@@ -1051,8 +1048,8 @@ function CashierScreen({ goHome }) {
 
   const markPaid = async (tableNo) => {
     setPaying(tableNo);
-    // Delete all orders for this table
-    await supabase.from("orders").delete().eq("table_no", tableNo);
+    // Mark all orders as paid (keeps them for sales history)
+    await supabase.from("orders").update({ status:"paid" }).eq("table_no", tableNo).in("status", ["pending","done"]);
     // Reset session so old customer browsers are blocked
     const newSession = Date.now().toString();
     await supabase.from("table_sessions").upsert({ table_no: parseInt(tableNo), session_id: newSession, updated_at: new Date().toISOString() });
@@ -1124,13 +1121,22 @@ function CashierScreen({ goHome }) {
                       </div>
                     </div>
 
-                    {/* Items */}
+                    {/* Items — show all with status */}
                     <div style={{ padding:"12px 16px" }}>
-                      {Object.values(merged).map((item,i) => (
-                        <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6, fontSize:13 }}>
-                          <span style={{ color:C.text }}>{item.emoji||"🍽️"} {item.name} <span style={{ color:C.muted }}>×{item.qty}</span></span>
-                          <span style={{ color:C.gold, fontWeight:"bold" }}>RM {(item.price*item.qty).toFixed(2)}</span>
-                        </div>
+                      {[...data.pending, ...data.done].map((order, oi) => (
+                        order.items.map((item, ii) => (
+                          <div key={`${oi}-${ii}`} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6, fontSize:13 }}>
+                            <span style={{ color: order.status==="done" ? C.muted : C.text }}>
+                              {item.emoji||"🍽️"} {item.name}
+                              <span style={{ color:C.muted }}> ×{item.qty}</span>
+                              {order.status==="done"
+                                ? <span style={{ color:"#5aaa5a", fontSize:10, marginLeft:6 }}>✅</span>
+                                : <span style={{ color:C.gold, fontSize:10, marginLeft:6 }}>🍳</span>
+                              }
+                            </span>
+                            <span style={{ color: order.status==="done" ? C.muted : C.gold, fontWeight:"bold" }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                          </div>
+                        ))
                       ))}
                       {specialRequests.length > 0 && (
                         <div style={{ background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>
