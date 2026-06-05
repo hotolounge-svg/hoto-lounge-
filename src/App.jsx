@@ -758,7 +758,7 @@ function KitchenScreen({ goHome }) {
   const prevWaiterCount = useRef(0);
 
   const playAlert = () => {
-        try {
+    try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       [0,150,300].forEach(delay => {
         const osc = ctx.createOscillator(); const gain = ctx.createGain();
@@ -1131,4 +1131,3 @@ function CashierScreen({ goHome }) {
     </div>
   );
 }
-
