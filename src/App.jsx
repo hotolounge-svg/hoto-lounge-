@@ -504,12 +504,8 @@ function TabletScreen({ tableNo, goHome }) {
                           <span style={{ color:C.gold }}>×{item.qty}</span>
                         </div>
                       ))}
-                      <div style={{ borderTop:`1px solid ${C.border}`, marginTop:8, paddingTop:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <div style={{ borderTop:`1px solid ${C.border}`, marginTop:8, paddingTop:8 }}>
                         <span style={{ color:C.goldLight, fontWeight:"bold" }}>RM {order.total.toFixed(2)}</span>
-                        <button onClick={() => cancelOrder(order.id)} disabled={cancelling===order.id}
-                          style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"5px 12px", fontSize:12 })}>
-                          {cancelling===order.id ? "..." : "❌ Cancel"}
-                        </button>
                       </div>
                     </div>
                   ))}
@@ -1121,28 +1117,34 @@ function CashierScreen({ goHome }) {
                       </div>
                     </div>
 
-                    {/* Items — show all with status */}
+                    {/* Items — show each order separately with status */}
                     <div style={{ padding:"12px 16px" }}>
-                      {[...data.pending, ...data.done].map((order, oi) => (
-                        order.items.map((item, ii) => (
-                          <div key={`${oi}-${ii}`} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6, fontSize:13 }}>
-                            <span style={{ color: order.status==="done" ? C.muted : C.text }}>
-                              {item.emoji||"🍽️"} {item.name}
-                              <span style={{ color:C.muted }}> ×{item.qty}</span>
-                              {order.status==="done"
-                                ? <span style={{ color:"#5aaa5a", fontSize:10, marginLeft:6 }}>✅</span>
-                                : <span style={{ color:C.gold, fontSize:10, marginLeft:6 }}>🍳</span>
-                              }
-                            </span>
-                            <span style={{ color: order.status==="done" ? C.muted : C.gold, fontWeight:"bold" }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                      {[...data.done, ...data.pending].map((order, oi) => (
+                        <div key={oi} style={{ marginBottom: oi < data.done.length + data.pending.length - 1 ? 10 : 0 }}>
+                          <div style={{ fontSize:10, color: order.status==="done"?"#5aaa5a":C.gold, fontWeight:"bold", marginBottom:4, letterSpacing:1, textTransform:"uppercase", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                            <span>{order.status==="done" ? "✅ Served" : "🍳 Preparing"} · {order.time}</span>
+                            {order.status === "pending" && (
+                              <button onClick={() => supabase.from("orders").update({ status:"cancelled" }).eq("id", order.id).then(fetchAll)}
+                                style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"2px 8px", fontSize:10 })}>
+                                ❌ Cancel
+                              </button>
+                            )}
                           </div>
-                        ))
-                      ))}
-                      {specialRequests.length > 0 && (
-                        <div style={{ background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>
-                          📝 {specialRequests.join(", ")}
+                          {order.items.map((item, ii) => (
+                            <div key={ii} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4, fontSize:13, paddingLeft:8 }}>
+                              <span style={{ color: order.status==="done" ? C.muted : C.text }}>
+                                {item.emoji||"🍽️"} {item.name} <span style={{ color:C.muted }}>×{item.qty}</span>
+                              </span>
+                              <span style={{ color: order.status==="done" ? C.muted : C.gold, fontWeight:"bold" }}>
+                                RM {(item.price*item.qty).toFixed(2)}
+                              </span>
+                            </div>
+                          ))}
+                          {order.special_request && (
+                            <div style={{ fontSize:11, color:C.gold, paddingLeft:8, marginTop:2 }}>📝 {order.special_request}</div>
+                          )}
                         </div>
-                      )}
+                      ))}
                     </div>
 
                     {/* Bill total */}
