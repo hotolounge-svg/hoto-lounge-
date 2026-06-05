@@ -323,7 +323,6 @@ function TabletScreen({ tableNo, goHome }) {
   const [cart, setCart] = useState({});
   const [view, setView] = useState("menu");
   const [waiterCalled, setWaiterCalled] = useState(false);
-  const [cancelling, setCancelling] = useState(null);
   const [menu, setMenu] = useState({});
   const [menuLoading, setMenuLoading] = useState(true);
   const [myOrders, setMyOrders] = useState([]);
@@ -426,12 +425,6 @@ function TabletScreen({ tableNo, goHome }) {
     setCart({});
     setSpecialRequest("");
     setView("orders");
-  };
-
-  const cancelOrder = async (id) => {
-    setCancelling(id);
-    await supabase.from("orders").delete().eq("id", id);
-    setCancelling(null);
   };
 
   const callWaiter = async () => {
@@ -810,12 +803,9 @@ function KitchenScreen({ goHome }) {
                   📝 {order.special_request}
                 </div>
               )}
-              <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+              <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <span style={{ color:C.muted, fontSize:13 }}>RM {order.total.toFixed(2)}</span>
-                <div style={{ display:"flex", gap:8 }}>
-                  <button onClick={() => cancelOrder(order.id)} style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"6px 12px", fontSize:12 })}>❌ Cancel</button>
-                  <button onClick={() => markDone(order.id)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"7px 14px", fontSize:13, fontWeight:"bold" })}>Done ✓</button>
-                </div>
+                <button onClick={() => markDone(order.id)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"7px 14px", fontSize:13, fontWeight:"bold" })}>Done ✓</button>
               </div>
             </div>
           ))}
