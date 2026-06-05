@@ -311,12 +311,52 @@ function AdminScreen({ goHome }) {
 function TabletScreen({ tableNo, goHome }) {
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
   const [cart, setCart] = useState({});
-  const [view, setView] = useState("menu"); // menu | orders
+  const [view, setView] = useState("menu");
   const [waiterCalled, setWaiterCalled] = useState(false);
   const [cancelling, setCancelling] = useState(null);
   const [menu, setMenu] = useState({});
   const [menuLoading, setMenuLoading] = useState(true);
   const [myOrders, setMyOrders] = useState([]);
+  const [sessionId, setSessionId] = useState(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  // Get or create session for this table
+  useEffect(() => {
+    const initSession = async () => {
+      const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
+      if (data) {
+        const stored = sessionStorage.getItem(`session_table_${tableNo}`);
+        if (stored && stored !== data.session_id) {
+          // Session changed — old customer
+          setSessionExpired(true);
+          return;
+        }
+        if (!stored) {
+          // New customer — save current session
+          sessionStorage.setItem(`session_table_${tableNo}`, data.session_id);
+        }
+        setSessionId(data.session_id);
+      } else {
+        // No session yet — create one
+        const newSession = Date.now().toString();
+        await supabase.from("table_sessions").upsert({ table_no: tableNo, session_id: newSession, updated_at: new Date().toISOString() });
+        sessionStorage.setItem(`session_table_${tableNo}`, newSession);
+        setSessionId(newSession);
+      }
+    };
+    initSession();
+
+    // Listen for session changes (table cleared)
+    const ch = supabase.channel(`session-${tableNo}`)
+      .on("postgres_changes", { event:"*", schema:"public", table:"table_sessions", filter:`table_no=eq.${tableNo}` }, (payload) => {
+        const stored = sessionStorage.getItem(`session_table_${tableNo}`);
+        if (payload.new?.session_id && stored && payload.new.session_id !== stored) {
+          setSessionExpired(true);
+        }
+      })
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [tableNo]);
 
   // Fetch menu
   useEffect(() => {
@@ -391,6 +431,16 @@ function TabletScreen({ tableNo, goHome }) {
   const doneOrders = myOrders.filter(o => o.status === "done");
   const currentMenuItems = menu[activeCategory] || [];
   const hasOrders = myOrders.length > 0;
+
+  // Session expired screen
+  if (sessionExpired) return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:20, padding:24, textAlign:"center" }}>
+      <div style={{ fontSize:60 }}>🔒</div>
+      <div style={{ fontSize:22, color:C.goldLight, fontWeight:"bold" }}>Session Ended</div>
+      <div style={{ color:C.muted, fontSize:14, lineHeight:1.6 }}>This table has been reset for the next customer. Thank you for visiting {CAFE_NAME}! 😊</div>
+      <div style={{ marginTop:10, fontSize:13, color:C.border }}>Please ask staff if you need assistance.</div>
+    </div>
+  );
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden" }}>
@@ -629,10 +679,24 @@ function KitchenScreen({ goHome }) {
   const cancelOrder   = (id) => supabase.from("orders").update({ status:"cancelled" }).eq("id", id).then(fetchAll);
   const dismissWaiter = (t)  => supabase.from("waiter_calls").delete().eq("table_no", t).then(fetchAll);
   const clearFinished = ()   => supabase.from("orders").delete().in("status", ["done","cancelled"]).then(fetchAll);
+  const clearTable = async (t) => {
+    await supabase.from("orders").delete().eq("table_no", t);
+    // Generate new session ID — invalidates old customer browsers
+    const newSession = Date.now().toString();
+    await supabase.from("table_sessions").upsert({ table_no: parseInt(t), session_id: newSession, updated_at: new Date().toISOString() });
+    fetchAll();
+  };
 
   const pending   = orders.filter(o => o.status === "pending");
   const done      = orders.filter(o => o.status === "done");
   const cancelled = orders.filter(o => o.status === "cancelled");
+
+  // Group done orders by table for bill summary
+  const doneByTable = {};
+  done.forEach(o => {
+    if (!doneByTable[o.table_no]) doneByTable[o.table_no] = [];
+    doneByTable[o.table_no].push(o);
+  });
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
@@ -696,15 +760,33 @@ function KitchenScreen({ goHome }) {
             ))}
           </div>
         </>}
-        {done.length > 0 && <>
-          <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>✅ Completed ({done.length})</div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(220px,1fr))", gap:10 }}>
-            {done.map(o => (
-              <div key={o.id} style={{ background:"#1a2c1a", border:"1px solid #2d4a2d", borderRadius:12, padding:12, opacity:0.7 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#5aaa5a", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
-                {o.items.map(item => <div key={item.id} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji || "🍽️"} {item.name} ×{item.qty}</div>)}
-              </div>
-            ))}
+
+        {/* Clear Table section - grouped by table */}
+        {Object.keys(doneByTable).length > 0 && <>
+          <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10, marginTop:10 }}>💳 Ready to Clear Table</div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(240px,1fr))", gap:12 }}>
+            {Object.entries(doneByTable).map(([tableNum, tableOrders]) => {
+              const tableTotal = tableOrders.reduce((s,o) => s + o.total, 0);
+              const allItems = tableOrders.flatMap(o => o.items);
+              return (
+                <div key={tableNum} style={{ background:"#1a2c1a", border:"1.5px solid #3a6a3a", borderRadius:14, padding:16 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                    <span style={{ fontSize:18, fontWeight:"bold", color:"#5aaa5a" }}>Table {tableNum}</span>
+                    <span style={{ fontSize:14, color:C.goldLight, fontWeight:"bold" }}>RM {tableTotal.toFixed(2)}</span>
+                  </div>
+                  {allItems.map((item, i) => (
+                    <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:C.muted, marginBottom:3 }}>
+                      <span>{item.emoji || "🍽️"} {item.name}</span>
+                      <span>×{item.qty}</span>
+                    </div>
+                  ))}
+                  <button onClick={() => { if(confirm(`Clear Table ${tableNum}? This will reset the table for the next customer.`)) clearTable(tableNum); }}
+                    style={btn({ width:"100%", marginTop:12, background:"linear-gradient(135deg,#2d6a2d,#1a4a1a)", border:"1px solid #5aaa5a", color:"#aaffaa", padding:"10px 0", fontSize:13, fontWeight:"bold" })}>
+                    ✅ Paid — Clear Table {tableNum}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </>}
       </div>
