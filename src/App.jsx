@@ -38,6 +38,7 @@ export default function App() {
       {screen === "kitchen" && <KitchenScreen goHome={() => setScreen("home")} />}
       {screen === "qrcodes" && <QRScreen      goHome={() => setScreen("home")} />}
       {screen === "admin"   && <AdminScreen   goHome={() => setScreen("home")} />}
+      {screen === "sales"   && <SalesScreen   goHome={() => setScreen("home")} />}
     </div>
   );
 }
@@ -74,6 +75,10 @@ function HomeScreen({ setScreen, setTableNo }) {
         <button onClick={() => setScreen("admin")}
           style={btn({ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:12, fontSize:13 })}>
           ⚙️ Admin — Manage Menu
+        </button>
+        <button onClick={() => setScreen("sales")}
+          style={btn({ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:12, fontSize:13 })}>
+          💰 Daily Sales Summary
         </button>
       </div>
     </div>
@@ -319,6 +324,7 @@ function TabletScreen({ tableNo, goHome }) {
   const [myOrders, setMyOrders] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [specialRequest, setSpecialRequest] = useState("");
 
   // Get or create session for this table
   useEffect(() => {
@@ -409,9 +415,11 @@ function TabletScreen({ tableNo, goHome }) {
     const { data } = await supabase.from("orders").insert({
       table_no: tableNo, items: cartItems,
       subtotal, tax, total, status:"pending",
+      special_request: specialRequest.trim() || null,
       time: new Date().toLocaleTimeString("en-MY", { hour:"2-digit", minute:"2-digit" }),
     }).select().single();
     setCart({});
+    setSpecialRequest("");
     setView("orders");
   };
 
@@ -608,13 +616,21 @@ function TabletScreen({ tableNo, goHome }) {
               </div>
               {/* Total + button */}
               <div style={{ padding:"8px 12px", borderTop:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
-                <div>
-                  <div style={{ fontSize:11, color:C.muted }}>Total (incl. 6% tax)</div>
-                  <div style={{ fontSize:16, color:C.goldLight, fontWeight:"bold" }}>RM {total.toFixed(2)}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Special Request (optional)</div>
+                  <input value={specialRequest} onChange={e => setSpecialRequest(e.target.value)}
+                    placeholder="e.g. no sugar, extra ice..."
+                    style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"6px 10px", borderRadius:6, fontSize:12, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:8 }} />
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div>
+                      <div style={{ fontSize:11, color:C.muted }}>Total (incl. 6% tax)</div>
+                      <div style={{ fontSize:16, color:C.goldLight, fontWeight:"bold" }}>RM {total.toFixed(2)}</div>
+                    </div>
+                    <button onClick={async () => { await placeOrder(); }} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 20px", fontSize:14, fontWeight:"bold", borderRadius:10 })}>
+                      Place Order ✓
+                    </button>
+                  </div>
                 </div>
-                <button onClick={async () => { await placeOrder(); setView("orders"); }} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 20px", fontSize:14, fontWeight:"bold", borderRadius:10 })}>
-                  Place Order ✓
-                </button>
               </div>
             </div>
           )}
@@ -660,11 +676,35 @@ function QRScreen({ goHome }) {
 function KitchenScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
   const [waiterCalls, setWaiterCalls] = useState([]);
+  const [soundOn, setSoundOn] = useState(true);
+  const prevPendingCount = useRef(0);
+
+  const playAlert = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 150, 300].forEach(delay => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        osc.type = "sine";
+        gain.gain.setValueAtTime(0.4, ctx.currentTime + delay/1000);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay/1000 + 0.3);
+        osc.start(ctx.currentTime + delay/1000);
+        osc.stop(ctx.currentTime + delay/1000 + 0.3);
+      });
+    } catch(e) {}
+  };
 
   const fetchAll = async () => {
     const { data:o } = await supabase.from("orders").select("*").order("created_at", { ascending:true });
     const { data:w } = await supabase.from("waiter_calls").select("*");
-    setOrders(o || []);
+    const newOrders = o || [];
+    const newPending = newOrders.filter(x => x.status === "pending").length;
+    if (soundOn && newPending > prevPendingCount.current) playAlert();
+    prevPendingCount.current = newPending;
+    setOrders(newOrders);
     setWaiterCalls(w || []);
   };
 
@@ -706,6 +746,9 @@ function KitchenScreen({ goHome }) {
           <div style={{ fontSize:11, color:"#ff4444" }}>🔴 Live — updates instantly</div>
         </div>
         <div style={{ display:"flex", gap:10 }}>
+          <button onClick={() => setSoundOn(s => !s)} style={btn({ background: soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"7px 12px", fontSize:12 })}>
+            {soundOn ? "🔔 Sound On" : "🔕 Sound Off"}
+          </button>
           {(done.length > 0 || cancelled.length > 0) && <button onClick={clearFinished} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 12px", fontSize:12 })}>Clear Finished</button>}
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 10px", fontSize:12 })}>✕</button>
         </div>
@@ -739,6 +782,11 @@ function KitchenScreen({ goHome }) {
                   <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                 </div>
               ))}
+              {order.special_request && (
+                <div style={{ background:"#2a1a00", border:"1px solid #c8973a44", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>
+                  📝 {order.special_request}
+                </div>
+              )}
               <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
                 <span style={{ color:C.muted, fontSize:13 }}>RM {order.total.toFixed(2)}</span>
                 <div style={{ display:"flex", gap:8 }}>
@@ -788,6 +836,147 @@ function KitchenScreen({ goHome }) {
               );
             })}
           </div>
+        </>}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+function SalesScreen({ goHome }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+
+  useEffect(() => {
+    const fetchSales = async () => {
+      setLoading(true);
+      const start = `${selectedDate}T00:00:00`;
+      const end   = `${selectedDate}T23:59:59`;
+      const { data } = await supabase.from("orders")
+        .select("*")
+        .eq("status", "done")
+        .gte("created_at", start)
+        .lte("created_at", end)
+        .order("created_at", { ascending:true });
+      setOrders(data || []);
+      setLoading(false);
+    };
+    fetchSales();
+  }, [selectedDate]);
+
+  const totalRevenue = orders.reduce((s,o) => s + o.total, 0);
+  const totalTax     = orders.reduce((s,o) => s + o.tax, 0);
+  const totalOrders  = orders.length;
+
+  // Top selling items
+  const itemCount = {};
+  orders.forEach(o => {
+    o.items.forEach(item => {
+      if (!itemCount[item.name]) itemCount[item.name] = { name:item.name, emoji:item.emoji||"🍽️", qty:0, revenue:0 };
+      itemCount[item.name].qty += item.qty;
+      itemCount[item.name].revenue += item.price * item.qty;
+    });
+  });
+  const topItems = Object.values(itemCount).sort((a,b) => b.qty - a.qty);
+
+  // Sales by table
+  const byTable = {};
+  orders.forEach(o => {
+    if (!byTable[o.table_no]) byTable[o.table_no] = { count:0, total:0 };
+    byTable[o.table_no].count++;
+    byTable[o.table_no].total += o.total;
+  });
+
+  return (
+    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
+      <div style={{ background:C.panel, borderBottom:`2px solid ${C.gold}`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold" }}>💰 Daily Sales Summary</div>
+        <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
+      </div>
+
+      <div style={{ padding:16, overflowY:"auto", flex:1 }}>
+        {/* Date picker */}
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+          <div style={{ fontSize:13, color:C.muted }}>Date:</div>
+          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+            style={{ background:C.panel, border:`1px solid ${C.gold}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+        </div>
+
+        {loading ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>Loading...</div> : <>
+
+          {/* Summary cards */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px,1fr))", gap:12, marginBottom:24 }}>
+            <div style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:12, padding:16, textAlign:"center" }}>
+              <div style={{ fontSize:28, color:C.goldLight, fontWeight:"bold" }}>RM {totalRevenue.toFixed(2)}</div>
+              <div style={{ fontSize:12, color:C.muted, marginTop:4 }}>Total Revenue</div>
+            </div>
+            <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:12, padding:16, textAlign:"center" }}>
+              <div style={{ fontSize:28, color:C.goldLight, fontWeight:"bold" }}>{totalOrders}</div>
+              <div style={{ fontSize:12, color:C.muted, marginTop:4 }}>Orders Completed</div>
+            </div>
+            <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:12, padding:16, textAlign:"center" }}>
+              <div style={{ fontSize:28, color:C.goldLight, fontWeight:"bold" }}>RM {totalTax.toFixed(2)}</div>
+              <div style={{ fontSize:12, color:C.muted, marginTop:4 }}>Tax Collected (6%)</div>
+            </div>
+            <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:12, padding:16, textAlign:"center" }}>
+              <div style={{ fontSize:28, color:C.goldLight, fontWeight:"bold" }}>RM {totalOrders > 0 ? (totalRevenue/totalOrders).toFixed(2) : "0.00"}</div>
+              <div style={{ fontSize:12, color:C.muted, marginTop:4 }}>Avg Order Value</div>
+            </div>
+          </div>
+
+          {orders.length === 0 ? (
+            <div style={{ color:C.muted, textAlign:"center", padding:40 }}>No completed orders for this date</div>
+          ) : <>
+            {/* Top selling items */}
+            <div style={{ fontSize:13, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>🏆 Top Selling Items</div>
+            <div style={{ background:C.panel, borderRadius:12, overflow:"hidden", marginBottom:24 }}>
+              {topItems.map((item, i) => (
+                <div key={item.name} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 16px", borderBottom:i<topItems.length-1?`1px solid ${C.border}`:"none" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ fontSize:18, minWidth:24, textAlign:"center" }}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":"  "}</span>
+                    <span style={{ fontSize:13 }}>{item.emoji} {item.name}</span>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:13, color:C.goldLight, fontWeight:"bold" }}>{item.qty} sold</div>
+                    <div style={{ fontSize:11, color:C.muted }}>RM {item.revenue.toFixed(2)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Sales by table */}
+            <div style={{ fontSize:13, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>🪑 Sales by Table</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(130px,1fr))", gap:10, marginBottom:24 }}>
+              {Object.entries(byTable).sort((a,b) => b[1].total - a[1].total).map(([t, data]) => (
+                <div key={t} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:10, padding:12, textAlign:"center" }}>
+                  <div style={{ fontSize:14, color:C.goldLight, fontWeight:"bold", marginBottom:4 }}>Table {t}</div>
+                  <div style={{ fontSize:13, color:C.gold, fontWeight:"bold" }}>RM {data.total.toFixed(2)}</div>
+                  <div style={{ fontSize:11, color:C.muted }}>{data.count} order{data.count>1?"s":""}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Order list */}
+            <div style={{ fontSize:13, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>📋 All Orders</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {orders.map(order => (
+                <div key={order.id} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:10, padding:12 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                    <span style={{ color:C.goldLight, fontWeight:"bold" }}>Table {order.table_no}</span>
+                    <span style={{ fontSize:12, color:C.muted }}>{order.time}</span>
+                  </div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
+                    {order.items.map((item,i) => (
+                      <span key={i} style={{ background:"#241508", borderRadius:4, padding:"2px 8px", fontSize:11, color:C.muted }}>{item.emoji||"🍽️"} {item.name} ×{item.qty}</span>
+                    ))}
+                  </div>
+                  {order.special_request && <div style={{ fontSize:11, color:C.gold, marginBottom:4 }}>📝 {order.special_request}</div>}
+                  <div style={{ fontSize:13, color:C.gold, fontWeight:"bold", textAlign:"right" }}>RM {order.total.toFixed(2)}</div>
+                </div>
+              ))}
+            </div>
+          </>}
         </>}
       </div>
     </div>
