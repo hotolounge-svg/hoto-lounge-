@@ -33,12 +33,13 @@ export default function App() {
 
   return (
     <div style={{ fontFamily:"Georgia,serif", background:C.bg, minHeight:"100vh", color:C.text }}>
-      {screen === "home"    && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} />}
-      {screen === "tablet"  && <TabletScreen  tableNo={tableNo} goHome={() => setScreen("home")} />}
-      {screen === "kitchen" && <KitchenScreen goHome={() => setScreen("home")} />}
-      {screen === "qrcodes" && <QRScreen      goHome={() => setScreen("home")} />}
-      {screen === "admin"   && <AdminScreen   goHome={() => setScreen("home")} />}
-      {screen === "sales"   && <SalesScreen   goHome={() => setScreen("home")} />}
+      {screen === "home"     && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} />}
+      {screen === "tablet"   && <TabletScreen  tableNo={tableNo} goHome={() => setScreen("home")} />}
+      {screen === "kitchen"  && <KitchenScreen goHome={() => setScreen("home")} />}
+      {screen === "qrcodes"  && <QRScreen      goHome={() => setScreen("home")} />}
+      {screen === "admin"    && <AdminScreen   goHome={() => setScreen("home")} />}
+      {screen === "sales"    && <SalesScreen   goHome={() => setScreen("home")} />}
+      {screen === "cashier"  && <CashierScreen goHome={() => setScreen("home")} />}
     </div>
   );
 }
@@ -67,6 +68,10 @@ function HomeScreen({ setScreen, setTableNo }) {
         <button onClick={() => setScreen("kitchen")}
           style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:14, fontSize:16, fontWeight:"bold" })}>
           🍳 Kitchen / Orders Screen
+        </button>
+        <button onClick={() => setScreen("cashier")}
+          style={btn({ width:"100%", background:`linear-gradient(135deg,#2d6a2d,#1a4a1a)`, border:"none", color:"#aaffaa", padding:14, fontSize:16, fontWeight:"bold" })}>
+          💳 Cashier Screen
         </button>
         <button onClick={() => setScreen("qrcodes")}
           style={btn({ width:"100%", background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:14, fontSize:15 })}>
@@ -678,6 +683,7 @@ function KitchenScreen({ goHome }) {
   const [waiterCalls, setWaiterCalls] = useState([]);
   const [soundOn, setSoundOn] = useState(true);
   const prevPendingCount = useRef(0);
+  const prevWaiterCount = useRef(0);
 
   const playAlert = () => {
     try {
@@ -697,15 +703,37 @@ function KitchenScreen({ goHome }) {
     } catch(e) {}
   };
 
+  const playWaiterAlert = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Urgent double bell — lower pitch, longer
+      [0, 200, 400, 600].forEach((delay, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = i % 2 === 0 ? 660 : 550;
+        osc.type = "triangle";
+        gain.gain.setValueAtTime(0.5, ctx.currentTime + delay/1000);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay/1000 + 0.5);
+        osc.start(ctx.currentTime + delay/1000);
+        osc.stop(ctx.currentTime + delay/1000 + 0.5);
+      });
+    } catch(e) {}
+  };
+
   const fetchAll = async () => {
     const { data:o } = await supabase.from("orders").select("*").order("created_at", { ascending:true });
     const { data:w } = await supabase.from("waiter_calls").select("*");
     const newOrders = o || [];
+    const newWaiters = w || [];
     const newPending = newOrders.filter(x => x.status === "pending").length;
     if (soundOn && newPending > prevPendingCount.current) playAlert();
+    if (soundOn && newWaiters.length > prevWaiterCount.current) playWaiterAlert();
     prevPendingCount.current = newPending;
+    prevWaiterCount.current = newWaiters.length;
     setOrders(newOrders);
-    setWaiterCalls(w || []);
+    setWaiterCalls(newWaiters);
   };
 
   useEffect(() => {
@@ -851,15 +879,16 @@ function SalesScreen({ goHome }) {
   useEffect(() => {
     const fetchSales = async () => {
       setLoading(true);
-      const start = `${selectedDate}T00:00:00`;
-      const end   = `${selectedDate}T23:59:59`;
       const { data } = await supabase.from("orders")
         .select("*")
         .eq("status", "done")
-        .gte("created_at", start)
-        .lte("created_at", end)
         .order("created_at", { ascending:true });
-      setOrders(data || []);
+      // Filter by selected date in local time
+      const filtered = (data || []).filter(o => {
+        const orderDate = new Date(o.created_at).toLocaleDateString("en-CA"); // YYYY-MM-DD
+        return orderDate === selectedDate;
+      });
+      setOrders(filtered);
       setLoading(false);
     };
     fetchSales();
@@ -978,6 +1007,170 @@ function SalesScreen({ goHome }) {
             </div>
           </>}
         </>}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+function CashierScreen({ goHome }) {
+  const [orders, setOrders] = useState([]);
+  const [sessions, setSessions] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState(null);
+
+  const fetchAll = async () => {
+    setLoading(true);
+    const { data:o } = await supabase.from("orders")
+      .select("*")
+      .in("status", ["pending","done"])
+      .order("created_at", { ascending:true });
+    setOrders(o || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchAll();
+    const ch = supabase.channel("cashier-ch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"orders" }, fetchAll)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
+
+  // Group orders by table
+  const byTable = {};
+  orders.forEach(o => {
+    if (!byTable[o.table_no]) byTable[o.table_no] = { pending:[], done:[], total:0, subtotal:0, tax:0 };
+    byTable[o.table_no][o.status].push(o);
+    byTable[o.table_no].total    += o.total;
+    byTable[o.table_no].subtotal += o.subtotal;
+    byTable[o.table_no].tax      += o.tax;
+  });
+
+  const activeTables = Object.entries(byTable).sort((a,b) => parseInt(a[0]) - parseInt(b[0]));
+
+  const markPaid = async (tableNo) => {
+    setPaying(tableNo);
+    // Delete all orders for this table
+    await supabase.from("orders").delete().eq("table_no", tableNo);
+    // Reset session so old customer browsers are blocked
+    const newSession = Date.now().toString();
+    await supabase.from("table_sessions").upsert({ table_no: parseInt(tableNo), session_id: newSession, updated_at: new Date().toISOString() });
+    setPaying(null);
+    fetchAll();
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
+      {/* Header */}
+      <div style={{ background:C.panel, borderBottom:`2px solid #5aaa5a`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div>
+          <div style={{ fontSize:18, color:"#aaffaa", fontWeight:"bold" }}>💳 Cashier Screen</div>
+          <div style={{ fontSize:11, color:"#5aaa5a" }}>🔴 Live — updates instantly</div>
+        </div>
+        <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
+      </div>
+
+      <div style={{ flex:1, padding:16, overflowY:"auto" }}>
+        {loading ? (
+          <div style={{ color:C.muted, textAlign:"center", padding:40 }}>Loading...</div>
+        ) : activeTables.length === 0 ? (
+          <div style={{ textAlign:"center", color:C.muted, padding:60 }}>
+            <div style={{ fontSize:48, marginBottom:16 }}>✅</div>
+            <div style={{ fontSize:18, color:"#5aaa5a", fontWeight:"bold" }}>All Clear!</div>
+            <div style={{ fontSize:14, marginTop:8 }}>No active tables right now</div>
+          </div>
+        ) : (
+          <>
+            {/* Summary bar */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(140px,1fr))", gap:10, marginBottom:20 }}>
+              <div style={{ background:C.panel, border:`1px solid #5aaa5a`, borderRadius:10, padding:12, textAlign:"center" }}>
+                <div style={{ fontSize:22, color:"#aaffaa", fontWeight:"bold" }}>{activeTables.length}</div>
+                <div style={{ fontSize:11, color:C.muted }}>Active Tables</div>
+              </div>
+              <div style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:10, padding:12, textAlign:"center" }}>
+                <div style={{ fontSize:22, color:C.goldLight, fontWeight:"bold" }}>
+                  RM {activeTables.reduce((s,[,t]) => s + t.total, 0).toFixed(2)}
+                </div>
+                <div style={{ fontSize:11, color:C.muted }}>Total Outstanding</div>
+              </div>
+            </div>
+
+            {/* Table bills */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(280px,1fr))", gap:14 }}>
+              {activeTables.map(([tableNo, data]) => {
+                const allItems = [...data.pending, ...data.done].flatMap(o => o.items);
+                // Merge same items
+                const merged = {};
+                allItems.forEach(item => {
+                  if (!merged[item.name]) merged[item.name] = { ...item, qty:0 };
+                  merged[item.name].qty += item.qty;
+                });
+                const hasPending = data.pending.length > 0;
+                const specialRequests = [...data.pending, ...data.done]
+                  .filter(o => o.special_request)
+                  .map(o => o.special_request);
+
+                return (
+                  <div key={tableNo} style={{ background:C.panel, border:`2px solid ${hasPending?"#c8973a":"#5aaa5a"}`, borderRadius:14, overflow:"hidden" }}>
+                    {/* Table header */}
+                    <div style={{ background: hasPending?"#2c1a0e":"#1a2c1a", padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <div style={{ fontSize:20, fontWeight:"bold", color: hasPending?C.goldLight:"#aaffaa" }}>
+                        Table {tableNo}
+                      </div>
+                      <div style={{ display:"flex", gap:6 }}>
+                        {data.pending.length > 0 && <span style={{ background:"#3d2a00", color:C.gold, borderRadius:6, padding:"2px 8px", fontSize:11 }}>🍳 {data.pending.length} pending</span>}
+                        {data.done.length > 0 && <span style={{ background:"#1a3a1a", color:"#5aaa5a", borderRadius:6, padding:"2px 8px", fontSize:11 }}>✅ {data.done.length} done</span>}
+                      </div>
+                    </div>
+
+                    {/* Items */}
+                    <div style={{ padding:"12px 16px" }}>
+                      {Object.values(merged).map((item,i) => (
+                        <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6, fontSize:13 }}>
+                          <span style={{ color:C.text }}>{item.emoji||"🍽️"} {item.name} <span style={{ color:C.muted }}>×{item.qty}</span></span>
+                          <span style={{ color:C.gold, fontWeight:"bold" }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                        </div>
+                      ))}
+                      {specialRequests.length > 0 && (
+                        <div style={{ background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>
+                          📝 {specialRequests.join(", ")}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bill total */}
+                    <div style={{ background:"#0f0a04", padding:"10px 16px", borderTop:`1px solid ${C.border}` }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:C.muted, marginBottom:3 }}>
+                        <span>Subtotal</span><span>RM {data.subtotal.toFixed(2)}</span>
+                      </div>
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:C.muted, marginBottom:8 }}>
+                        <span>Tax (6%)</span><span>RM {data.tax.toFixed(2)}</span>
+                      </div>
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
+                        <span>TOTAL</span><span>RM {data.total.toFixed(2)}</span>
+                      </div>
+                      <button
+                        onClick={() => { if(confirm(`Table ${tableNo} paid RM ${data.total.toFixed(2)}? This will clear the table.`)) markPaid(tableNo); }}
+                        disabled={paying === tableNo || hasPending}
+                        style={btn({
+                          width:"100%",
+                          background: hasPending ? "#2a2a2a" : "linear-gradient(135deg,#2d6a2d,#1a4a1a)",
+                          border: `1px solid ${hasPending?"#444":"#5aaa5a"}`,
+                          color: hasPending ? "#666" : "#aaffaa",
+                          padding:"12px 0", fontSize:14, fontWeight:"bold",
+                          cursor: hasPending ? "not-allowed" : "pointer",
+                        })}>
+                        {paying === tableNo ? "Processing..." : hasPending ? "⏳ Waiting for kitchen..." : "✅ Mark as Paid & Clear Table"}
+                      </button>
+                      {hasPending && <div style={{ fontSize:11, color:C.muted, textAlign:"center", marginTop:6 }}>All orders must be served before payment</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
