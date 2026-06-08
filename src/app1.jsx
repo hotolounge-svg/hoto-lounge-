@@ -793,6 +793,7 @@ function CashierScreen({ goHome }) {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(null);
   const [soundOn, setSoundOn] = useState(true);
+  const [filterTab, setFilterTab] = useState("all");
   const prevDrinkCount = useRef(0);
   const prevWaiterCount = useRef(0);
 
@@ -854,7 +855,15 @@ function CashierScreen({ goHome }) {
     byTable[o.table_no][o.status].push(o);
     byTable[o.table_no].total+=o.total;
   });
-  const activeTables = Object.entries(byTable).sort((a,b) => parseInt(a[0])-parseInt(b[0]));
+  // Sort by most recent order activity first
+  const activeTables = Object.entries(byTable).sort((a,b) => {
+    const aLatest = Math.max(...[...a[1].pending,...a[1].done].map(o => new Date(o.created_at||0).getTime()));
+    const bLatest = Math.max(...[...b[1].pending,...b[1].done].map(o => new Date(o.created_at||0).getTime()));
+    return bLatest - aLatest;
+  });
+  const pendingTables = activeTables.filter(([,t]) => t.pending.length > 0);
+  const doneTables = activeTables.filter(([,t]) => t.pending.length === 0);
+  const displayTables = filterTab==="pending" ? pendingTables : filterTab==="done" ? doneTables : activeTables;
 
   const markPaid = async (tableNo) => {
     setPaying(tableNo);
@@ -893,6 +902,21 @@ function CashierScreen({ goHome }) {
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
         </div>
       </div>
+      {/* Filter tabs */}
+      <div style={{ background:C.panel, borderBottom:`1px solid ${C.border}`, padding:"0 16px", display:"flex", gap:0 }}>
+        {[
+          ["all", `All (${activeTables.length})`],
+          ["pending", `⏳ Pending (${pendingTables.length})`],
+          ["done", `✅ All Served (${doneTables.length})`],
+        ].map(([key, label]) => (
+          <button key={key} onClick={() => setFilterTab(key)}
+            style={btn({ background:"transparent", border:"none", borderBottom:filterTab===key?`3px solid ${key==="pending"?C.gold:"#5aaa5a"}`:"3px solid transparent",
+              color:filterTab===key?(key==="pending"?C.goldLight:"#aaffaa"):C.muted,
+              padding:"12px 18px", fontSize:13, fontWeight:filterTab===key?"bold":"normal", borderRadius:0 })}>
+            {label}
+          </button>
+        ))}
+      </div>
       <div style={{ flex:1, padding:16, overflowY:"auto" }}>
         {loading ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>Loading...</div>
           : (
@@ -910,7 +934,7 @@ function CashierScreen({ goHome }) {
                 </div>
               </div>
             )}
-            {activeTables.length===0 ? (
+            {displayTables.length===0 ? (
             <div style={{ textAlign:"center", color:C.muted, padding:60 }}>
               <div style={{ fontSize:48, marginBottom:16 }}>✅</div>
               <div style={{ fontSize:18, color:"#5aaa5a", fontWeight:"bold" }}>All Clear!</div>
@@ -929,7 +953,7 @@ function CashierScreen({ goHome }) {
                 </div>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(340px,1fr))", gap:14 }}>
-                {activeTables.map(([tableNo, data]) => {
+                {displayTables.map(([tableNo, data]) => {
                   const hasPending = data.pending.length>0;
                   const allOrders = [...data.done, ...data.pending];
                   const drinkOrders = allOrders.filter(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
@@ -937,7 +961,6 @@ function CashierScreen({ goHome }) {
 
                   return (
                     <div key={tableNo} style={{ background:C.panel, border:`2px solid ${hasPending?"#c8973a":"#5aaa5a"}`, borderRadius:14, overflow:"hidden" }}>
-
                       {/* Header */}
                       <div style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                         <div style={{ fontSize:20, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>Table {tableNo}</div>
@@ -946,10 +969,8 @@ function CashierScreen({ goHome }) {
                           {data.done.length>0 && <span style={{ background:"#1a3a1a", color:"#5aaa5a", borderRadius:6, padding:"3px 10px", fontSize:12 }}>✅ {data.done.length} done</span>}
                         </div>
                       </div>
-
                       {/* Split body */}
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", borderBottom:`1px solid ${C.border}`, minHeight:100 }}>
-
                         {/* LEFT — Drinks */}
                         <div style={{ padding:"12px 14px", borderRight:`2px solid ${C.border}` }}>
                           <div style={{ fontSize:11, color:"#5aaa5a", fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>☕ Drinks</div>
@@ -960,7 +981,6 @@ function CashierScreen({ goHome }) {
                                 const isPending = order.status==="pending";
                                 return (
                                   <div key={oi} style={{ marginBottom:10, paddingBottom:10, borderBottom: oi < drinkOrders.length-1 ? `2px solid #5a3a1a` : "none" }}>
-                                    {/* Time + action buttons */}
                                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                                       <span style={{ fontSize:12, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold" }}>{isPending?"⏳":"✅"} {order.time}</span>
                                       {isPending && (
@@ -972,7 +992,6 @@ function CashierScreen({ goHome }) {
                                         </div>
                                       )}
                                     </div>
-                                    {/* Drink items */}
                                     {drinkItems.map((item, ii) => (
                                       <div key={ii} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderTop:`1px solid #4a3a2a` }}>
                                         <span style={{ color:isPending?"#eee":"#5aaa5a", fontSize:14 }}>
@@ -982,18 +1001,14 @@ function CashierScreen({ goHome }) {
                                         <span style={{ color:"#5aaa5a", fontWeight:"bold", fontSize:13, whiteSpace:"nowrap", marginLeft:6 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                                       </div>
                                     ))}
-                                    {/* Special request per order */}
                                     {order.special_request && (
-                                      <div style={{ marginTop:7, fontSize:12, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"5px 9px" }}>
-                                        📝 {order.special_request}
-                                      </div>
+                                      <div style={{ marginTop:7, fontSize:12, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"5px 9px" }}>📝 {order.special_request}</div>
                                     )}
                                   </div>
                                 );
                               })
                           }
                         </div>
-
                         {/* RIGHT — Food */}
                         <div style={{ padding:"12px 14px", background:"#1a1208" }}>
                           <div style={{ fontSize:11, color:C.muted, fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>🍳 Food (Kitchen)</div>
@@ -1004,7 +1019,6 @@ function CashierScreen({ goHome }) {
                                 const isPending = order.status==="pending";
                                 return (
                                   <div key={oi} style={{ marginBottom:10, paddingBottom:10, borderBottom: oi < foodOrders.length-1 ? `2px solid #3a2a10` : "none" }}>
-                                    {/* Status + cancel */}
                                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                                       <span style={{ fontSize:12, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold" }}>{isPending?"⏳":"✅ Served"} {order.time}</span>
                                       {isPending && (
@@ -1012,7 +1026,6 @@ function CashierScreen({ goHome }) {
                                           style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"6px 12px", fontSize:13, fontWeight:"bold", minHeight:38 })}>✕ Cancel</button>
                                       )}
                                     </div>
-                                    {/* Food items */}
                                     {foodItems.map((item, ii) => (
                                       <div key={ii} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderTop:`1px solid #3a2a10` }}>
                                         <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:14 }}>
@@ -1022,11 +1035,8 @@ function CashierScreen({ goHome }) {
                                         <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:13, whiteSpace:"nowrap", marginLeft:6 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                                       </div>
                                     ))}
-                                    {/* Special request per food order */}
                                     {order.special_request && (
-                                      <div style={{ marginTop:7, fontSize:12, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"5px 9px" }}>
-                                        📝 {order.special_request}
-                                      </div>
+                                      <div style={{ marginTop:7, fontSize:12, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"5px 9px" }}>📝 {order.special_request}</div>
                                     )}
                                   </div>
                                 );
@@ -1034,7 +1044,6 @@ function CashierScreen({ goHome }) {
                           }
                         </div>
                       </div>
-
                       {/* Footer */}
                       <div style={{ background:"#0f0a04", padding:"12px 16px" }}>
                         <div style={{ display:"flex", justifyContent:"space-between", fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
