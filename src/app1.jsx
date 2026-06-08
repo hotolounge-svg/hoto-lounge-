@@ -323,7 +323,10 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const doneOrders = myOrders.filter(o => o.status==="done");
   const allMenuItems = Object.values(menu).flat();
   const currentMenuItems = searchQuery.trim()
-    ? allMenuItems.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    ? allMenuItems.filter(item => 
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.item_no && String(item.item_no).toLowerCase().includes(searchQuery.toLowerCase()))
+      )
     : (menu[activeCategory] || []);
   const hasOrders = myOrders.length > 0;
 
@@ -466,15 +469,14 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                         <div style={{ position:"absolute", top:8, right:8, background:"rgba(0,0,0,0.7)", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:13, fontWeight:"bold", zIndex:1 }}>
                           RM {parseFloat(item.price).toFixed(2)}
                         </div>
-                        {item.item_no && <div style={{ position:"absolute", top:8, left:8, background:T.brown, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>#{item.item_no}</div>}
-                        {soldOut && <div style={{ position:"absolute", top:soldOut&&item.item_no?36:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
+                        {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
                         {item.image_url
                           ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:130, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
                           : <div style={{ height:110, display:"flex", alignItems:"center", justifyContent:"center", fontSize:50, background:"#f9f9f9" }}>{item.emoji}</div>
                         }
                         <div style={{ padding:"10px 10px 12px" }}>
                           <div style={{ fontWeight:"bold", fontSize:14, marginBottom:8, color:T.text, lineHeight:1.3 }}>
-                            {item.name}
+                            {item.item_no && <span style={{ color:T.brown, marginRight:6 }}>{item.item_no}</span>}{item.name}
                           </div>
                           {soldOut ? (
                             <div style={{ textAlign:"center", color:T.red, fontSize:13, fontWeight:"bold", padding:"8px 0", background:"#fff0f0", borderRadius:8 }}>Sold Out</div>
