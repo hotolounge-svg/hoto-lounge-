@@ -461,7 +461,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             {menuLoading ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>Loading menu...</div>
               : currentMenuItems.length===0 ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>{searchQuery ? `No results for "${searchQuery}"` : "No items yet"}</div>
               : (
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(160px, 200px))", gap:10 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, maxWidth:500, margin:"0 auto", width:"100%" }}>
                   {currentMenuItems.map(item => {
                     const qty = cart[item.id]?.qty || 0;
                     const soldOut = item.is_available===false;
