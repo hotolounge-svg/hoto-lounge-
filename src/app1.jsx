@@ -916,23 +916,23 @@ function CashierScreen({ goHome }) {
                                 )}
                               </div>
                               {drinkItems.length>0 && (
-                                <div style={{ background:"#1a2c1a", borderRadius:6, padding:"6px 8px", marginBottom:4 }}>
-                                  <div style={{ fontSize:10, color:"#5aaa5a", marginBottom:4, fontWeight:"bold" }}>☕ DRINKS (prepare here)</div>
+                                <div style={{ background:"#0d2010", border:"1px solid #2d6a2d", borderRadius:8, padding:"8px 10px", marginBottom:6 }}>
+                                  <div style={{ fontSize:11, color:"#5aaa5a", marginBottom:6, fontWeight:"bold", letterSpacing:1 }}>☕ DRINKS — prepare here</div>
                                   {drinkItems.map((item,ii) => (
-                                    <div key={ii} style={{ display:"flex", justifyContent:"space-between", fontSize:13, paddingLeft:4 }}>
-                                      <span style={{ color:C.text }}>{item.emoji||"☕"} {item.name}</span>
-                                      <span style={{ color:"#5aaa5a", fontWeight:"bold" }}>×{item.qty} — RM {(item.price*item.qty).toFixed(2)}</span>
+                                    <div key={ii} style={{ display:"flex", justifyContent:"space-between", fontSize:14, padding:"3px 0", borderTop:ii>0?`1px solid #1a3a1a`:"none" }}>
+                                      <span style={{ color:"#eee" }}>{item.emoji||"☕"} {item.name} <span style={{ color:"#5aaa5a", fontWeight:"bold" }}>×{item.qty}</span></span>
+                                      <span style={{ color:"#5aaa5a", fontWeight:"bold" }}>RM {(item.price*item.qty).toFixed(2)}</span>
                                     </div>
                                   ))}
                                 </div>
                               )}
                               {foodItems.length>0 && (
-                                <div>
-                                  <div style={{ fontSize:10, color:C.muted, marginBottom:4 }}>🍳 Food (kitchen handles)</div>
+                                <div style={{ background:"#1a1208", border:"1px solid #3d2d1a", borderRadius:8, padding:"8px 10px", marginBottom:6 }}>
+                                  <div style={{ fontSize:11, color:"#a07840", marginBottom:6, fontWeight:"bold", letterSpacing:1 }}>🍳 FOOD — kitchen handles</div>
                                   {foodItems.map((item,ii) => (
-                                    <div key={ii} style={{ display:"flex", justifyContent:"space-between", fontSize:13, paddingLeft:4, color:C.muted }}>
-                                      <span>{item.emoji||"🍽️"} {item.name}</span>
-                                      <span>×{item.qty} — RM {(item.price*item.qty).toFixed(2)}</span>
+                                    <div key={ii} style={{ display:"flex", justifyContent:"space-between", fontSize:14, padding:"3px 0", borderTop:ii>0?`1px solid #2d1a0e`:"none" }}>
+                                      <span style={{ color:"#a07840" }}>{item.emoji||"🍽️"} {item.name} <span style={{ color:"#c8973a" }}>×{item.qty}</span></span>
+                                      <span style={{ color:"#a07840" }}>RM {(item.price*item.qty).toFixed(2)}</span>
                                     </div>
                                   ))}
                                 </div>
