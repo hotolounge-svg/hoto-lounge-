@@ -877,7 +877,22 @@ function CashierScreen({ goHome }) {
       </div>
       <div style={{ flex:1, padding:16, overflowY:"auto" }}>
         {loading ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>Loading...</div>
-          : activeTables.length===0 ? (
+          : (
+          <>
+            {waiterCalls.length > 0 && (
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:12, color:"#ff6b35", letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:"bold" }}>🔔 Waiter Called</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
+                  {waiterCalls.map(c => (
+                    <div key={c.table_no} style={{ background:"#3d1a0e", border:"1.5px solid #ff6b35", borderRadius:10, padding:"10px 16px", display:"flex", alignItems:"center", gap:12 }}>
+                      <div><div style={{ fontWeight:"bold", color:"#ff6b35", fontSize:15 }}>Table {c.table_no}</div><div style={{ fontSize:11, color:C.muted }}>{c.time}</div></div>
+                      <button onClick={() => dismissWaiter(c.table_no)} style={btn({ background:"#ff6b35", border:"none", color:"#fff", padding:"6px 12px", fontSize:12, fontWeight:"bold" })}>Done ✓</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {activeTables.length===0 ? (
             <div style={{ textAlign:"center", color:C.muted, padding:60 }}>
               <div style={{ fontSize:48, marginBottom:16 }}>✅</div>
               <div style={{ fontSize:18, color:"#5aaa5a", fontWeight:"bold" }}>All Clear!</div>
@@ -885,19 +900,6 @@ function CashierScreen({ goHome }) {
             </div>
           ) : (
             <>
-              {waiterCalls.length > 0 && (
-                <div style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:12, color:"#ff6b35", letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:"bold" }}>🔔 Waiter Called</div>
-                  <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
-                    {waiterCalls.map(c => (
-                      <div key={c.table_no} style={{ background:"#3d1a0e", border:"1.5px solid #ff6b35", borderRadius:10, padding:"10px 16px", display:"flex", alignItems:"center", gap:12 }}>
-                        <div><div style={{ fontWeight:"bold", color:"#ff6b35", fontSize:15 }}>Table {c.table_no}</div><div style={{ fontSize:11, color:C.muted }}>{c.time}</div></div>
-                        <button onClick={() => dismissWaiter(c.table_no)} style={btn({ background:"#ff6b35", border:"none", color:"#fff", padding:"6px 12px", fontSize:12, fontWeight:"bold" })}>Done ✓</button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(140px,1fr))", gap:10, marginBottom:20 }}>
                 <div style={{ background:C.panel, border:`1px solid #5aaa5a`, borderRadius:10, padding:12, textAlign:"center" }}>
                   <div style={{ fontSize:22, color:"#aaffaa", fontWeight:"bold" }}>{activeTables.length}</div>
@@ -981,6 +983,8 @@ function CashierScreen({ goHome }) {
               </div>
             </>
           )}
+          </>
+        )}
       </div>
     </div>
   );
