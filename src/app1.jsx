@@ -934,7 +934,6 @@ function CashierScreen({ goHome }) {
                   const allOrders = [...data.done, ...data.pending];
                   const drinkOrders = allOrders.filter(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
                   const foodOrders = allOrders.filter(o => o.items.some(i => FOOD_CATEGORIES.includes(i.category)));
-                  const drinkSpecialRequests = drinkOrders.filter(o => o.special_request).map(o => o.special_request);
 
                   return (
                     <div key={tableNo} style={{ background:C.panel, border:`2px solid ${hasPending?"#c8973a":"#5aaa5a"}`, borderRadius:14, overflow:"hidden" }}>
@@ -949,62 +948,63 @@ function CashierScreen({ goHome }) {
                       </div>
 
                       {/* Split body */}
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", borderBottom:`1px solid ${C.border}`, minHeight:120 }}>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", borderBottom:`1px solid ${C.border}`, minHeight:100 }}>
 
-                        {/* LEFT — Drinks (cashier prepares) */}
-                        <div style={{ padding:"12px 14px", borderRight:`1px solid ${C.border}` }}>
-                          <div style={{ fontSize:11, color:"#5aaa5a", fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:10 }}>☕ Drinks</div>
+                        {/* LEFT — Drinks */}
+                        <div style={{ padding:"12px 14px", borderRight:`2px solid ${C.border}` }}>
+                          <div style={{ fontSize:11, color:"#5aaa5a", fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>☕ Drinks</div>
                           {drinkOrders.length===0
                             ? <div style={{ fontSize:12, color:C.border, fontStyle:"italic" }}>None</div>
                             : drinkOrders.map((order, oi) => {
                                 const drinkItems = order.items.filter(i => DRINK_CATEGORIES.includes(i.category));
                                 const isPending = order.status==="pending";
                                 return (
-                                  <div key={oi} style={{ marginBottom: oi < drinkOrders.length-1 ? 12 : 0, paddingBottom: oi < drinkOrders.length-1 ? 12 : 0, borderBottom: oi < drinkOrders.length-1 ? `1px solid ${C.border}` : "none" }}>
-                                    {/* Status row + big action buttons */}
+                                  <div key={oi} style={{ marginBottom:10, paddingBottom:10, borderBottom: oi < drinkOrders.length-1 ? `2px solid #5a3a1a` : "none" }}>
+                                    {/* Time + action buttons */}
                                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                                       <span style={{ fontSize:12, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold" }}>{isPending?"⏳":"✅"} {order.time}</span>
                                       {isPending && (
                                         <div style={{ display:"flex", gap:6 }}>
                                           <button onClick={() => markOrderDone(order.id)}
-                                            style={btn({ background:"#2d6a2d", border:"none", color:"#aaffaa", padding:"8px 16px", fontSize:14, fontWeight:"bold", minHeight:42, minWidth:80 })}>✓ Done</button>
+                                            style={btn({ background:"#2d6a2d", border:"none", color:"#aaffaa", padding:"8px 14px", fontSize:13, fontWeight:"bold", minHeight:42 })}>✓ Done</button>
                                           <button onClick={() => cancelOrder(order.id)}
-                                            style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"8px 14px", fontSize:14, fontWeight:"bold", minHeight:42 })}>✕ Cancel</button>
+                                            style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"8px 12px", fontSize:13, fontWeight:"bold", minHeight:42 })}>✕ Cancel</button>
                                         </div>
                                       )}
                                     </div>
-                                    {/* Drink items with divider lines */}
+                                    {/* Drink items */}
                                     {drinkItems.map((item, ii) => (
-                                      <div key={ii} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderTop:`1px solid ${C.border}` }}>
+                                      <div key={ii} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderTop:`1px solid #4a3a2a` }}>
                                         <span style={{ color:isPending?"#eee":"#5aaa5a", fontSize:14 }}>
                                           {item.item_no && <span style={{ color:"#5aaa5a", fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}
                                           {item.name} <span style={{ fontWeight:"bold" }}>×{item.qty}</span>
                                         </span>
-                                        <span style={{ color:"#5aaa5a", fontWeight:"bold", fontSize:13, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                                        <span style={{ color:"#5aaa5a", fontWeight:"bold", fontSize:13, whiteSpace:"nowrap", marginLeft:6 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                                       </div>
                                     ))}
+                                    {/* Special request per order */}
+                                    {order.special_request && (
+                                      <div style={{ marginTop:7, fontSize:12, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"5px 9px" }}>
+                                        📝 {order.special_request}
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })
                           }
-                          {drinkSpecialRequests.length>0 && (
-                            <div style={{ marginTop:10, fontSize:12, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px" }}>
-                              📝 {drinkSpecialRequests.join(" · ")}
-                            </div>
-                          )}
                         </div>
 
-                        {/* RIGHT — Food (show status + cancel if pending) */}
+                        {/* RIGHT — Food */}
                         <div style={{ padding:"12px 14px", background:"#1a1208" }}>
-                          <div style={{ fontSize:11, color:C.muted, fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:10 }}>🍳 Food (Kitchen)</div>
+                          <div style={{ fontSize:11, color:C.muted, fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>🍳 Food (Kitchen)</div>
                           {foodOrders.length===0
                             ? <div style={{ fontSize:12, color:C.border, fontStyle:"italic" }}>None</div>
                             : foodOrders.map((order, oi) => {
                                 const foodItems = order.items.filter(i => FOOD_CATEGORIES.includes(i.category));
                                 const isPending = order.status==="pending";
                                 return (
-                                  <div key={oi} style={{ marginBottom: oi < foodOrders.length-1 ? 12 : 0, paddingBottom: oi < foodOrders.length-1 ? 12 : 0, borderBottom: oi < foodOrders.length-1 ? `1px solid #2d1a0e` : "none" }}>
-                                    {/* Status + cancel button */}
+                                  <div key={oi} style={{ marginBottom:10, paddingBottom:10, borderBottom: oi < foodOrders.length-1 ? `2px solid #3a2a10` : "none" }}>
+                                    {/* Status + cancel */}
                                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                                       <span style={{ fontSize:12, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold" }}>{isPending?"⏳":"✅ Served"} {order.time}</span>
                                       {isPending && (
@@ -1012,16 +1012,22 @@ function CashierScreen({ goHome }) {
                                           style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"6px 12px", fontSize:13, fontWeight:"bold", minHeight:38 })}>✕ Cancel</button>
                                       )}
                                     </div>
-                                    {/* Food items with divider lines */}
+                                    {/* Food items */}
                                     {foodItems.map((item, ii) => (
-                                      <div key={ii} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderTop:`1px solid #2d1a0e` }}>
+                                      <div key={ii} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderTop:`1px solid #3a2a10` }}>
                                         <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:14 }}>
                                           {item.item_no && <span style={{ color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}
                                           {item.name} <span style={{ color:isPending?C.gold:"#5aaa5a" }}>×{item.qty}</span>
                                         </span>
-                                        <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:13, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                                        <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:13, whiteSpace:"nowrap", marginLeft:6 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                                       </div>
                                     ))}
+                                    {/* Special request per food order */}
+                                    {order.special_request && (
+                                      <div style={{ marginTop:7, fontSize:12, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"5px 9px" }}>
+                                        📝 {order.special_request}
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })
