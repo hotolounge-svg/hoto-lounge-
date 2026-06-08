@@ -6,7 +6,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ADMIN_PASSWORD = "hotolounge2024";
-const TABLES = [1,2,3,4,5,6,7,8,9,10];
+const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 const CAFE_NAME = "HOTO LOUNGE";
 const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts"];
 const DRINK_CATEGORIES = ["Beverage"];
@@ -42,7 +42,7 @@ export default function App() {
   return (
     <div style={{ fontFamily:"Georgia,serif", background:C.bg, minHeight:"100vh", color:C.text }}>
       {screen === "home"    && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} />}
-      {screen === "tablet"  && <TabletScreen  tableNo={tableNo} goHome={() => setScreen("home")} />}
+      {screen === "tablet"  && <TabletScreen  tableNo={tableNo} isStaff={tableNo !== null && !window.location.search.includes("table=")} goHome={() => setScreen("home")} />}
       {screen === "kitchen" && <KitchenScreen goHome={() => setScreen("home")} />}
       {screen === "qrcodes" && <QRScreen      goHome={() => setScreen("home")} />}
       {screen === "admin"   && <AdminScreen   goHome={() => setScreen("home")} />}
@@ -239,7 +239,7 @@ function AdminScreen({ goHome }) {
   );
 }
 
-function TabletScreen({ tableNo, goHome }) {
+function TabletScreen({ tableNo, goHome, isStaff }) {
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
   const [cart, setCart] = useState({});
   const [view, setView] = useState("menu");
@@ -327,7 +327,7 @@ function TabletScreen({ tableNo, goHome }) {
     : (menu[activeCategory] || []);
   const hasOrders = myOrders.length > 0;
 
-  if (sessionExpired) return (
+  if (sessionExpired && !isStaff) return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:20, padding:24, textAlign:"center", background:T.bg }}>
       <div style={{ fontSize:70 }}>🔒</div>
       <div style={{ fontSize:26, color:T.brown, fontWeight:"bold" }}>Session Ended</div>
@@ -466,7 +466,8 @@ function TabletScreen({ tableNo, goHome }) {
                         <div style={{ position:"absolute", top:8, right:8, background:"rgba(0,0,0,0.7)", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:13, fontWeight:"bold", zIndex:1 }}>
                           RM {parseFloat(item.price).toFixed(2)}
                         </div>
-                        {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
+                        {item.item_no && <div style={{ position:"absolute", top:8, left:8, background:T.brown, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>#{item.item_no}</div>}
+                        {soldOut && <div style={{ position:"absolute", top:soldOut&&item.item_no?36:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
                         {item.image_url
                           ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:130, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
                           : <div style={{ height:110, display:"flex", alignItems:"center", justifyContent:"center", fontSize:50, background:"#f9f9f9" }}>{item.emoji}</div>
