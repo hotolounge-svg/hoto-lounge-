@@ -388,7 +388,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       </div>
                       {order.items.map((item,i) => (
                         <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:16, marginBottom:6 }}>
-                          <span style={{ color:T.text }}>{item.emoji||"🍽️"} {item.name}</span>
+                          <span style={{ color:T.text }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:T.brown, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
                           <span style={{ color:T.brown, fontWeight:"bold" }}>×{item.qty}</span>
                         </div>
                       ))}
@@ -410,7 +410,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       </div>
                       {order.items.map((item,i) => (
                         <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:16, marginBottom:6, color:T.muted }}>
-                          <span>{item.emoji||"🍽️"} {item.name}</span><span>×{item.qty}</span>
+                          <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:T.brown, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span><span>×{item.qty}</span>
                         </div>
                       ))}
                       <div style={{ borderTop:`1px solid ${T.green}`, marginTop:10, paddingTop:10 }}>
