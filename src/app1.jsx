@@ -772,7 +772,7 @@ function SalesScreen({ goHome }) {
             </div>
             <div style={{ fontSize:13, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>🪑 Sales by Table</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(130px,1fr))", gap:10, marginBottom:24 }}>
-              {Object.entries(byTable).sort((a,b) => b[1].total-a[1].total).map(([t,data]) => (
+              {Object.entries(byTable).sort((a,b) => parseInt(a[0])-parseInt(b[0])).map(([t,data]) => (
                 <div key={t} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:10, padding:12, textAlign:"center" }}>
                   <div style={{ fontSize:14, color:C.goldLight, fontWeight:"bold", marginBottom:4 }}>Table {t}</div>
                   <div style={{ fontSize:13, color:C.gold, fontWeight:"bold" }}>RM {data.total.toFixed(2)}</div>
