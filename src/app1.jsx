@@ -338,12 +338,15 @@ function TabletScreen({ tableNo, goHome }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden", background:T.bg, fontFamily:"Georgia,serif" }}>
       {/* Header */}
-      <div style={{ background:T.brown, padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-        <div>
-          <div style={{ fontSize:20, fontWeight:"bold", color:"#fff" }}>☕ {CAFE_NAME}</div>
-          <div style={{ fontSize:14, color:"#ffe099" }}>TABLE {tableNo}</div>
+      <div style={{ background:T.brown, padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <button onClick={goHome} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.4)", color:"#fff", borderRadius:8, padding:"6px 12px", fontSize:13 }}>← Back</button>
+          <div>
+            <div style={{ fontSize:18, fontWeight:"bold", color:"#fff" }}>☕ {CAFE_NAME}</div>
+            <div style={{ fontSize:13, color:"#ffe099" }}>TABLE {tableNo}</div>
+          </div>
         </div>
-        <button onClick={callWaiter} style={{ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:10, background:waiterCalled?"#2e7d32":"#fff", border:"none", color:waiterCalled?"#fff":T.brown, padding:"10px 16px", fontSize:15, fontWeight:"bold" }}>
+        <button onClick={callWaiter} style={{ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:10, background:waiterCalled?"#2e7d32":"#fff", border:"none", color:waiterCalled?"#fff":T.brown, padding:"10px 14px", fontSize:14, fontWeight:"bold" }}>
           {waiterCalled ? "✅ Coming!" : "🔔 Call Waiter"}
         </button>
       </div>
@@ -842,6 +845,11 @@ function CashierScreen({ goHome }) {
     fetchAll();
   };
 
+  const markOrderDone = async (orderId) => {
+    await supabase.from("orders").update({status:"done"}).eq("id",orderId);
+    fetchAll();
+  };
+
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
       <div style={{ background:C.panel, borderBottom:`2px solid #5aaa5a`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
@@ -898,7 +906,10 @@ function CashierScreen({ goHome }) {
                               <div style={{ fontSize:10, color:order.status==="done"?"#5aaa5a":C.gold, fontWeight:"bold", marginBottom:6, letterSpacing:1, textTransform:"uppercase", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                                 <span>{order.status==="done"?"✅ Served":"⏳ Pending"} · {order.time}</span>
                                 {order.status==="pending" && (
-                                  <button onClick={() => cancelOrder(order.id)} style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"2px 8px", fontSize:10 })}>❌ Cancel</button>
+                                  <div style={{ display:"flex", gap:6 }}>
+                                    <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#2d6a2d", border:"1px solid #5aaa5a", color:"#aaffaa", padding:"2px 10px", fontSize:10, fontWeight:"bold" })}>✓ Done</button>
+                                    <button onClick={() => cancelOrder(order.id)} style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"2px 8px", fontSize:10 })}>❌ Cancel</button>
+                                  </div>
                                 )}
                               </div>
                               {drinkItems.length>0 && (
