@@ -794,6 +794,7 @@ function CashierScreen({ goHome }) {
   const [paying, setPaying] = useState(null);
   const [soundOn, setSoundOn] = useState(true);
   const [filterTab, setFilterTab] = useState("all");
+  const [selectedTable, setSelectedTable] = useState(null);
   const prevDrinkCount = useRef(0);
   const prevWaiterCount = useRef(0);
 
@@ -855,7 +856,6 @@ function CashierScreen({ goHome }) {
     byTable[o.table_no][o.status].push(o);
     byTable[o.table_no].total+=o.total;
   });
-  // Sort by most recent order activity first
   const activeTables = Object.entries(byTable).sort((a,b) => {
     const aLatest = Math.max(...[...a[1].pending,...a[1].done].map(o => new Date(o.created_at||0).getTime()));
     const bLatest = Math.max(...[...b[1].pending,...b[1].done].map(o => new Date(o.created_at||0).getTime()));
@@ -863,7 +863,8 @@ function CashierScreen({ goHome }) {
   });
   const pendingTables = activeTables.filter(([,t]) => t.pending.length > 0);
   const doneTables = activeTables.filter(([,t]) => t.pending.length === 0);
-  const displayTables = filterTab==="pending" ? pendingTables : filterTab==="done" ? doneTables : activeTables;
+  const tabFiltered = filterTab==="pending" ? pendingTables : filterTab==="done" ? doneTables : activeTables;
+  const displayTables = selectedTable ? tabFiltered.filter(([t]) => String(t)===String(selectedTable)) : tabFiltered;
 
   const markPaid = async (tableNo) => {
     setPaying(tableNo);
@@ -902,14 +903,10 @@ function CashierScreen({ goHome }) {
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
         </div>
       </div>
-      {/* Filter tabs */}
+      {/* Tab filter */}
       <div style={{ background:C.panel, borderBottom:`1px solid ${C.border}`, padding:"0 16px", display:"flex", gap:0 }}>
-        {[
-          ["all", `All (${activeTables.length})`],
-          ["pending", `⏳ Pending (${pendingTables.length})`],
-          ["done", `✅ All Served (${doneTables.length})`],
-        ].map(([key, label]) => (
-          <button key={key} onClick={() => setFilterTab(key)}
+        {[["all",`All (${activeTables.length})`],["pending",`⏳ Pending (${pendingTables.length})`],["done",`✅ All Served (${doneTables.length})`]].map(([key,label]) => (
+          <button key={key} onClick={() => { setFilterTab(key); setSelectedTable(null); }}
             style={btn({ background:"transparent", border:"none", borderBottom:filterTab===key?`3px solid ${key==="pending"?C.gold:"#5aaa5a"}`:"3px solid transparent",
               color:filterTab===key?(key==="pending"?C.goldLight:"#aaffaa"):C.muted,
               padding:"12px 18px", fontSize:13, fontWeight:filterTab===key?"bold":"normal", borderRadius:0 })}>
@@ -917,6 +914,29 @@ function CashierScreen({ goHome }) {
           </button>
         ))}
       </div>
+      {/* Table number filter */}
+      {activeTables.length > 0 && (
+        <div style={{ background:"#110d06", borderBottom:`1px solid ${C.border}`, padding:"8px 16px", display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+          <span style={{ fontSize:11, color:C.muted, marginRight:4 }}>TABLE:</span>
+          <button onClick={() => setSelectedTable(null)}
+            style={btn({ background:selectedTable===null?"#3d2a00":"transparent", border:`1px solid ${selectedTable===null?C.gold:C.border}`, color:selectedTable===null?C.goldLight:C.muted, padding:"4px 12px", fontSize:12, fontWeight:selectedTable===null?"bold":"normal" })}>
+            All
+          </button>
+          {tabFiltered.map(([t, data]) => {
+            const hasPend = data.pending.length > 0;
+            const isSelected = String(selectedTable)===String(t);
+            return (
+              <button key={t} onClick={() => setSelectedTable(isSelected ? null : t)}
+                style={btn({ background:isSelected?(hasPend?"#3d2a00":"#1a3a1a"):"transparent",
+                  border:`1px solid ${isSelected?(hasPend?C.gold:"#5aaa5a"):C.border}`,
+                  color:isSelected?(hasPend?C.goldLight:"#aaffaa"):C.muted,
+                  padding:"4px 12px", fontSize:12, fontWeight:isSelected?"bold":"normal" })}>
+                T{t} {hasPend?"⏳":"✅"}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div style={{ flex:1, padding:16, overflowY:"auto" }}>
         {loading ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>Loading...</div>
           : (
@@ -958,7 +978,6 @@ function CashierScreen({ goHome }) {
                   const allOrders = [...data.done, ...data.pending];
                   const drinkOrders = allOrders.filter(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
                   const foodOrders = allOrders.filter(o => o.items.some(i => FOOD_CATEGORIES.includes(i.category)));
-
                   return (
                     <div key={tableNo} style={{ background:C.panel, border:`2px solid ${hasPending?"#c8973a":"#5aaa5a"}`, borderRadius:14, overflow:"hidden" }}>
                       {/* Header */}
@@ -985,10 +1004,8 @@ function CashierScreen({ goHome }) {
                                       <span style={{ fontSize:12, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold" }}>{isPending?"⏳":"✅"} {order.time}</span>
                                       {isPending && (
                                         <div style={{ display:"flex", gap:6 }}>
-                                          <button onClick={() => markOrderDone(order.id)}
-                                            style={btn({ background:"#2d6a2d", border:"none", color:"#aaffaa", padding:"8px 14px", fontSize:13, fontWeight:"bold", minHeight:42 })}>✓ Done</button>
-                                          <button onClick={() => cancelOrder(order.id)}
-                                            style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"8px 12px", fontSize:13, fontWeight:"bold", minHeight:42 })}>✕ Cancel</button>
+                                          <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#2d6a2d", border:"none", color:"#aaffaa", padding:"8px 14px", fontSize:13, fontWeight:"bold", minHeight:42 })}>✓ Done</button>
+                                          <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"8px 12px", fontSize:13, fontWeight:"bold", minHeight:42 })}>✕ Cancel</button>
                                         </div>
                                       )}
                                     </div>
@@ -1022,8 +1039,7 @@ function CashierScreen({ goHome }) {
                                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                                       <span style={{ fontSize:12, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold" }}>{isPending?"⏳":"✅ Served"} {order.time}</span>
                                       {isPending && (
-                                        <button onClick={() => cancelOrder(order.id)}
-                                          style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"6px 12px", fontSize:13, fontWeight:"bold", minHeight:38 })}>✕ Cancel</button>
+                                        <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"6px 12px", fontSize:13, fontWeight:"bold", minHeight:38 })}>✕ Cancel</button>
                                       )}
                                     </div>
                                     {foodItems.map((item, ii) => (
