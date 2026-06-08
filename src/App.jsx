@@ -6,7 +6,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ADMIN_PASSWORD = "hotolounge2024";
-const TABLES = [1,2,3,4,5,6,7,8,9,10];
+const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 const CAFE_NAME = "HOTO LOUNGE";
 const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts"];
 const DRINK_CATEGORIES = ["Beverage"];
@@ -42,7 +42,7 @@ export default function App() {
   return (
     <div style={{ fontFamily:"Georgia,serif", background:C.bg, minHeight:"100vh", color:C.text }}>
       {screen === "home"    && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} />}
-      {screen === "tablet"  && <TabletScreen  tableNo={tableNo} goHome={() => setScreen("home")} />}
+      {screen === "tablet"  && <TabletScreen  tableNo={tableNo} isStaff={tableNo !== null && !window.location.search.includes("table=")} goHome={() => setScreen("home")} />}
       {screen === "kitchen" && <KitchenScreen goHome={() => setScreen("home")} />}
       {screen === "qrcodes" && <QRScreen      goHome={() => setScreen("home")} />}
       {screen === "admin"   && <AdminScreen   goHome={() => setScreen("home")} />}
@@ -120,11 +120,13 @@ function AdminScreen({ goHome }) {
     setUploading(true);
     const path = `menu/${Date.now()}.${file.name.split(".").pop()}`;
     const { error } = await supabase.storage.from("menu-images").upload(path, file, { upsert:true });
-    if (!error) { const { data } = supabase.storage.from("menu-images").getPublicUrl(path); setForm(f => ({ ...f, image_url:data.publicUrl })); }
+    if (error) { alert("Upload failed: " + error.message); setUploading(false); return; }
+    const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
+    setForm(f => ({ ...f, image_url:data.publicUrl }));
     setUploading(false);
   };
   const handleSave = async () => {
-    const p = { item_no:parseInt(form.item_no), name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available };
+    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available };
     if (editItem) await supabase.from("menu_items").update(p).eq("id", editItem.id);
     else await supabase.from("menu_items").insert(p);
     setShowForm(false); fetchItems();
@@ -159,10 +161,10 @@ function AdminScreen({ goHome }) {
         <div style={{ background:"#0a0804", borderBottom:`2px solid ${C.gold}`, padding:20 }}>
           <div style={{ fontSize:16, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>{editItem ? "Edit Item" : "Add New Item"}</div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:12 }}>
-            {[["Item No.","item_no","e.g. 1"],["Item Name","name","e.g. Latte"],["Price (RM)","price","e.g. 8.00"],["Emoji","emoji","e.g. ☕"],["Description","description","Short description"]].map(([label,key,ph]) => (
+            {[["Item No.","item_no","e.g. A1"],["Item Name","name","e.g. Latte"],["Price (RM)","price","e.g. 8.00"],["Emoji","emoji","e.g. ☕"],["Description","description","Short description"]].map(([label,key,ph]) => (
               <div key={key}>
                 <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>{label}</div>
-                <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]:e.target.value }))} placeholder={ph} type={key==="price"?"number":undefined} step={key==="price"?"0.10":undefined}
+                <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]:e.target.value }))} placeholder={ph} type={key==="price"?"number":"text"} step={key==="price"?"0.10":undefined}
                   style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box" }} />
               </div>
             ))}
@@ -239,7 +241,7 @@ function AdminScreen({ goHome }) {
   );
 }
 
-function TabletScreen({ tableNo, goHome }) {
+function TabletScreen({ tableNo, goHome, isStaff }) {
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
   const [cart, setCart] = useState({});
   const [view, setView] = useState("menu");
@@ -323,11 +325,14 @@ function TabletScreen({ tableNo, goHome }) {
   const doneOrders = myOrders.filter(o => o.status==="done");
   const allMenuItems = Object.values(menu).flat();
   const currentMenuItems = searchQuery.trim()
-    ? allMenuItems.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    ? allMenuItems.filter(item => 
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.item_no && String(item.item_no).toLowerCase().includes(searchQuery.toLowerCase()))
+      )
     : (menu[activeCategory] || []);
   const hasOrders = myOrders.length > 0;
 
-  if (sessionExpired) return (
+  if (sessionExpired && !isStaff) return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:20, padding:24, textAlign:"center", background:T.bg }}>
       <div style={{ fontSize:70 }}>🔒</div>
       <div style={{ fontSize:26, color:T.brown, fontWeight:"bold" }}>Session Ended</div>
@@ -338,12 +343,15 @@ function TabletScreen({ tableNo, goHome }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden", background:T.bg, fontFamily:"Georgia,serif" }}>
       {/* Header */}
-      <div style={{ background:T.brown, padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-        <div>
-          <div style={{ fontSize:20, fontWeight:"bold", color:"#fff" }}>☕ {CAFE_NAME}</div>
-          <div style={{ fontSize:14, color:"#ffe099" }}>TABLE {tableNo}</div>
+      <div style={{ background:T.brown, padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          {isStaff && <button onClick={goHome} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.4)", color:"#fff", borderRadius:8, padding:"6px 12px", fontSize:13 }}>← Back</button>}
+          <div>
+            <div style={{ fontSize:18, fontWeight:"bold", color:"#fff" }}>☕ {CAFE_NAME}</div>
+            <div style={{ fontSize:13, color:"#ffe099" }}>TABLE {tableNo}</div>
+          </div>
         </div>
-        <button onClick={callWaiter} style={{ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:10, background:waiterCalled?"#2e7d32":"#fff", border:"none", color:waiterCalled?"#fff":T.brown, padding:"10px 16px", fontSize:15, fontWeight:"bold" }}>
+        <button onClick={callWaiter} style={{ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:10, background:waiterCalled?"#2e7d32":"#fff", border:"none", color:waiterCalled?"#fff":T.brown, padding:"10px 14px", fontSize:14, fontWeight:"bold" }}>
           {waiterCalled ? "✅ Coming!" : "🔔 Call Waiter"}
         </button>
       </div>
@@ -439,20 +447,21 @@ function TabletScreen({ tableNo, goHome }) {
 
           {/* Category tabs — hidden when searching */}
           {!searchQuery && (
-            {CATEGORIES.map(cat => (
-              <button key={cat} onClick={() => setActiveCategory(cat)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:activeCategory===cat?T.brown:"#fff", border:"none", color:activeCategory===cat?"#fff":T.muted, padding:"14px 18px", fontSize:15, fontWeight:activeCategory===cat?"bold":"normal", whiteSpace:"nowrap", flexShrink:0, borderBottom:activeCategory===cat?`3px solid #5a3a00`:"3px solid transparent" }}>
-                {cat==="Beverage"?"☕ Beverage":cat==="Food & Snacks"?"🍽️ Food":"🍰 Desserts"}
-              </button>
-            ))}
-          </div>
+            <div style={{ display:"flex", background:"#fff", borderBottom:`1px solid ${T.border}`, overflowX:"auto", flexShrink:0 }}>
+              {CATEGORIES.map(cat => (
+                <button key={cat} onClick={() => setActiveCategory(cat)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:activeCategory===cat?T.brown:"#fff", border:"none", color:activeCategory===cat?"#fff":T.muted, padding:"14px 18px", fontSize:15, fontWeight:activeCategory===cat?"bold":"normal", whiteSpace:"nowrap", flexShrink:0, borderBottom:activeCategory===cat?`3px solid #5a3a00`:"3px solid transparent" }}>
+                  {cat==="Beverage"?"☕ Beverage":cat==="Food & Snacks"?"🍽️ Food":"🍰 Desserts"}
+                </button>
+              ))}
+            </div>
           )}
 
           {/* Items grid — Zeoniq style */}
-          <div style={{ flex:1, overflowY:"auto", padding:10 }}>
+          <div style={{ flex:1, overflowY:"auto", padding:"10px 12px" }}>
             {menuLoading ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>Loading menu...</div>
               : currentMenuItems.length===0 ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>{searchQuery ? `No results for "${searchQuery}"` : "No items yet"}</div>
               : (
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(160px, 45%), 1fr))", gap:10 }}>
                   {currentMenuItems.map(item => {
                     const qty = cart[item.id]?.qty || 0;
                     const soldOut = item.is_available===false;
@@ -464,12 +473,12 @@ function TabletScreen({ tableNo, goHome }) {
                         </div>
                         {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
                         {item.image_url
-                          ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:130, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
-                          : <div style={{ height:110, display:"flex", alignItems:"center", justifyContent:"center", fontSize:50, background:"#f9f9f9" }}>{item.emoji}</div>
+                          ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:80, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
+                          : <div style={{ height:80, display:"flex", alignItems:"center", justifyContent:"center", fontSize:40, background:"#f9f9f9" }}>{item.emoji}</div>
                         }
                         <div style={{ padding:"10px 10px 12px" }}>
                           <div style={{ fontWeight:"bold", fontSize:14, marginBottom:8, color:T.text, lineHeight:1.3 }}>
-                            {item.name}
+                            {item.item_no && <span style={{ color:T.brown, marginRight:6 }}>{item.item_no}</span>}{item.name}
                           </div>
                           {soldOut ? (
                             <div style={{ textAlign:"center", color:T.red, fontSize:13, fontWeight:"bold", padding:"8px 0", background:"#fff0f0", borderRadius:8 }}>Sold Out</div>
@@ -531,11 +540,39 @@ function TabletScreen({ tableNo, goHome }) {
 
 function QRScreen({ goHome }) {
   const baseUrl = window.location.href.split("?")[0];
+
+  const printOne = (t) => {
+    const url = `${baseUrl}?table=${t}`;
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=000000&margin=10`;
+    const win = window.open("", "_blank");
+    win.document.write(`
+      <html><head><title>Table ${t} QR</title>
+      <style>
+        body { margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:Georgia,serif; }
+        h2 { font-size:28px; margin-bottom:8px; }
+        p { font-size:12px; color:#666; margin-bottom:16px; }
+        @media print { button { display:none; } }
+      </style></head>
+      <body>
+        <h2>☕ HOTO LOUNGE</h2>
+        <h2>TABLE ${t}</h2>
+        <img src="${qrSrc}" style="width:280px;height:280px;" />
+        <p>${url}</p>
+        <p>Scan to order</p>
+        <button onclick="window.print()" style="margin-top:16px;padding:10px 24px;font-size:16px;cursor:pointer;">🖨️ Print</button>
+      </body></html>
+    `);
+    win.document.close();
+  };
+
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
       <div style={{ background:C.panel, borderBottom:`2px solid ${C.gold}`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold" }}>📱 QR Codes for Tables</div>
-        <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={() => window.print()} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>🖨️ Print All</button>
+          <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
+        </div>
       </div>
       <div style={{ padding:20 }}>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:16 }}>
@@ -544,11 +581,9 @@ function QRScreen({ goHome }) {
               <div style={{ fontSize:16, fontWeight:"bold", color:C.goldLight }}>TABLE {t}</div>
               <QRCode url={`${baseUrl}?table=${t}`} size={140} />
               <div style={{ fontSize:10, color:C.muted, textAlign:"center", fontFamily:"monospace", wordBreak:"break-all" }}>{baseUrl}?table={t}</div>
+              <button onClick={() => printOne(t)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"7px 20px", fontSize:13, fontWeight:"bold", width:"100%" })}>🖨️ Print</button>
             </div>
           ))}
-        </div>
-        <div style={{ marginTop:16, textAlign:"center" }}>
-          <button onClick={() => window.print()} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"12px 28px", fontSize:15, fontWeight:"bold" })}>🖨️ Print This Page</button>
         </div>
       </div>
     </div>
@@ -557,32 +592,22 @@ function QRScreen({ goHome }) {
 
 function KitchenScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
-  const [waiterCalls, setWaiterCalls] = useState([]);
   const [soundOn, setSoundOn] = useState(true);
   const prevPendingCount = useRef(0);
-  const prevWaiterCount = useRef(0);
+  const soundOnRef = useRef(true);
+
+  const toggleSound = () => {
+    setSoundOn(s => { soundOnRef.current = !s; return !s; });
+  };
 
   const playAlert = () => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0,150,300].forEach(delay => {
+      [0,200,400].forEach(delay => {
         const osc = ctx.createOscillator(); const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.frequency.value = 880; osc.type = "sine";
-        gain.gain.setValueAtTime(0.4, ctx.currentTime+delay/1000);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.3);
-        osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.3);
-      });
-    } catch(e) {}
-  };
-  const playWaiterAlert = () => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0,200,400,600].forEach((delay,i) => {
-        const osc = ctx.createOscillator(); const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = i%2===0?660:550; osc.type = "triangle";
-        gain.gain.setValueAtTime(0.5, ctx.currentTime+delay/1000);
+        gain.gain.setValueAtTime(1.0, ctx.currentTime+delay/1000);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.5);
         osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.5);
       });
@@ -591,29 +616,24 @@ function KitchenScreen({ goHome }) {
 
   const fetchAll = async () => {
     const { data:o } = await supabase.from("orders").select("*").order("created_at", { ascending:true });
-    const { data:w } = await supabase.from("waiter_calls").select("*");
-    const newOrders = o||[]; const newWaiters = w||[];
-    // Kitchen only sees food items
+    const newOrders = o||[];
     const filtered = newOrders.map(order => ({
       ...order,
       items: order.items.filter(item => FOOD_CATEGORIES.includes(item.category))
     })).filter(order => order.items.length > 0);
     const newPending = filtered.filter(x => x.status==="pending").length;
-    if (soundOn && newPending > prevPendingCount.current) playAlert();
-    if (soundOn && newWaiters.length > prevWaiterCount.current) playWaiterAlert();
-    prevPendingCount.current = newPending; prevWaiterCount.current = newWaiters.length;
-    setOrders(filtered); setWaiterCalls(newWaiters);
+    if (soundOnRef.current && newPending > prevPendingCount.current) playAlert();
+    prevPendingCount.current = newPending;
+    setOrders(filtered);
   };
 
   useEffect(() => {
     fetchAll();
     const ch1 = supabase.channel("orders-ch").on("postgres_changes", { event:"*", schema:"public", table:"orders" }, fetchAll).subscribe();
-    const ch2 = supabase.channel("waiter-ch").on("postgres_changes", { event:"*", schema:"public", table:"waiter_calls" }, fetchAll).subscribe();
-    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
+    return () => { supabase.removeChannel(ch1); };
   }, []);
 
   const markDone = (id) => supabase.from("orders").update({ status:"done" }).eq("id", id).then(fetchAll);
-  const dismissWaiter = (t) => supabase.from("waiter_calls").delete().eq("table_no", t).then(fetchAll);
   const clearFinished = () => supabase.from("orders").delete().in("status", ["cancelled"]).then(fetchAll);
 
   const pending   = orders.filter(o => o.status==="pending");
@@ -628,7 +648,7 @@ function KitchenScreen({ goHome }) {
           <div style={{ fontSize:11, color:"#ff4444" }}>🔴 Live — updates instantly</div>
         </div>
         <div style={{ display:"flex", gap:10 }}>
-          <button onClick={() => setSoundOn(s => !s)} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"7px 12px", fontSize:12 })}>
+          <button onClick={toggleSound} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"7px 12px", fontSize:12 })}>
             {soundOn ? "🔔 Sound On" : "🔕 Sound Off"}
           </button>
           {cancelled.length>0 && <button onClick={clearFinished} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 12px", fontSize:12 })}>Clear Cancelled</button>}
@@ -636,19 +656,6 @@ function KitchenScreen({ goHome }) {
         </div>
       </div>
       <div style={{ flex:1, padding:16, overflowY:"auto" }}>
-        {waiterCalls.length > 0 && (
-          <div style={{ marginBottom:20 }}>
-            <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>🔔 Waiter Called</div>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
-              {waiterCalls.map(c => (
-                <div key={c.table_no} style={{ background:"#3d1a0e", border:"1.5px solid #ff6b35", borderRadius:10, padding:"10px 16px", display:"flex", alignItems:"center", gap:12 }}>
-                  <div><div style={{ fontWeight:"bold", color:"#ff6b35" }}>Table {c.table_no}</div><div style={{ fontSize:11, color:C.muted }}>{c.time}</div></div>
-                  <button onClick={() => dismissWaiter(c.table_no)} style={btn({ background:"#ff6b35", border:"none", color:"#fff", padding:"5px 10px", fontSize:12 })}>Done ✓</button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>🟡 Pending Food ({pending.length})</div>
         {pending.length===0 && <div style={{ color:C.muted, textAlign:"center", padding:40 }}>All clear! ✅</div>}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(260px,1fr))", gap:14, marginBottom:24 }}>
@@ -782,21 +789,38 @@ function SalesScreen({ goHome }) {
 
 function CashierScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
+  const [waiterCalls, setWaiterCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(null);
   const [soundOn, setSoundOn] = useState(true);
+  const [filterActive, setFilterActive] = useState(false);
   const prevDrinkCount = useRef(0);
+  const prevWaiterCount = useRef(0);
 
   const playAlert = () => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0,150,300].forEach(delay => {
+      [0,200,400].forEach(delay => {
         const osc = ctx.createOscillator(); const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.frequency.value = 660; osc.type = "sine";
-        gain.gain.setValueAtTime(0.4, ctx.currentTime+delay/1000);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.3);
-        osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.3);
+        gain.gain.setValueAtTime(1.0, ctx.currentTime+delay/1000);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.5);
+        osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.5);
+      });
+    } catch(e) {}
+  };
+
+  const playWaiterAlert = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0,250,500,750].forEach((delay,i) => {
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = i%2===0?880:550; osc.type = "sine";
+        gain.gain.setValueAtTime(1.0, ctx.currentTime+delay/1000);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.5);
+        osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.5);
       });
     } catch(e) {}
   };
@@ -804,20 +828,25 @@ function CashierScreen({ goHome }) {
   const fetchAll = async () => {
     setLoading(true);
     const { data } = await supabase.from("orders").select("*").in("status",["pending","done"]).order("created_at",{ascending:true});
+    const { data:w } = await supabase.from("waiter_calls").select("*");
     const newOrders = data||[];
-    // Count pending drink items
+    const newWaiters = w||[];
+    setWaiterCalls(newWaiters);
     const drinkPending = newOrders.filter(o => o.status==="pending")
       .reduce((s,o) => s + o.items.filter(i => DRINK_CATEGORIES.includes(i.category)).length, 0);
     if (soundOn && drinkPending > prevDrinkCount.current) playAlert();
+    if (soundOn && newWaiters.length > prevWaiterCount.current) playWaiterAlert();
     prevDrinkCount.current = drinkPending;
+    prevWaiterCount.current = newWaiters.length;
     setOrders(newOrders);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchAll();
-    const ch = supabase.channel("cashier-ch").on("postgres_changes",{event:"*",schema:"public",table:"orders"},fetchAll).subscribe();
-    return () => supabase.removeChannel(ch);
+    const ch1 = supabase.channel("cashier-ch").on("postgres_changes",{event:"*",schema:"public",table:"orders"},fetchAll).subscribe();
+    const ch2 = supabase.channel("cashier-waiter-ch").on("postgres_changes",{event:"*",schema:"public",table:"waiter_calls"},fetchAll).subscribe();
+    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
   }, []);
 
   const byTable = {};
@@ -827,6 +856,14 @@ function CashierScreen({ goHome }) {
     byTable[o.table_no].total+=o.total;
   });
   const activeTables = Object.entries(byTable).sort((a,b) => parseInt(a[0])-parseInt(b[0]));
+  // filtered: active (has pending) first, or active-only
+  const displayTables = filterActive
+    ? activeTables.filter(([,t]) => t.pending.length > 0)
+    : [...activeTables].sort((a,b) => {
+        const aPending = a[1].pending.length > 0 ? 0 : 1;
+        const bPending = b[1].pending.length > 0 ? 0 : 1;
+        return aPending - bPending || parseInt(a[0]) - parseInt(b[0]);
+      });
 
   const markPaid = async (tableNo) => {
     setPaying(tableNo);
@@ -841,6 +878,16 @@ function CashierScreen({ goHome }) {
     fetchAll();
   };
 
+  const markOrderDone = async (orderId) => {
+    await supabase.from("orders").update({status:"done"}).eq("id",orderId);
+    fetchAll();
+  };
+
+  const dismissWaiter = async (tableNo) => {
+    await supabase.from("waiter_calls").delete().eq("table_no", tableNo);
+    fetchAll();
+  };
+
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
       <div style={{ background:C.panel, borderBottom:`2px solid #5aaa5a`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
@@ -849,6 +896,10 @@ function CashierScreen({ goHome }) {
           <div style={{ fontSize:11, color:"#5aaa5a" }}>🔴 Live — updates instantly</div>
         </div>
         <div style={{ display:"flex", gap:10 }}>
+          <button onClick={() => setFilterActive(f => !f)}
+            style={btn({ background:filterActive?"#8a5a00":"transparent", border:`1px solid ${filterActive?C.gold:C.border}`, color:filterActive?C.goldLight:C.muted, padding:"7px 14px", fontSize:12, fontWeight:filterActive?"bold":"normal" })}>
+            {filterActive ? "⚡ Active Only" : "📋 Show All"}
+          </button>
           <button onClick={() => setSoundOn(s => !s)} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"7px 12px", fontSize:12 })}>
             {soundOn ? "🔔 Sound On" : "🔕 Sound Off"}
           </button>
@@ -857,7 +908,22 @@ function CashierScreen({ goHome }) {
       </div>
       <div style={{ flex:1, padding:16, overflowY:"auto" }}>
         {loading ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>Loading...</div>
-          : activeTables.length===0 ? (
+          : (
+          <>
+            {waiterCalls.length > 0 && (
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:12, color:"#ff6b35", letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:"bold" }}>🔔 Waiter Called</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
+                  {waiterCalls.map(c => (
+                    <div key={c.table_no} style={{ background:"#3d1a0e", border:"1.5px solid #ff6b35", borderRadius:10, padding:"10px 16px", display:"flex", alignItems:"center", gap:12 }}>
+                      <div><div style={{ fontWeight:"bold", color:"#ff6b35", fontSize:15 }}>Table {c.table_no}</div><div style={{ fontSize:11, color:C.muted }}>{c.time}</div></div>
+                      <button onClick={() => dismissWaiter(c.table_no)} style={btn({ background:"#ff6b35", border:"none", color:"#fff", padding:"6px 12px", fontSize:12, fontWeight:"bold" })}>Done ✓</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {displayTables.length===0 ? (
             <div style={{ textAlign:"center", color:C.muted, padding:60 }}>
               <div style={{ fontSize:48, marginBottom:16 }}>✅</div>
               <div style={{ fontSize:18, color:"#5aaa5a", fontWeight:"bold" }}>All Clear!</div>
@@ -875,65 +941,115 @@ function CashierScreen({ goHome }) {
                   <div style={{ fontSize:11, color:C.muted }}>Total Outstanding</div>
                 </div>
               </div>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(280px,1fr))", gap:14 }}>
-                {activeTables.map(([tableNo, data]) => {
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(340px,1fr))", gap:14 }}>
+                {displayTables.map(([tableNo, data]) => {
                   const hasPending = data.pending.length>0;
                   const allOrders = [...data.done, ...data.pending];
+                  const drinkOrders = allOrders.filter(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
+                  const foodOrders = allOrders.filter(o => o.items.some(i => FOOD_CATEGORIES.includes(i.category)));
+
                   return (
                     <div key={tableNo} style={{ background:C.panel, border:`2px solid ${hasPending?"#c8973a":"#5aaa5a"}`, borderRadius:14, overflow:"hidden" }}>
-                      <div style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+
+                      {/* Header */}
+                      <div style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                         <div style={{ fontSize:20, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>Table {tableNo}</div>
                         <div style={{ display:"flex", gap:6 }}>
-                          {data.pending.length>0 && <span style={{ background:"#3d2a00", color:C.gold, borderRadius:6, padding:"2px 8px", fontSize:11 }}>⏳ {data.pending.length} pending</span>}
-                          {data.done.length>0 && <span style={{ background:"#1a3a1a", color:"#5aaa5a", borderRadius:6, padding:"2px 8px", fontSize:11 }}>✅ {data.done.length} done</span>}
+                          {data.pending.length>0 && <span style={{ background:"#3d2a00", color:C.gold, borderRadius:6, padding:"3px 10px", fontSize:12 }}>⏳ {data.pending.length} pending</span>}
+                          {data.done.length>0 && <span style={{ background:"#1a3a1a", color:"#5aaa5a", borderRadius:6, padding:"3px 10px", fontSize:12 }}>✅ {data.done.length} done</span>}
                         </div>
                       </div>
-                      <div style={{ padding:"12px 16px" }}>
-                        {allOrders.map((order,oi) => {
-                          const drinkItems = order.items.filter(i => DRINK_CATEGORIES.includes(i.category));
-                          const foodItems = order.items.filter(i => FOOD_CATEGORIES.includes(i.category));
-                          return (
-                            <div key={oi} style={{ marginBottom:oi<allOrders.length-1?12:0 }}>
-                              <div style={{ fontSize:10, color:order.status==="done"?"#5aaa5a":C.gold, fontWeight:"bold", marginBottom:6, letterSpacing:1, textTransform:"uppercase", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                                <span>{order.status==="done"?"✅ Served":"⏳ Pending"} · {order.time}</span>
-                                {order.status==="pending" && (
-                                  <button onClick={() => cancelOrder(order.id)} style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"2px 8px", fontSize:10 })}>❌ Cancel</button>
-                                )}
-                              </div>
-                              {drinkItems.length>0 && (
-                                <div style={{ background:"#1a2c1a", borderRadius:6, padding:"6px 8px", marginBottom:4 }}>
-                                  <div style={{ fontSize:10, color:"#5aaa5a", marginBottom:4, fontWeight:"bold" }}>☕ DRINKS (prepare here)</div>
-                                  {drinkItems.map((item,ii) => (
-                                    <div key={ii} style={{ display:"flex", justifyContent:"space-between", fontSize:13, paddingLeft:4 }}>
-                                      <span style={{ color:C.text }}>{item.emoji||"☕"} {item.name}</span>
-                                      <span style={{ color:"#5aaa5a", fontWeight:"bold" }}>×{item.qty} — RM {(item.price*item.qty).toFixed(2)}</span>
+
+                      {/* Split: drinks left, food right */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", borderBottom:`1px solid ${C.border}`, minHeight:100 }}>
+
+                        {/* LEFT — Drinks */}
+                        <div style={{ padding:"12px 14px", borderRight:`2px solid ${C.border}` }}>
+                          <div style={{ fontSize:11, color:"#5aaa5a", fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>☕ Drinks</div>
+                          {drinkOrders.length===0
+                            ? <div style={{ fontSize:12, color:C.border, fontStyle:"italic" }}>None</div>
+                            : drinkOrders.map((order, oi) => {
+                                const drinkItems = order.items.filter(i => DRINK_CATEGORIES.includes(i.category));
+                                const isPending = order.status==="pending";
+                                return (
+                                  <div key={oi} style={{ marginBottom:10, paddingBottom:10, borderBottom: oi < drinkOrders.length-1 ? `2px solid #5a3a1a` : "none" }}>
+                                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                                      <span style={{ fontSize:12, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold" }}>{isPending?"⏳":"✅"} {order.time}</span>
+                                      {isPending && (
+                                        <div style={{ display:"flex", gap:6 }}>
+                                          <button onClick={() => markOrderDone(order.id)}
+                                            style={btn({ background:"#2d6a2d", border:"none", color:"#aaffaa", padding:"8px 14px", fontSize:13, fontWeight:"bold", minHeight:42 })}>✓ Done</button>
+                                          <button onClick={() => cancelOrder(order.id)}
+                                            style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"8px 12px", fontSize:13, fontWeight:"bold", minHeight:42 })}>✕ Cancel</button>
+                                        </div>
+                                      )}
                                     </div>
-                                  ))}
-                                </div>
-                              )}
-                              {foodItems.length>0 && (
-                                <div>
-                                  <div style={{ fontSize:10, color:C.muted, marginBottom:4 }}>🍳 Food (kitchen handles)</div>
-                                  {foodItems.map((item,ii) => (
-                                    <div key={ii} style={{ display:"flex", justifyContent:"space-between", fontSize:13, paddingLeft:4, color:C.muted }}>
-                                      <span>{item.emoji||"🍽️"} {item.name}</span>
-                                      <span>×{item.qty} — RM {(item.price*item.qty).toFixed(2)}</span>
+                                    {drinkItems.map((item, ii) => (
+                                      <div key={ii} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderTop:`1px solid #4a3a2a` }}>
+                                        <span style={{ color:isPending?"#eee":"#5aaa5a", fontSize:14 }}>
+                                          {item.item_no && <span style={{ color:"#5aaa5a", fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}
+                                          {item.name} <span style={{ fontWeight:"bold" }}>×{item.qty}</span>
+                                        </span>
+                                        <span style={{ color:"#5aaa5a", fontWeight:"bold", fontSize:13, whiteSpace:"nowrap", marginLeft:6 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                                      </div>
+                                    ))}
+                                    {order.special_request && (
+                                      <div style={{ marginTop:7, fontSize:12, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"5px 9px" }}>
+                                        📝 {order.special_request}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })
+                          }
+                        </div>
+
+                        {/* RIGHT — Food */}
+                        <div style={{ padding:"12px 14px", background:"#1a1208" }}>
+                          <div style={{ fontSize:11, color:C.muted, fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>🍳 Food (Kitchen)</div>
+                          {foodOrders.length===0
+                            ? <div style={{ fontSize:12, color:C.border, fontStyle:"italic" }}>None</div>
+                            : foodOrders.map((order, oi) => {
+                                const foodItems = order.items.filter(i => FOOD_CATEGORIES.includes(i.category));
+                                const isPending = order.status==="pending";
+                                return (
+                                  <div key={oi} style={{ marginBottom:10, paddingBottom:10, borderBottom: oi < foodOrders.length-1 ? `2px solid #3a2a10` : "none" }}>
+                                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                                      <span style={{ fontSize:12, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold" }}>{isPending?"⏳":"✅ Served"} {order.time}</span>
+                                      {isPending && (
+                                        <button onClick={() => cancelOrder(order.id)}
+                                          style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"6px 12px", fontSize:13, fontWeight:"bold", minHeight:38 })}>✕ Cancel</button>
+                                      )}
                                     </div>
-                                  ))}
-                                </div>
-                              )}
-                              {order.special_request && <div style={{ fontSize:11, color:C.gold, marginTop:4 }}>📝 {order.special_request}</div>}
-                            </div>
-                          );
-                        })}
+                                    {foodItems.map((item, ii) => (
+                                      <div key={ii} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderTop:`1px solid #3a2a10` }}>
+                                        <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:14 }}>
+                                          {item.item_no && <span style={{ color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}
+                                          {item.name} <span style={{ color:isPending?C.gold:"#5aaa5a" }}>×{item.qty}</span>
+                                        </span>
+                                        <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:13, whiteSpace:"nowrap", marginLeft:6 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                                      </div>
+                                    ))}
+                                    {order.special_request && (
+                                      <div style={{ marginTop:7, fontSize:12, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"5px 9px" }}>
+                                        📝 {order.special_request}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })
+                          }
+                        </div>
                       </div>
-                      <div style={{ background:"#0f0a04", padding:"10px 16px", borderTop:`1px solid ${C.border}` }}>
+
+                      {/* Footer */}
+                      <div style={{ background:"#0f0a04", padding:"12px 16px" }}>
                         <div style={{ display:"flex", justifyContent:"space-between", fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
                           <span>TOTAL</span><span>RM {data.total.toFixed(2)}</span>
                         </div>
                         <button onClick={() => { if(confirm(`Table ${tableNo} paid RM ${data.total.toFixed(2)}? This will clear the table.`)) markPaid(tableNo); }}
                           disabled={paying===tableNo}
-                          style={btn({ width:"100%", background:"linear-gradient(135deg,#2d6a2d,#1a4a1a)", border:"1px solid #5aaa5a", color:"#aaffaa", padding:"12px 0", fontSize:14, fontWeight:"bold", cursor:"pointer" })}>
+                          style={btn({ width:"100%", background:"linear-gradient(135deg,#2d6a2d,#1a4a1a)", border:"1px solid #5aaa5a", color:"#aaffaa", padding:"14px 0", fontSize:15, fontWeight:"bold", cursor:"pointer" })}>
                           {paying===tableNo ? "Processing..." : "✅ Mark as Paid & Clear Table"}
                         </button>
                       </div>
@@ -943,6 +1059,8 @@ function CashierScreen({ goHome }) {
               </div>
             </>
           )}
+          </>
+        )}
       </div>
     </div>
   );
