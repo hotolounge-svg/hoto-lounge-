@@ -564,10 +564,8 @@ function QRScreen({ goHome }) {
 
 function KitchenScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
-  const [waiterCalls, setWaiterCalls] = useState([]);
   const [soundOn, setSoundOn] = useState(true);
   const prevPendingCount = useRef(0);
-  const prevWaiterCount = useRef(0);
 
   const playAlert = () => {
     try {
@@ -582,44 +580,27 @@ function KitchenScreen({ goHome }) {
       });
     } catch(e) {}
   };
-  const playWaiterAlert = () => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0,250,500,750].forEach((delay,i) => {
-        const osc = ctx.createOscillator(); const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = i%2===0?880:660; osc.type = "sine";
-        gain.gain.setValueAtTime(1.0, ctx.currentTime+delay/1000);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.5);
-        osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.5);
-      });
-    } catch(e) {}
-  };
 
   const fetchAll = async () => {
     const { data:o } = await supabase.from("orders").select("*").order("created_at", { ascending:true });
-    const { data:w } = await supabase.from("waiter_calls").select("*");
-    const newOrders = o||[]; const newWaiters = w||[];
+    const newOrders = o||[];
     const filtered = newOrders.map(order => ({
       ...order,
       items: order.items.filter(item => FOOD_CATEGORIES.includes(item.category))
     })).filter(order => order.items.length > 0);
     const newPending = filtered.filter(x => x.status==="pending").length;
     if (soundOn && newPending > prevPendingCount.current) playAlert();
-    if (soundOn && newWaiters.length > prevWaiterCount.current) playWaiterAlert();
-    prevPendingCount.current = newPending; prevWaiterCount.current = newWaiters.length;
+    prevPendingCount.current = newPending;
     setOrders(filtered);
   };
 
   useEffect(() => {
     fetchAll();
     const ch1 = supabase.channel("orders-ch").on("postgres_changes", { event:"*", schema:"public", table:"orders" }, fetchAll).subscribe();
-    const ch2 = supabase.channel("waiter-ch").on("postgres_changes", { event:"*", schema:"public", table:"waiter_calls" }, fetchAll).subscribe();
-    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
+    return () => { supabase.removeChannel(ch1); };
   }, []);
 
   const markDone = (id) => supabase.from("orders").update({ status:"done" }).eq("id", id).then(fetchAll);
-  const dismissWaiter = (t) => supabase.from("waiter_calls").delete().eq("table_no", t).then(fetchAll);
   const clearFinished = () => supabase.from("orders").delete().in("status", ["cancelled"]).then(fetchAll);
 
   const pending   = orders.filter(o => o.status==="pending");
