@@ -456,12 +456,12 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             </div>
           )}
 
-          {/* Items grid — responsive: 2 cols on mobile, fills screen on desktop */}
-          <div style={{ flex:1, overflowY:"auto", padding:10 }}>
+          {/* Items grid — Zeoniq style */}
+          <div style={{ flex:1, overflowY:"auto", padding:"10px 12px" }}>
             {menuLoading ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>Loading menu...</div>
               : currentMenuItems.length===0 ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>{searchQuery ? `No results for "${searchQuery}"` : "No items yet"}</div>
               : (
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:10 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(160px, 45%), 1fr))", gap:10 }}>
                   {currentMenuItems.map(item => {
                     const qty = cart[item.id]?.qty || 0;
                     const soldOut = item.is_available===false;
@@ -473,8 +473,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                         </div>
                         {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
                         {item.image_url
-                          ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:100, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
-                          : <div style={{ height:100, display:"flex", alignItems:"center", justifyContent:"center", fontSize:40, background:"#f9f9f9" }}>{item.emoji}</div>
+                          ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:80, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
+                          : <div style={{ height:80, display:"flex", alignItems:"center", justifyContent:"center", fontSize:40, background:"#f9f9f9" }}>{item.emoji}</div>
                         }
                         <div style={{ padding:"10px 10px 12px" }}>
                           <div style={{ fontWeight:"bold", fontSize:14, marginBottom:8, color:T.text, lineHeight:1.3 }}>
