@@ -124,7 +124,7 @@ function AdminScreen({ goHome }) {
     setUploading(false);
   };
   const handleSave = async () => {
-    const p = { item_no:parseInt(form.item_no), name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available };
+    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available };
     if (editItem) await supabase.from("menu_items").update(p).eq("id", editItem.id);
     else await supabase.from("menu_items").insert(p);
     setShowForm(false); fetchItems();
@@ -159,10 +159,10 @@ function AdminScreen({ goHome }) {
         <div style={{ background:"#0a0804", borderBottom:`2px solid ${C.gold}`, padding:20 }}>
           <div style={{ fontSize:16, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>{editItem ? "Edit Item" : "Add New Item"}</div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:12 }}>
-            {[["Item No.","item_no","e.g. 1"],["Item Name","name","e.g. Latte"],["Price (RM)","price","e.g. 8.00"],["Emoji","emoji","e.g. ☕"],["Description","description","Short description"]].map(([label,key,ph]) => (
+            {[["Item No.","item_no","e.g. A1"],["Item Name","name","e.g. Latte"],["Price (RM)","price","e.g. 8.00"],["Emoji","emoji","e.g. ☕"],["Description","description","Short description"]].map(([label,key,ph]) => (
               <div key={key}>
                 <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>{label}</div>
-                <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]:e.target.value }))} placeholder={ph} type={key==="price"?"number":undefined} step={key==="price"?"0.10":undefined}
+                <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]:e.target.value }))} placeholder={ph} type={key==="price"?"number":"text"} step={key==="price"?"0.10":undefined}
                   style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box" }} />
               </div>
             ))}
