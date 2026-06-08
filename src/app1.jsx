@@ -538,11 +538,39 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
 function QRScreen({ goHome }) {
   const baseUrl = window.location.href.split("?")[0];
+
+  const printOne = (t) => {
+    const url = `${baseUrl}?table=${t}`;
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=000000&margin=10`;
+    const win = window.open("", "_blank");
+    win.document.write(`
+      <html><head><title>Table ${t} QR</title>
+      <style>
+        body { margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:Georgia,serif; }
+        h2 { font-size:28px; margin-bottom:8px; }
+        p { font-size:12px; color:#666; margin-bottom:16px; }
+        @media print { button { display:none; } }
+      </style></head>
+      <body>
+        <h2>☕ HOTO LOUNGE</h2>
+        <h2>TABLE ${t}</h2>
+        <img src="${qrSrc}" style="width:280px;height:280px;" />
+        <p>${url}</p>
+        <p>Scan to order</p>
+        <button onclick="window.print()" style="margin-top:16px;padding:10px 24px;font-size:16px;cursor:pointer;">🖨️ Print</button>
+      </body></html>
+    `);
+    win.document.close();
+  };
+
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
       <div style={{ background:C.panel, borderBottom:`2px solid ${C.gold}`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold" }}>📱 QR Codes for Tables</div>
-        <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={() => window.print()} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>🖨️ Print All</button>
+          <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
+        </div>
       </div>
       <div style={{ padding:20 }}>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:16 }}>
@@ -551,11 +579,9 @@ function QRScreen({ goHome }) {
               <div style={{ fontSize:16, fontWeight:"bold", color:C.goldLight }}>TABLE {t}</div>
               <QRCode url={`${baseUrl}?table=${t}`} size={140} />
               <div style={{ fontSize:10, color:C.muted, textAlign:"center", fontFamily:"monospace", wordBreak:"break-all" }}>{baseUrl}?table={t}</div>
+              <button onClick={() => printOne(t)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"7px 20px", fontSize:13, fontWeight:"bold", width:"100%" })}>🖨️ Print</button>
             </div>
           ))}
-        </div>
-        <div style={{ marginTop:16, textAlign:"center" }}>
-          <button onClick={() => window.print()} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"12px 28px", fontSize:15, fontWeight:"bold" })}>🖨️ Print This Page</button>
         </div>
       </div>
     </div>
@@ -566,6 +592,11 @@ function KitchenScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
   const [soundOn, setSoundOn] = useState(true);
   const prevPendingCount = useRef(0);
+  const soundOnRef = useRef(true);
+
+  const toggleSound = () => {
+    setSoundOn(s => { soundOnRef.current = !s; return !s; });
+  };
 
   const playAlert = () => {
     try {
@@ -589,7 +620,7 @@ function KitchenScreen({ goHome }) {
       items: order.items.filter(item => FOOD_CATEGORIES.includes(item.category))
     })).filter(order => order.items.length > 0);
     const newPending = filtered.filter(x => x.status==="pending").length;
-    if (soundOn && newPending > prevPendingCount.current) playAlert();
+    if (soundOnRef.current && newPending > prevPendingCount.current) playAlert();
     prevPendingCount.current = newPending;
     setOrders(filtered);
   };
@@ -615,7 +646,7 @@ function KitchenScreen({ goHome }) {
           <div style={{ fontSize:11, color:"#ff4444" }}>🔴 Live — updates instantly</div>
         </div>
         <div style={{ display:"flex", gap:10 }}>
-          <button onClick={() => setSoundOn(s => !s)} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"7px 12px", fontSize:12 })}>
+          <button onClick={toggleSound} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"7px 12px", fontSize:12 })}>
             {soundOn ? "🔔 Sound On" : "🔕 Sound Off"}
           </button>
           {cancelled.length>0 && <button onClick={clearFinished} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 12px", fontSize:12 })}>Clear Cancelled</button>}
