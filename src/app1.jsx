@@ -343,7 +343,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       {/* Header */}
       <div style={{ background:T.brown, padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <button onClick={goHome} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.4)", color:"#fff", borderRadius:8, padding:"6px 12px", fontSize:13 }}>← Back</button>
+          {isStaff && <button onClick={goHome} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.4)", color:"#fff", borderRadius:8, padding:"6px 12px", fontSize:13 }}>← Back</button>}
           <div>
             <div style={{ fontSize:18, fontWeight:"bold", color:"#fff" }}>☕ {CAFE_NAME}</div>
             <div style={{ fontSize:13, color:"#ffe099" }}>TABLE {tableNo}</div>
@@ -789,6 +789,7 @@ function SalesScreen({ goHome }) {
 
 function CashierScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
+  const [waiterCalls, setWaiterCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(null);
   const [soundOn, setSoundOn] = useState(true);
@@ -811,8 +812,9 @@ function CashierScreen({ goHome }) {
   const fetchAll = async () => {
     setLoading(true);
     const { data } = await supabase.from("orders").select("*").in("status",["pending","done"]).order("created_at",{ascending:true});
+    const { data:w } = await supabase.from("waiter_calls").select("*");
     const newOrders = data||[];
-    // Count pending drink items
+    setWaiterCalls(w||[]);
     const drinkPending = newOrders.filter(o => o.status==="pending")
       .reduce((s,o) => s + o.items.filter(i => DRINK_CATEGORIES.includes(i.category)).length, 0);
     if (soundOn && drinkPending > prevDrinkCount.current) playAlert();
@@ -823,8 +825,9 @@ function CashierScreen({ goHome }) {
 
   useEffect(() => {
     fetchAll();
-    const ch = supabase.channel("cashier-ch").on("postgres_changes",{event:"*",schema:"public",table:"orders"},fetchAll).subscribe();
-    return () => supabase.removeChannel(ch);
+    const ch1 = supabase.channel("cashier-ch").on("postgres_changes",{event:"*",schema:"public",table:"orders"},fetchAll).subscribe();
+    const ch2 = supabase.channel("cashier-waiter-ch").on("postgres_changes",{event:"*",schema:"public",table:"waiter_calls"},fetchAll).subscribe();
+    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
   }, []);
 
   const byTable = {};
@@ -853,6 +856,11 @@ function CashierScreen({ goHome }) {
     fetchAll();
   };
 
+  const dismissWaiter = async (tableNo) => {
+    await supabase.from("waiter_calls").delete().eq("table_no", tableNo);
+    fetchAll();
+  };
+
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
       <div style={{ background:C.panel, borderBottom:`2px solid #5aaa5a`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
@@ -877,6 +885,19 @@ function CashierScreen({ goHome }) {
             </div>
           ) : (
             <>
+              {waiterCalls.length > 0 && (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:12, color:"#ff6b35", letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:"bold" }}>🔔 Waiter Called</div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
+                    {waiterCalls.map(c => (
+                      <div key={c.table_no} style={{ background:"#3d1a0e", border:"1.5px solid #ff6b35", borderRadius:10, padding:"10px 16px", display:"flex", alignItems:"center", gap:12 }}>
+                        <div><div style={{ fontWeight:"bold", color:"#ff6b35", fontSize:15 }}>Table {c.table_no}</div><div style={{ fontSize:11, color:C.muted }}>{c.time}</div></div>
+                        <button onClick={() => dismissWaiter(c.table_no)} style={btn({ background:"#ff6b35", border:"none", color:"#fff", padding:"6px 12px", fontSize:12, fontWeight:"bold" })}>Done ✓</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(140px,1fr))", gap:10, marginBottom:20 }}>
                 <div style={{ background:C.panel, border:`1px solid #5aaa5a`, borderRadius:10, padding:12, textAlign:"center" }}>
                   <div style={{ fontSize:22, color:"#aaffaa", fontWeight:"bold" }}>{activeTables.length}</div>
