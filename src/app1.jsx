@@ -909,17 +909,18 @@ function CashierScreen({ goHome }) {
           <button key={key} onClick={() => { setFilterTab(key); setSelectedTable(null); }}
             style={btn({ background:"transparent", border:"none", borderBottom:filterTab===key?`3px solid ${key==="pending"?C.gold:"#5aaa5a"}`:"3px solid transparent",
               color:filterTab===key?(key==="pending"?C.goldLight:"#aaffaa"):C.muted,
-              padding:"12px 18px", fontSize:13, fontWeight:filterTab===key?"bold":"normal", borderRadius:0 })}>
+              padding:"14px 20px", fontSize:14, fontWeight:filterTab===key?"bold":"normal", borderRadius:0 })}>
             {label}
           </button>
         ))}
       </div>
-      {/* Table number filter */}
+      {/* Table number filter — big touch buttons */}
       {activeTables.length > 0 && (
-        <div style={{ background:"#110d06", borderBottom:`1px solid ${C.border}`, padding:"8px 16px", display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-          <span style={{ fontSize:11, color:C.muted, marginRight:4 }}>TABLE:</span>
+        <div style={{ background:"#110d06", borderBottom:`1px solid ${C.border}`, padding:"10px 16px", display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
+          <span style={{ fontSize:12, color:C.muted, marginRight:4, fontWeight:"bold" }}>TABLE:</span>
           <button onClick={() => setSelectedTable(null)}
-            style={btn({ background:selectedTable===null?"#3d2a00":"transparent", border:`1px solid ${selectedTable===null?C.gold:C.border}`, color:selectedTable===null?C.goldLight:C.muted, padding:"4px 12px", fontSize:12, fontWeight:selectedTable===null?"bold":"normal" })}>
+            style={btn({ background:selectedTable===null?"#3d2a00":"transparent", border:`2px solid ${selectedTable===null?C.gold:C.border}`,
+              color:selectedTable===null?C.goldLight:C.muted, padding:"10px 18px", fontSize:14, fontWeight:selectedTable===null?"bold":"normal", minHeight:44 })}>
             All
           </button>
           {tabFiltered.map(([t, data]) => {
@@ -928,9 +929,9 @@ function CashierScreen({ goHome }) {
             return (
               <button key={t} onClick={() => setSelectedTable(isSelected ? null : t)}
                 style={btn({ background:isSelected?(hasPend?"#3d2a00":"#1a3a1a"):"transparent",
-                  border:`1px solid ${isSelected?(hasPend?C.gold:"#5aaa5a"):C.border}`,
-                  color:isSelected?(hasPend?C.goldLight:"#aaffaa"):C.muted,
-                  padding:"4px 12px", fontSize:12, fontWeight:isSelected?"bold":"normal" })}>
+                  border:`2px solid ${isSelected?(hasPend?C.gold:"#5aaa5a"):(hasPend?"#5a4a20":"#2a4a2a")}`,
+                  color:isSelected?(hasPend?C.goldLight:"#aaffaa"):(hasPend?C.muted:"#5aaa5a"),
+                  padding:"10px 18px", fontSize:14, fontWeight:isSelected?"bold":"normal", minHeight:44 })}>
                 T{t} {hasPend?"⏳":"✅"}
               </button>
             );
@@ -980,7 +981,6 @@ function CashierScreen({ goHome }) {
                   const foodOrders = allOrders.filter(o => o.items.some(i => FOOD_CATEGORIES.includes(i.category)));
                   return (
                     <div key={tableNo} style={{ background:C.panel, border:`2px solid ${hasPending?"#c8973a":"#5aaa5a"}`, borderRadius:14, overflow:"hidden" }}>
-                      {/* Header */}
                       <div style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                         <div style={{ fontSize:20, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>Table {tableNo}</div>
                         <div style={{ display:"flex", gap:6 }}>
@@ -988,9 +988,7 @@ function CashierScreen({ goHome }) {
                           {data.done.length>0 && <span style={{ background:"#1a3a1a", color:"#5aaa5a", borderRadius:6, padding:"3px 10px", fontSize:12 }}>✅ {data.done.length} done</span>}
                         </div>
                       </div>
-                      {/* Split body */}
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", borderBottom:`1px solid ${C.border}`, minHeight:100 }}>
-                        {/* LEFT — Drinks */}
                         <div style={{ padding:"12px 14px", borderRight:`2px solid ${C.border}` }}>
                           <div style={{ fontSize:11, color:"#5aaa5a", fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>☕ Drinks</div>
                           {drinkOrders.length===0
@@ -1026,7 +1024,6 @@ function CashierScreen({ goHome }) {
                               })
                           }
                         </div>
-                        {/* RIGHT — Food */}
                         <div style={{ padding:"12px 14px", background:"#1a1208" }}>
                           <div style={{ fontSize:11, color:C.muted, fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>🍳 Food (Kitchen)</div>
                           {foodOrders.length===0
@@ -1060,7 +1057,6 @@ function CashierScreen({ goHome }) {
                           }
                         </div>
                       </div>
-                      {/* Footer */}
                       <div style={{ background:"#0f0a04", padding:"12px 16px" }}>
                         <div style={{ display:"flex", justifyContent:"space-between", fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
                           <span>TOTAL</span><span>RM {data.total.toFixed(2)}</span>
