@@ -667,7 +667,7 @@ function KitchenScreen({ goHome }) {
               </div>
               {order.items.map((item,i) => (
                 <div key={i} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:14 }}>
-                  <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
+                  <span>{item.emoji||"🍽️"} {item.name}</span>
                   <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                 </div>
               ))}
@@ -686,7 +686,7 @@ function KitchenScreen({ goHome }) {
             {done.map(o => (
               <div key={o.id} style={{ background:"#1a2c1a", border:"1px solid #3a6a3a", borderRadius:12, padding:12, opacity:0.8 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#5aaa5a", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
-                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:"#5aaa5a", fontWeight:"bold", marginRight:3 }}>{item.item_no}</span>}{item.name} ×{item.qty}</div>)}
+                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.name} ×{item.qty}</div>)}
               </div>
             ))}
           </div>
@@ -697,7 +697,7 @@ function KitchenScreen({ goHome }) {
             {cancelled.map(o => (
               <div key={o.id} style={{ background:"#2a1a1a", border:"1px solid #5a2a2a", borderRadius:12, padding:12, opacity:0.7 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#ff7777", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
-                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:"#ff7777", fontWeight:"bold", marginRight:3 }}>{item.item_no}</span>}{item.name} ×{item.qty}</div>)}
+                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.name} ×{item.qty}</div>)}
               </div>
             ))}
           </div>
@@ -928,70 +928,92 @@ function CashierScreen({ goHome }) {
                   <div style={{ fontSize:11, color:C.muted }}>Total Outstanding</div>
                 </div>
               </div>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(280px,1fr))", gap:14 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(320px,1fr))", gap:14 }}>
                 {activeTables.map(([tableNo, data]) => {
                   const hasPending = data.pending.length>0;
                   const allOrders = [...data.done, ...data.pending];
+
+                  // Aggregate all drinks and food across all orders
+                  const allDrinkOrders = allOrders.filter(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
+                  const allFoodItems = allOrders.flatMap(o => o.items.filter(i => FOOD_CATEGORIES.includes(i.category)));
+                  const specialRequests = allOrders.filter(o => o.special_request).map(o => o.special_request);
+
                   return (
                     <div key={tableNo} style={{ background:C.panel, border:`2px solid ${hasPending?"#c8973a":"#5aaa5a"}`, borderRadius:14, overflow:"hidden" }}>
-                      <div style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      {/* Header */}
+                      <div style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"10px 14px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                         <div style={{ fontSize:20, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>Table {tableNo}</div>
-                        <div style={{ display:"flex", gap:6 }}>
+                        <div style={{ display:"flex", gap:6, alignItems:"center" }}>
                           {data.pending.length>0 && <span style={{ background:"#3d2a00", color:C.gold, borderRadius:6, padding:"2px 8px", fontSize:11 }}>⏳ {data.pending.length} pending</span>}
                           {data.done.length>0 && <span style={{ background:"#1a3a1a", color:"#5aaa5a", borderRadius:6, padding:"2px 8px", fontSize:11 }}>✅ {data.done.length} done</span>}
                         </div>
                       </div>
-                      <div style={{ padding:"12px 16px" }}>
-                        {allOrders.map((order,oi) => {
-                          const drinkItems = order.items.filter(i => DRINK_CATEGORIES.includes(i.category));
-                          const foodItems = order.items.filter(i => FOOD_CATEGORIES.includes(i.category));
-                          return (
-                            <div key={oi} style={{ marginBottom:oi<allOrders.length-1?12:0 }}>
-                              <div style={{ fontSize:10, color:order.status==="done"?"#5aaa5a":C.gold, fontWeight:"bold", marginBottom:6, letterSpacing:1, textTransform:"uppercase", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                                <span>{order.status==="done"?"✅ Served":"⏳ Pending"} · {order.time}</span>
-                                {order.status==="pending" && (
-                                  <div style={{ display:"flex", gap:6 }}>
-                                    {order.items.some(i => DRINK_CATEGORIES.includes(i.category)) && (
-                                      <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#2d6a2d", border:"1px solid #5aaa5a", color:"#aaffaa", padding:"2px 10px", fontSize:10, fontWeight:"bold" })}>✓ Done</button>
-                                    )}
-                                    <button onClick={() => cancelOrder(order.id)} style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"2px 8px", fontSize:10 })}>❌ Cancel</button>
+
+                      {/* Split body: drinks left, food right */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0, borderBottom:`1px solid ${C.border}` }}>
+                        {/* LEFT — Drinks (cashier prepares) */}
+                        <div style={{ padding:"10px 12px", borderRight:`1px solid ${C.border}` }}>
+                          <div style={{ fontSize:10, color:"#5aaa5a", fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>☕ Drinks</div>
+                          {allDrinkOrders.length===0
+                            ? <div style={{ fontSize:12, color:C.border, fontStyle:"italic" }}>None</div>
+                            : allDrinkOrders.map((order, oi) => {
+                                const drinkItems = order.items.filter(i => DRINK_CATEGORIES.includes(i.category));
+                                const isPending = order.status==="pending";
+                                return (
+                                  <div key={oi} style={{ marginBottom: oi < allDrinkOrders.length-1 ? 8 : 0 }}>
+                                    <div style={{ fontSize:10, color:isPending?C.gold:"#5aaa5a", marginBottom:4, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                                      <span>{isPending?"⏳":"✅"} {order.time}</span>
+                                      {isPending && (
+                                        <div style={{ display:"flex", gap:4 }}>
+                                          <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#2d6a2d", border:"none", color:"#aaffaa", padding:"1px 7px", fontSize:10, fontWeight:"bold" })}>✓</button>
+                                          <button onClick={() => cancelOrder(order.id)} style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"1px 5px", fontSize:10 })}>✕</button>
+                                        </div>
+                                      )}
+                                    </div>
+                                    {drinkItems.map((item,ii) => (
+                                      <div key={ii} style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:3 }}>
+                                        <span style={{ color:isPending?"#eee":"#5aaa5a" }}>
+                                          {item.item_no && <span style={{ color:"#5aaa5a", fontWeight:"bold", marginRight:3 }}>{item.item_no}</span>}
+                                          {item.name} <span style={{ fontWeight:"bold" }}>×{item.qty}</span>
+                                        </span>
+                                        <span style={{ color:"#5aaa5a", fontWeight:"bold", fontSize:12 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                                      </div>
+                                    ))}
                                   </div>
-                                )}
-                              </div>
-                              {drinkItems.length>0 && (
-                                <div style={{ background:"#0d2010", border:"1px solid #2d6a2d", borderRadius:8, padding:"8px 10px", marginBottom:6 }}>
-                                  <div style={{ fontSize:11, color:"#5aaa5a", marginBottom:6, fontWeight:"bold", letterSpacing:1 }}>☕ DRINKS — prepare here</div>
-                                  {drinkItems.map((item,ii) => (
-                                    <div key={ii} style={{ display:"flex", justifyContent:"space-between", fontSize:14, padding:"3px 0", borderTop:ii>0?`1px solid #1a3a1a`:"none" }}>
-                                      <span style={{ color:"#eee" }}>{item.emoji||"☕"} {item.item_no && <span style={{ color:"#5aaa5a", fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name} <span style={{ color:"#5aaa5a", fontWeight:"bold" }}>×{item.qty}</span></span>
-                                      <span style={{ color:"#5aaa5a", fontWeight:"bold" }}>RM {(item.price*item.qty).toFixed(2)}</span>
-                                    </div>
-                                  ))}
+                                );
+                              })
+                          }
+                        </div>
+
+                        {/* RIGHT — Food (kitchen handles, info only) */}
+                        <div style={{ padding:"10px 12px", background:"#1a1208" }}>
+                          <div style={{ fontSize:10, color:C.muted, fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>🍳 Food (Kitchen)</div>
+                          {allFoodItems.length===0
+                            ? <div style={{ fontSize:12, color:C.border, fontStyle:"italic" }}>None</div>
+                            : allFoodItems.map((item,ii) => (
+                                <div key={ii} style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:4 }}>
+                                  <span style={{ color:C.muted }}>
+                                    {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:3 }}>{item.item_no}</span>}
+                                    {item.name} <span style={{ color:C.gold }}>×{item.qty}</span>
+                                  </span>
+                                  <span style={{ color:C.muted, fontSize:12 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                                 </div>
-                              )}
-                              {foodItems.length>0 && (
-                                <div style={{ background:"#1a1208", border:"1px solid #3d2d1a", borderRadius:8, padding:"8px 10px", marginBottom:6 }}>
-                                  <div style={{ fontSize:11, color:"#a07840", marginBottom:6, fontWeight:"bold", letterSpacing:1 }}>🍳 FOOD — kitchen handles</div>
-                                  {foodItems.map((item,ii) => (
-                                    <div key={ii} style={{ display:"flex", justifyContent:"space-between", fontSize:14, padding:"3px 0", borderTop:ii>0?`1px solid #2d1a0e`:"none" }}>
-                                      <span style={{ color:"#a07840" }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:"#c8973a", fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name} <span style={{ color:"#c8973a" }}>×{item.qty}</span></span>
-                                      <span style={{ color:"#a07840" }}>RM {(item.price*item.qty).toFixed(2)}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              {order.special_request && <div style={{ fontSize:11, color:C.gold, marginTop:4 }}>📝 {order.special_request}</div>}
-                            </div>
-                          );
-                        })}
+                              ))
+                          }
+                          {specialRequests.length>0 && (
+                            <div style={{ marginTop:6, fontSize:11, color:C.gold }}>📝 {specialRequests.join(" · ")}</div>
+                          )}
+                        </div>
                       </div>
-                      <div style={{ background:"#0f0a04", padding:"10px 16px", borderTop:`1px solid ${C.border}` }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
+
+                      {/* Footer — total + pay button */}
+                      <div style={{ background:"#0f0a04", padding:"10px 14px" }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:17, color:C.goldLight, fontWeight:"bold", marginBottom:10 }}>
                           <span>TOTAL</span><span>RM {data.total.toFixed(2)}</span>
                         </div>
                         <button onClick={() => { if(confirm(`Table ${tableNo} paid RM ${data.total.toFixed(2)}? This will clear the table.`)) markPaid(tableNo); }}
                           disabled={paying===tableNo}
-                          style={btn({ width:"100%", background:"linear-gradient(135deg,#2d6a2d,#1a4a1a)", border:"1px solid #5aaa5a", color:"#aaffaa", padding:"12px 0", fontSize:14, fontWeight:"bold", cursor:"pointer" })}>
+                          style={btn({ width:"100%", background:"linear-gradient(135deg,#2d6a2d,#1a4a1a)", border:"1px solid #5aaa5a", color:"#aaffaa", padding:"10px 0", fontSize:14, fontWeight:"bold", cursor:"pointer" })}>
                           {paying===tableNo ? "Processing..." : "✅ Mark as Paid & Clear Table"}
                         </button>
                       </div>
