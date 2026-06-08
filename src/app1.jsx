@@ -910,7 +910,9 @@ function CashierScreen({ goHome }) {
                                 <span>{order.status==="done"?"✅ Served":"⏳ Pending"} · {order.time}</span>
                                 {order.status==="pending" && (
                                   <div style={{ display:"flex", gap:6 }}>
-                                    <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#2d6a2d", border:"1px solid #5aaa5a", color:"#aaffaa", padding:"2px 10px", fontSize:10, fontWeight:"bold" })}>✓ Done</button>
+                                    {order.items.some(i => DRINK_CATEGORIES.includes(i.category)) && (
+                                      <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#2d6a2d", border:"1px solid #5aaa5a", color:"#aaffaa", padding:"2px 10px", fontSize:10, fontWeight:"bold" })}>✓ Done</button>
+                                    )}
                                     <button onClick={() => cancelOrder(order.id)} style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"2px 8px", fontSize:10 })}>❌ Cancel</button>
                                   </div>
                                 )}
