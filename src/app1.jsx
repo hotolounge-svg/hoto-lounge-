@@ -572,24 +572,24 @@ function KitchenScreen({ goHome }) {
   const playAlert = () => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0,150,300].forEach(delay => {
+      [0,200,400].forEach(delay => {
         const osc = ctx.createOscillator(); const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.frequency.value = 880; osc.type = "sine";
-        gain.gain.setValueAtTime(0.4, ctx.currentTime+delay/1000);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.3);
-        osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.3);
+        gain.gain.setValueAtTime(1.0, ctx.currentTime+delay/1000);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.5);
+        osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.5);
       });
     } catch(e) {}
   };
   const playWaiterAlert = () => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0,200,400,600].forEach((delay,i) => {
+      [0,250,500,750].forEach((delay,i) => {
         const osc = ctx.createOscillator(); const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = i%2===0?660:550; osc.type = "triangle";
-        gain.gain.setValueAtTime(0.5, ctx.currentTime+delay/1000);
+        osc.frequency.value = i%2===0?880:660; osc.type = "sine";
+        gain.gain.setValueAtTime(1.0, ctx.currentTime+delay/1000);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.5);
         osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.5);
       });
@@ -780,6 +780,7 @@ function CashierScreen({ goHome }) {
   const [paying, setPaying] = useState(null);
   const [soundOn, setSoundOn] = useState(true);
   const prevDrinkCount = useRef(0);
+  const prevWaiterCount = useRef(0);
 
   const playAlert = () => {
     try {
@@ -795,16 +796,33 @@ function CashierScreen({ goHome }) {
     } catch(e) {}
   };
 
+  const playWaiterAlert = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0,250,500,750].forEach((delay,i) => {
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = i%2===0?880:550; osc.type = "sine";
+        gain.gain.setValueAtTime(1.0, ctx.currentTime+delay/1000);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.5);
+        osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.5);
+      });
+    } catch(e) {}
+  };
+
   const fetchAll = async () => {
     setLoading(true);
     const { data } = await supabase.from("orders").select("*").in("status",["pending","done"]).order("created_at",{ascending:true});
     const { data:w } = await supabase.from("waiter_calls").select("*");
     const newOrders = data||[];
-    setWaiterCalls(w||[]);
+    const newWaiters = w||[];
+    setWaiterCalls(newWaiters);
     const drinkPending = newOrders.filter(o => o.status==="pending")
       .reduce((s,o) => s + o.items.filter(i => DRINK_CATEGORIES.includes(i.category)).length, 0);
     if (soundOn && drinkPending > prevDrinkCount.current) playAlert();
+    if (soundOn && newWaiters.length > prevWaiterCount.current) playWaiterAlert();
     prevDrinkCount.current = drinkPending;
+    prevWaiterCount.current = newWaiters.length;
     setOrders(newOrders);
     setLoading(false);
   };
