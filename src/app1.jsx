@@ -120,7 +120,9 @@ function AdminScreen({ goHome }) {
     setUploading(true);
     const path = `menu/${Date.now()}.${file.name.split(".").pop()}`;
     const { error } = await supabase.storage.from("menu-images").upload(path, file, { upsert:true });
-    if (!error) { const { data } = supabase.storage.from("menu-images").getPublicUrl(path); setForm(f => ({ ...f, image_url:data.publicUrl })); }
+    if (error) { alert("Upload failed: " + error.message); setUploading(false); return; }
+    const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
+    setForm(f => ({ ...f, image_url:data.publicUrl }));
     setUploading(false);
   };
   const handleSave = async () => {
@@ -471,7 +473,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                         </div>
                         {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
                         {item.image_url
-                          ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:130, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
+                          ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:110, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
                           : <div style={{ height:110, display:"flex", alignItems:"center", justifyContent:"center", fontSize:50, background:"#f9f9f9" }}>{item.emoji}</div>
                         }
                         <div style={{ padding:"10px 10px 12px" }}>
