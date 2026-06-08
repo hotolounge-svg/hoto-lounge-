@@ -667,7 +667,7 @@ function KitchenScreen({ goHome }) {
               </div>
               {order.items.map((item,i) => (
                 <div key={i} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:14 }}>
-                  <span>{item.emoji||"🍽️"} {item.name}</span>
+                  <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
                   <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                 </div>
               ))}
@@ -686,7 +686,7 @@ function KitchenScreen({ goHome }) {
             {done.map(o => (
               <div key={o.id} style={{ background:"#1a2c1a", border:"1px solid #3a6a3a", borderRadius:12, padding:12, opacity:0.8 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#5aaa5a", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
-                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.name} ×{item.qty}</div>)}
+                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:"#5aaa5a", fontWeight:"bold", marginRight:3 }}>{item.item_no}</span>}{item.name} ×{item.qty}</div>)}
               </div>
             ))}
           </div>
@@ -697,7 +697,7 @@ function KitchenScreen({ goHome }) {
             {cancelled.map(o => (
               <div key={o.id} style={{ background:"#2a1a1a", border:"1px solid #5a2a2a", borderRadius:12, padding:12, opacity:0.7 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#ff7777", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
-                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.name} ×{item.qty}</div>)}
+                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:"#ff7777", fontWeight:"bold", marginRight:3 }}>{item.item_no}</span>}{item.name} ×{item.qty}</div>)}
               </div>
             ))}
           </div>
@@ -903,7 +903,6 @@ function CashierScreen({ goHome }) {
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
         </div>
       </div>
-      {/* Tab filter */}
       <div style={{ background:C.panel, borderBottom:`1px solid ${C.border}`, padding:"0 16px", display:"flex", gap:0 }}>
         {[["all",`All (${activeTables.length})`],["pending",`⏳ Pending (${pendingTables.length})`],["done",`✅ All Served (${doneTables.length})`]].map(([key,label]) => (
           <button key={key} onClick={() => { setFilterTab(key); setSelectedTable(null); }}
@@ -914,7 +913,6 @@ function CashierScreen({ goHome }) {
           </button>
         ))}
       </div>
-      {/* Table number filter — big touch buttons */}
       {activeTables.length > 0 && (
         <div style={{ background:"#110d06", borderBottom:`1px solid ${C.border}`, padding:"10px 16px", display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
           <span style={{ fontSize:12, color:C.muted, marginRight:4, fontWeight:"bold" }}>TABLE:</span>
