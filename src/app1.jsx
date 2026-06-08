@@ -600,7 +600,6 @@ function KitchenScreen({ goHome }) {
     const { data:o } = await supabase.from("orders").select("*").order("created_at", { ascending:true });
     const { data:w } = await supabase.from("waiter_calls").select("*");
     const newOrders = o||[]; const newWaiters = w||[];
-    // Kitchen only sees food items
     const filtered = newOrders.map(order => ({
       ...order,
       items: order.items.filter(item => FOOD_CATEGORIES.includes(item.category))
@@ -609,7 +608,7 @@ function KitchenScreen({ goHome }) {
     if (soundOn && newPending > prevPendingCount.current) playAlert();
     if (soundOn && newWaiters.length > prevWaiterCount.current) playWaiterAlert();
     prevPendingCount.current = newPending; prevWaiterCount.current = newWaiters.length;
-    setOrders(filtered); setWaiterCalls(newWaiters);
+    setOrders(filtered);
   };
 
   useEffect(() => {
@@ -643,19 +642,6 @@ function KitchenScreen({ goHome }) {
         </div>
       </div>
       <div style={{ flex:1, padding:16, overflowY:"auto" }}>
-        {waiterCalls.length > 0 && (
-          <div style={{ marginBottom:20 }}>
-            <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>🔔 Waiter Called</div>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
-              {waiterCalls.map(c => (
-                <div key={c.table_no} style={{ background:"#3d1a0e", border:"1.5px solid #ff6b35", borderRadius:10, padding:"10px 16px", display:"flex", alignItems:"center", gap:12 }}>
-                  <div><div style={{ fontWeight:"bold", color:"#ff6b35" }}>Table {c.table_no}</div><div style={{ fontSize:11, color:C.muted }}>{c.time}</div></div>
-                  <button onClick={() => dismissWaiter(c.table_no)} style={btn({ background:"#ff6b35", border:"none", color:"#fff", padding:"5px 10px", fontSize:12 })}>Done ✓</button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>🟡 Pending Food ({pending.length})</div>
         {pending.length===0 && <div style={{ color:C.muted, textAlign:"center", padding:40 }}>All clear! ✅</div>}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(260px,1fr))", gap:14, marginBottom:24 }}>
@@ -798,13 +784,13 @@ function CashierScreen({ goHome }) {
   const playAlert = () => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0,150,300].forEach(delay => {
+      [0,200,400].forEach(delay => {
         const osc = ctx.createOscillator(); const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.frequency.value = 660; osc.type = "sine";
-        gain.gain.setValueAtTime(0.4, ctx.currentTime+delay/1000);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.3);
-        osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.3);
+        gain.gain.setValueAtTime(1.0, ctx.currentTime+delay/1000);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.5);
+        osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.5);
       });
     } catch(e) {}
   };
