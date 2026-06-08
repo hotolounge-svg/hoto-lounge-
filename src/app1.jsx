@@ -667,7 +667,7 @@ function KitchenScreen({ goHome }) {
               </div>
               {order.items.map((item,i) => (
                 <div key={i} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:14 }}>
-                  <span>{item.emoji||"🍽️"} {item.name}</span>
+                  <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
                   <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                 </div>
               ))}
@@ -686,7 +686,7 @@ function KitchenScreen({ goHome }) {
             {done.map(o => (
               <div key={o.id} style={{ background:"#1a2c1a", border:"1px solid #3a6a3a", borderRadius:12, padding:12, opacity:0.8 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#5aaa5a", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
-                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.name} ×{item.qty}</div>)}
+                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:"#5aaa5a", fontWeight:"bold", marginRight:3 }}>{item.item_no}</span>}{item.name} ×{item.qty}</div>)}
               </div>
             ))}
           </div>
@@ -697,7 +697,7 @@ function KitchenScreen({ goHome }) {
             {cancelled.map(o => (
               <div key={o.id} style={{ background:"#2a1a1a", border:"1px solid #5a2a2a", borderRadius:12, padding:12, opacity:0.7 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#ff7777", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
-                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.name} ×{item.qty}</div>)}
+                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:"#ff7777", fontWeight:"bold", marginRight:3 }}>{item.item_no}</span>}{item.name} ×{item.qty}</div>)}
               </div>
             ))}
           </div>
@@ -963,7 +963,7 @@ function CashierScreen({ goHome }) {
                                   <div style={{ fontSize:11, color:"#5aaa5a", marginBottom:6, fontWeight:"bold", letterSpacing:1 }}>☕ DRINKS — prepare here</div>
                                   {drinkItems.map((item,ii) => (
                                     <div key={ii} style={{ display:"flex", justifyContent:"space-between", fontSize:14, padding:"3px 0", borderTop:ii>0?`1px solid #1a3a1a`:"none" }}>
-                                      <span style={{ color:"#eee" }}>{item.emoji||"☕"} {item.name} <span style={{ color:"#5aaa5a", fontWeight:"bold" }}>×{item.qty}</span></span>
+                                      <span style={{ color:"#eee" }}>{item.emoji||"☕"} {item.item_no && <span style={{ color:"#5aaa5a", fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name} <span style={{ color:"#5aaa5a", fontWeight:"bold" }}>×{item.qty}</span></span>
                                       <span style={{ color:"#5aaa5a", fontWeight:"bold" }}>RM {(item.price*item.qty).toFixed(2)}</span>
                                     </div>
                                   ))}
@@ -974,7 +974,7 @@ function CashierScreen({ goHome }) {
                                   <div style={{ fontSize:11, color:"#a07840", marginBottom:6, fontWeight:"bold", letterSpacing:1 }}>🍳 FOOD — kitchen handles</div>
                                   {foodItems.map((item,ii) => (
                                     <div key={ii} style={{ display:"flex", justifyContent:"space-between", fontSize:14, padding:"3px 0", borderTop:ii>0?`1px solid #2d1a0e`:"none" }}>
-                                      <span style={{ color:"#a07840" }}>{item.emoji||"🍽️"} {item.name} <span style={{ color:"#c8973a" }}>×{item.qty}</span></span>
+                                      <span style={{ color:"#a07840" }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:"#c8973a", fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name} <span style={{ color:"#c8973a" }}>×{item.qty}</span></span>
                                       <span style={{ color:"#a07840" }}>RM {(item.price*item.qty).toFixed(2)}</span>
                                     </div>
                                   ))}
