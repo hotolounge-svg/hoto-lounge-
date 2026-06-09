@@ -8,9 +8,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const ADMIN_PASSWORD = "hotolounge2024";
 const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 const CAFE_NAME = "HOTO LOUNGE";
-const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts", "Add-ons", "Promo"];
+const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts", "Add-ons"];
 const DRINK_CATEGORIES = ["Beverage"];
-const FOOD_CATEGORIES = ["Food & Snacks", "Desserts", "Add-ons", "Promo"];
+const FOOD_CATEGORIES = ["Food & Snacks", "Desserts", "Add-ons"];
 
 // Staff dark theme
 const C = { bg:"#1a1208", panel:"#2c1a0e", border:"#3d2d1a", gold:"#c8973a", goldLight:"#e8c77a", muted:"#a07840", text:"#f5ede0", dark:"#1a1208" };
@@ -306,7 +306,7 @@ function AdminScreen({ goHome }) {
             return (
               <div key={cat} style={{ marginBottom:24 }}>
                 <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>
-                  {cat} ({catItems.length}) — {cat==="Promo" ? "🎉 Time-limited promo" : DRINK_CATEGORIES.includes(cat) ? "☕ Cashier (Beverage)" : "🍳 Kitchen prepares"}
+                  {cat} ({catItems.length}) — {DRINK_CATEGORIES.includes(cat) ? "☕ Cashier (Beverage)" : "🍳 Kitchen prepares"}
                 </div>
                 {catItems.length===0 && <div style={{ color:C.border, fontSize:13 }}>No items yet</div>}
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -516,7 +516,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.item_no && String(item.item_no).toLowerCase().includes(searchQuery.toLowerCase()))
       )
-    : (menu[activeCategory] || []).filter(item => isPromoActive(item));
+    : (menu[activeCategory] || []);
   const hasOrders = myOrders.length > 0;
 
   if (sessionExpired && !isStaff) return (
@@ -631,22 +631,13 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             </div>
           </div>
 
-          {/* Promo banner */}
-          {!searchQuery && Object.values(menu).flat().filter(i => i.category==="Promo" && isPromoActive(i)).length > 0 && (
-            <div style={{ background:"linear-gradient(135deg,#b8860b,#daa520)", padding:"10px 16px", display:"flex", alignItems:"center", gap:10 }}>
-              <span style={{ fontSize:20 }}>🎉</span>
-              <div>
-                <div style={{ fontSize:13, fontWeight:"bold", color:"#fff" }}>Special Promo Available!</div>
-                <div style={{ fontSize:12, color:"#fff8dc" }}>Check the Promo tab for today's special offers</div>
-              </div>
-            </div>
-          )}
+
           {/* Category tabs — hidden when searching */}
           {!searchQuery && (
             <div style={{ display:"flex", background:"#fff", borderBottom:`1px solid ${T.border}`, overflowX:"auto", flexShrink:0 }}>
               {CATEGORIES.map(cat => (
                 <button key={cat} onClick={() => setActiveCategory(cat)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:activeCategory===cat?T.brown:"#fff", border:"none", color:activeCategory===cat?"#fff":T.muted, padding:"14px 18px", fontSize:15, fontWeight:activeCategory===cat?"bold":"normal", whiteSpace:"nowrap", flexShrink:0, borderBottom:activeCategory===cat?`3px solid #5a3a00`:"3px solid transparent" }}>
-                  {cat==="Beverage"?"☕ Beverage":cat==="Food & Snacks"?"🍽️ Food":cat==="Desserts"?"🍰 Desserts":cat==="Add-ons"?"➕ Add-ons":"🎉 Promo"}
+                  {cat==="Beverage"?"☕ Beverage":cat==="Food & Snacks"?"🍽️ Food":cat==="Desserts"?"🍰 Desserts":"➕ Add-ons"}
                 </button>
               ))}
             </div>
