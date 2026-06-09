@@ -38,10 +38,32 @@ const getFoodReq = (req) => {
   return req; // food only or plain request
 };
 
-// Check if promo item is active based on time window
+// Check if promo time is currently active
 const isPromoActive = (item) => {
   if (item.category !== "Promo") return true;
   if (!item.promo_start || !item.promo_end) return true;
+  const now = new Date();
+  const [sh, sm] = item.promo_start.split(":").map(Number);
+  const [eh, em] = item.promo_end.split(":").map(Number);
+  const start = sh * 60 + sm;
+  const end = eh * 60 + em;
+  const cur = now.getHours() * 60 + now.getMinutes();
+  return cur >= start && cur <= end;
+};
+// Get effective price (happy hour price if active)
+const getEffectivePrice = (item) => {
+  if (!item.promo_price || !item.promo_start || !item.promo_end) return item.price;
+  const now = new Date();
+  const [sh, sm] = item.promo_start.split(":").map(Number);
+  const [eh, em] = item.promo_end.split(":").map(Number);
+  const start = sh * 60 + sm;
+  const end = eh * 60 + em;
+  const cur = now.getHours() * 60 + now.getMinutes();
+  return (cur >= start && cur <= end) ? item.promo_price : item.price;
+};
+// Check if item is in happy hour right now
+const isHappyHour = (item) => {
+  if (!item.promo_price || !item.promo_start || !item.promo_end) return false;
   const now = new Date();
   const [sh, sm] = item.promo_start.split(":").map(Number);
   const [eh, em] = item.promo_end.split(":").map(Number);
@@ -118,7 +140,7 @@ function AdminScreen({ goHome }) {
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], promo_start:"", promo_end:"" });
+  const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], promo_start:"", promo_end:"", promo_price:"", promo_drinks:[] });
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef();
 
@@ -135,11 +157,11 @@ function AdminScreen({ goHome }) {
     else setPwError(true);
   };
   const openAdd = () => {
-    setForm({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], promo_start:"", promo_end:"" });
+    setForm({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], promo_start:"", promo_end:"", promo_price:"", promo_drinks:[] });
     setEditItem(null); setShowForm(true);
   };
   const openEdit = (item) => {
-    setForm({ item_no:item.item_no, name:item.name, category:item.category, price:item.price, description:item.description||"", emoji:item.emoji||"🍽️", image_url:item.image_url||"", is_available:item.is_available!==false, addons:item.addons||[], promo_start:item.promo_start||"", promo_end:item.promo_end||"" });
+    setForm({ item_no:item.item_no, name:item.name, category:item.category, price:item.price, description:item.description||"", emoji:item.emoji||"🍽️", image_url:item.image_url||"", is_available:item.is_available!==false, addons:item.addons||[], promo_start:item.promo_start||"", promo_end:item.promo_end||"", promo_price:item.promo_price||"", promo_drinks:item.promo_drinks||[] });
     setEditItem(item); setShowForm(true);
   };
   const handleUpload = async (e) => {
@@ -153,7 +175,7 @@ function AdminScreen({ goHome }) {
     setUploading(false);
   };
   const handleSave = async () => {
-    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, addons:form.addons||[], promo_start:form.promo_start||null, promo_end:form.promo_end||null };
+    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, addons:form.addons||[], promo_start:form.promo_start||null, promo_end:form.promo_end||null, promo_price:form.promo_price?parseFloat(form.promo_price):null, promo_drinks:form.promo_drinks||[] };
     if (editItem) await supabase.from("menu_items").update(p).eq("id", editItem.id);
     else await supabase.from("menu_items").insert(p);
     setShowForm(false); fetchItems();
@@ -235,24 +257,42 @@ function AdminScreen({ goHome }) {
             <button onClick={() => setForm(f=>({...f,addons:[...(f.addons||[]),{name:"",price:""}]}))}
               style={btn({ background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 16px", fontSize:13 })}>+ Add Option</button>
           </div>
-          {form.category === "Promo" && (
-            <div style={{ marginTop:16 }}>
-              <div style={{ fontSize:13, color:C.muted, marginBottom:8, fontWeight:"bold" }}>⏰ Promo Time Window</div>
-              <div style={{ display:"flex", gap:12, alignItems:"center", flexWrap:"wrap" }}>
-                <div>
-                  <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Start Time</div>
-                  <input type="time" value={form.promo_start} onChange={e => setForm(f=>({...f, promo_start:e.target.value}))}
-                    style={{ background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
-                </div>
-                <div>
-                  <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>End Time</div>
-                  <input type="time" value={form.promo_end} onChange={e => setForm(f=>({...f, promo_end:e.target.value}))}
-                    style={{ background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
-                </div>
-                <div style={{ fontSize:12, color:C.muted, marginTop:16 }}>Item only shows on customer menu during this time</div>
+          <div style={{ marginTop:16, background:C.panel, border:`1px solid ${C.border}`, borderRadius:10, padding:14 }}>
+            <div style={{ fontSize:13, color:C.goldLight, marginBottom:12, fontWeight:"bold" }}>⏰ Time-Based Promo (optional)</div>
+            <div style={{ display:"flex", gap:12, alignItems:"flex-end", flexWrap:"wrap", marginBottom:12 }}>
+              <div>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Promo Start</div>
+                <input type="time" value={form.promo_start} onChange={e => setForm(f=>({...f, promo_start:e.target.value}))}
+                  style={{ background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Promo End</div>
+                <input type="time" value={form.promo_end} onChange={e => setForm(f=>({...f, promo_end:e.target.value}))}
+                  style={{ background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Happy Hour Price (RM)</div>
+                <input type="number" step="0.50" placeholder="e.g. 10.00" value={form.promo_price} onChange={e => setForm(f=>({...f, promo_price:e.target.value}))}
+                  style={{ width:120, background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
               </div>
             </div>
-          )}
+            <div style={{ marginBottom:8 }}>
+              <div style={{ fontSize:11, color:C.muted, marginBottom:6 }}>Free Drink Options (e.g. for breakfast promo — customer picks one)</div>
+              {(form.promo_drinks||[]).map((drink, di) => (
+                <div key={di} style={{ display:"flex", gap:8, alignItems:"center", marginBottom:6 }}>
+                  <input value={drink} onChange={e => { const u=[...form.promo_drinks]; u[di]=e.target.value; setForm(f=>({...f,promo_drinks:u})); }} placeholder="e.g. Coffee"
+                    style={{ flex:1, background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"7px 12px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
+                  <button onClick={() => setForm(f=>({...f,promo_drinks:f.promo_drinks.filter((_,i)=>i!==di)}))}
+                    style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"6px 10px", fontSize:13 })}>✕</button>
+                </div>
+              ))}
+              <button onClick={() => setForm(f=>({...f,promo_drinks:[...(f.promo_drinks||[]),""]}))}
+                style={btn({ background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:"6px 14px", fontSize:12 })}>+ Add Free Drink Option</button>
+            </div>
+            <div style={{ fontSize:11, color:C.muted }}>
+              💡 Happy Hour Price: auto-switches price during promo time · Free Drinks: customer picks a free drink when adding this item
+            </div>
+          </div>
           <div style={{ display:"flex", gap:10, marginTop:16 }}>
             <button onClick={() => setShowForm(false)} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"10px 20px", fontSize:13 })}>Cancel</button>
             <button onClick={handleSave} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 28px", fontSize:14, fontWeight:"bold" })}>{editItem ? "Save Changes" : "Add Item"} ✓</button>
@@ -314,6 +354,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [drinkRequest, setDrinkRequest] = useState("");
   const [foodRequest, setFoodRequest] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [promoModal, setPromoModal] = useState(null); // {item, selectedDrink:""}
 
   useEffect(() => {
     const initSession = async () => {
@@ -405,7 +446,24 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     return () => supabase.removeChannel(ch);
   }, [tableNo]);
 
-  const addToCart = (item) => setCart(p => ({ ...p, [item.id]: { ...item, qty:(p[item.id]?.qty||0)+1 } }));
+  const addToCart = (item, freeDrink=null) => {
+    const effectivePrice = getEffectivePrice(item);
+    const itemToAdd = { ...item, price: effectivePrice };
+    setCart(p => ({ ...p, [item.id]: { ...itemToAdd, qty:(p[item.id]?.qty||0)+1 } }));
+    // If free drink selected, add it to cart at RM 0
+    if (freeDrink) {
+      const drinkKey = `free_${item.id}`;
+      const freeItem = { id:drinkKey, name:`${freeDrink} (Free)`, price:0, qty:1, category:"Beverage", emoji:"☕", item_no:"" };
+      setCart(p => ({ ...p, [drinkKey]: { ...freeItem, qty:1 } }));
+    }
+  };
+  const handleAddItem = (item) => {
+    if (isHappyHour(item) && item.promo_drinks && item.promo_drinks.length > 0) {
+      setPromoModal({ item, selectedDrink:"" });
+    } else {
+      addToCart(item);
+    }
+  };
   const removeFromCart = (id) => setCart(p => { const u={...p}; if (!u[id]) return u; if (u[id].qty>1) u[id]={...u[id],qty:u[id].qty-1}; else delete u[id]; return u; });
   const clearItem = (id) => setCart(p => { const u={...p}; delete u[id]; return u; });
 
@@ -606,8 +664,10 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     return (
                       <div key={item.id} style={{ background:"#fff", border:qty>0?`2px solid ${T.brown}`:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden", position:"relative", opacity:soldOut?0.5:1, boxShadow:T.shadow, display:"flex", flexDirection:"column" }}>
                         {/* Price badge top right */}
-                        <div style={{ position:"absolute", top:8, right:8, background:"rgba(0,0,0,0.7)", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:13, fontWeight:"bold", zIndex:1 }}>
-                          RM {parseFloat(item.price).toFixed(2)}
+                        <div style={{ position:"absolute", top:8, right:8, background:isHappyHour(item)?"#e65100":"rgba(0,0,0,0.7)", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:13, fontWeight:"bold", zIndex:1 }}>
+                          {isHappyHour(item) && <span style={{ textDecoration:"line-through", opacity:0.7, marginRight:4, fontSize:11 }}>RM {parseFloat(item.price).toFixed(2)}</span>}
+                          RM {parseFloat(getEffectivePrice(item)).toFixed(2)}
+                          {isHappyHour(item) && <span style={{ fontSize:10, display:"block", textAlign:"center" }}>🍺 Happy Hour</span>}
                         </div>
                         {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
                         {item.image_url
@@ -621,7 +681,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                           {soldOut ? (
                             <div style={{ textAlign:"center", color:T.red, fontSize:13, fontWeight:"bold", padding:"8px 0", background:"#fff0f0", borderRadius:8 }}>Sold Out</div>
                           ) : qty===0 ? (
-                            <button onClick={() => addToCart(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
+                            <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:isHappyHour(item)?T.orange:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
                           ) : (
                             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                               <button onClick={() => removeFromCart(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:`2px solid ${T.brown}`, color:T.brown, width:40, height:40, fontSize:24, fontWeight:"bold", borderRadius:8 }}>−</button>
@@ -636,6 +696,40 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                 </div>
               )}
           </div>
+
+          {/* Promo / Free Drink Modal */}
+          {promoModal && (
+            <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:1000, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+              <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:24, width:"100%", maxWidth:500 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                  <div style={{ fontSize:18, fontWeight:"bold", color:T.brown }}>{promoModal.item.name}</div>
+                  <button onClick={() => setPromoModal(null)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", fontSize:24, color:T.muted }}>×</button>
+                </div>
+                <div style={{ background:"#fff8e1", borderRadius:10, padding:"10px 14px", marginBottom:16 }}>
+                  <div style={{ fontSize:14, fontWeight:"bold", color:"#e65100" }}>🎉 Breakfast Promo!</div>
+                  <div style={{ fontSize:13, color:"#5a3a00" }}>Choose a free drink with your order</div>
+                </div>
+                {promoModal.item.promo_drinks.map((drink, di) => (
+                  <div key={di} onClick={() => setPromoModal(m=>({...m, selectedDrink:drink}))}
+                    style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px", marginBottom:8, borderRadius:12, border:`2px solid ${promoModal.selectedDrink===drink?T.brown:T.border}`, background:promoModal.selectedDrink===drink?"#fff8f0":"#fff", cursor:"pointer" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                      <div style={{ width:24, height:24, borderRadius:12, border:`2px solid ${promoModal.selectedDrink===drink?T.brown:T.border}`, background:promoModal.selectedDrink===drink?T.brown:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        {promoModal.selectedDrink===drink && <span style={{ color:"#fff", fontSize:12 }}>✓</span>}
+                      </div>
+                      <span style={{ fontSize:15, color:T.text }}>☕ {drink}</span>
+                    </div>
+                    <span style={{ fontSize:14, color:T.green, fontWeight:"bold" }}>FREE</span>
+                  </div>
+                ))}
+                <div style={{ marginTop:16, display:"flex", gap:10 }}>
+                  <button onClick={() => { addToCart(promoModal.item, promoModal.selectedDrink||null); setPromoModal(null); }}
+                    style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:T.brown, border:"none", color:"#fff", padding:"16px 0", fontSize:17, fontWeight:"bold", borderRadius:12 }}>
+                    {promoModal.selectedDrink ? `Add + Free ${promoModal.selectedDrink} ✓` : "Add without free drink"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Cart bar */}
           {cartItems.length > 0 && (
