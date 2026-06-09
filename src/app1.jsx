@@ -287,11 +287,24 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   useEffect(() => {
     const initSession = async () => {
       const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
+      const stored = sessionStorage.getItem(`session_table_${tableNo}`);
+
       if (data) {
-        const stored = sessionStorage.getItem(`session_table_${tableNo}`);
-        if (stored && stored !== data.session_id) { setSessionExpired(true); return; }
-        if (!stored) sessionStorage.setItem(`session_table_${tableNo}`, data.session_id);
+        // Server has a session
+        if (!stored) {
+          // No local session — this is a fresh QR scan, accept server session
+          sessionStorage.setItem(`session_table_${tableNo}`, data.session_id);
+        } else if (stored !== data.session_id) {
+          // Local session doesn't match server — table was cleared/paid, show expired
+          setSessionExpired(true); return;
+        }
+        // stored === data.session_id → same session, continue normally
       } else {
+        // No server session yet — create one (first ever scan for this table)
+        if (stored) {
+          // Had a local session but server has none → session was wiped, expired
+          setSessionExpired(true); return;
+        }
         const s = Date.now().toString();
         await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
         sessionStorage.setItem(`session_table_${tableNo}`, s);
@@ -301,7 +314,10 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     const ch = supabase.channel(`session-${tableNo}`)
       .on("postgres_changes", { event:"*", schema:"public", table:"table_sessions", filter:`table_no=eq.${tableNo}` }, (payload) => {
         const stored = sessionStorage.getItem(`session_table_${tableNo}`);
-        if (payload.new?.session_id && stored && payload.new.session_id !== stored) setSessionExpired(true);
+        if (payload.new?.session_id && stored && payload.new.session_id !== stored) {
+          sessionStorage.removeItem(`session_table_${tableNo}`);
+          setSessionExpired(true);
+        }
       }).subscribe();
     return () => supabase.removeChannel(ch);
   }, [tableNo]);
@@ -367,7 +383,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:20, padding:24, textAlign:"center", background:T.bg }}>
       <div style={{ fontSize:70 }}>🔒</div>
       <div style={{ fontSize:26, color:T.brown, fontWeight:"bold" }}>Session Ended</div>
-      <div style={{ color:T.muted, fontSize:18, lineHeight:1.8 }}>This table has been reset.<br/>Thank you for visiting {CAFE_NAME}! 😊</div>
+      <div style={{ color:T.muted, fontSize:18, lineHeight:1.8 }}>Your session has ended.<br/>Please <span style={{ color:T.brown, fontWeight:"bold" }}>scan the QR code again</span><br/>to start a new order. 😊</div>
     </div>
   );
 
