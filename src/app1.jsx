@@ -206,6 +206,29 @@ function AdminScreen({ goHome }) {
               {form.image_url && <button onClick={() => setForm(f => ({ ...f, image_url:"" }))} style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"8px 12px", fontSize:12 })}>Remove</button>}
             </div>
           </div>
+          {/* Add-ons section */}
+          <div style={{ marginTop:16 }}>
+            <div style={{ fontSize:13, color:C.muted, marginBottom:8, fontWeight:"bold" }}>➕ Add-ons (optional extras customer can select)</div>
+            {(form.addons||[]).map((addon, ai) => (
+              <div key={ai} style={{ display:"flex", gap:8, alignItems:"center", marginBottom:8 }}>
+                <input value={addon.name} onChange={e => {
+                  const updated = [...form.addons]; updated[ai]={...updated[ai], name:e.target.value};
+                  setForm(f=>({...f, addons:updated}));
+                }} placeholder="e.g. Extra Egg"
+                  style={{ flex:1, background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"7px 12px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
+                <input value={addon.price} onChange={e => {
+                  const updated = [...form.addons]; updated[ai]={...updated[ai], price:e.target.value};
+                  setForm(f=>({...f, addons:updated}));
+                }} placeholder="RM" type="number" step="0.50"
+                  style={{ width:80, background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"7px 10px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
+                <button onClick={() => setForm(f=>({...f, addons:f.addons.filter((_,i)=>i!==ai)}))}
+                  style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"6px 10px", fontSize:13 })}>✕</button>
+              </div>
+            ))}
+            <button onClick={() => setForm(f=>({...f, addons:[...(f.addons||[]), {name:"", price:""}]}))}
+              style={btn({ background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 16px", fontSize:13 })}>+ Add Option</button>
+          </div>
+
           <div style={{ marginTop:16 }}>
             <div style={{ fontSize:13, color:C.muted, marginBottom:8, fontWeight:"bold" }}>➕ Add-ons (optional extras customer can select)</div>
             {(form.addons||[]).map((addon, ai) => (
@@ -612,50 +635,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
               )}
           </div>
 
-          {/* Add-on Modal */}
-          {addonModal && (
-            <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:1000, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-              <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:24, width:"100%", maxWidth:500, maxHeight:"80vh", overflowY:"auto" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-                  <div style={{ fontSize:18, fontWeight:"bold", color:T.brown }}>{addonModal.item.name}</div>
-                  <button onClick={() => setAddonModal(null)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", fontSize:24, color:T.muted }}>×</button>
-                </div>
-                <div style={{ fontSize:13, color:T.muted, marginBottom:12 }}>Select add-ons (optional)</div>
-                {addonModal.item.addons.map((addon, ai) => {
-                  const isSelected = addonModal.selected.some(s=>s.name===addon.name);
-                  return (
-                    <div key={ai} onClick={() => setAddonModal(m => ({
-                      ...m,
-                      selected: isSelected ? m.selected.filter(s=>s.name!==addon.name) : [...m.selected, addon]
-                    }))} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px", marginBottom:8, borderRadius:12, border:`2px solid ${isSelected?T.brown:T.border}`, background:isSelected?"#fff8f0":"#fff", cursor:"pointer" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                        <div style={{ width:24, height:24, borderRadius:6, border:`2px solid ${isSelected?T.brown:T.border}`, background:isSelected?T.brown:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          {isSelected && <span style={{ color:"#fff", fontSize:14, fontWeight:"bold" }}>✓</span>}
-                        </div>
-                        <span style={{ fontSize:15, color:T.text, fontWeight:isSelected?"bold":"normal" }}>{addon.name}</span>
-                      </div>
-                      <span style={{ fontSize:15, color:T.brown, fontWeight:"bold" }}>+ RM {parseFloat(addon.price||0).toFixed(2)}</span>
-                    </div>
-                  );
-                })}
-                <div style={{ marginTop:16, padding:"12px 0", borderTop:`1px solid ${T.border}` }}>
-                  <div style={{ fontSize:13, color:T.muted, marginBottom:4 }}>
-                    Base: RM {parseFloat(addonModal.item.price).toFixed(2)}
-                    {addonModal.selected.length > 0 && ` + RM ${addonModal.selected.reduce((s,a)=>s+parseFloat(a.price||0),0).toFixed(2)} add-ons`}
-                  </div>
-                  <div style={{ fontSize:20, color:T.brown, fontWeight:"bold", marginBottom:16 }}>
-                    Total: RM {(parseFloat(addonModal.item.price) + addonModal.selected.reduce((s,a)=>s+parseFloat(a.price||0),0)).toFixed(2)}
-                  </div>
-                  <button onClick={() => { addToCart(addonModal.item, addonModal.selected); setAddonModal(null); }}
-                    style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"16px 0", fontSize:17, fontWeight:"bold", borderRadius:12 }}>
-                    Add to Cart ✓
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Add-on Modal */}
+          {/* Add-on Modal */
           {addonModal && (
             <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:1000, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
               <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:24, width:"100%", maxWidth:500, maxHeight:"80vh", overflowY:"auto" }}>
