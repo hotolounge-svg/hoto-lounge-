@@ -838,9 +838,14 @@ function KitchenScreen({ goHome }) {
               </div>
               <div style={{ flex:1 }}>
                 {order.items.map((item,i) => (
-                  <div key={i} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:14 }}>
-                    <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
-                    <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
+                  <div key={i} style={{ marginBottom:6 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:14 }}>
+                      <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
+                      <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
+                    </div>
+                    {item._addons && item._addons.length>0 && (
+                      <div style={{ fontSize:12, color:C.muted, paddingLeft:20, marginTop:2 }}>+ {item._addons.map(a=>a.name).join(", ")}</div>
+                    )}
                   </div>
                 ))}
                 {getFoodReq(order.special_request) && (
@@ -1045,6 +1050,9 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                         </span>
                         <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                       </div>
+                      {item._addons && item._addons.length>0 && (
+                        <div style={{ fontSize:12, color:isPending?C.gold:"#5aaa5a", paddingLeft:20, marginBottom:4 }}>+ {item._addons.map(a=>a.name).join(", ")}</div>
+                      )}
                     ))}
                     {getFoodReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getFoodReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
