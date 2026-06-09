@@ -24,6 +24,20 @@ const T = {
   orange:"#e65100", shadow:"0 2px 8px rgba(0,0,0,0.1)"
 };
 
+// Helper to extract drink/food parts from special_request
+const getDrinkReq = (req) => {
+  if (!req) return null;
+  if (req.includes("🍳") && req.includes("☕")) return req.split("|").filter(s=>s.includes("☕")).map(s=>s.replace("☕","").trim()).join("").trim() || null;
+  if (req.includes("🍳")) return null; // food only request
+  return req; // drink only or plain request
+};
+const getFoodReq = (req) => {
+  if (!req) return null;
+  if (req.includes("☕") && req.includes("🍳")) return req.split("|").filter(s=>s.includes("🍳")).map(s=>s.replace("🍳","").trim()).join("").trim() || null;
+  if (req.includes("☕")) return null; // drink only request
+  return req; // food only or plain request
+};
+
 function QRCode({ url, size=160 }) {
   const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&bgcolor=2c1a0e&color=e8c77a&margin=10`;
   return <img src={src} alt="QR" style={{ width:size, height:size, borderRadius:8 }} />;
@@ -352,27 +366,34 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const total = cartItems.reduce((s,i) => s+i.price*i.qty, 0);
 
   const placeOrder = async () => {
-    const drinkReq = drinkRequest.trim();
-    const foodReq = foodRequest.trim();
-    const hasD = cartItems.some(i => DRINK_CATEGORIES.includes(i.category));
-    const hasF = cartItems.some(i => FOOD_CATEGORIES.includes(i.category));
-    // Build special_request string — prefix with emoji so kitchen/cashier knows which is which
-    let combinedReq = null;
-    if (hasD && hasF) {
-      const parts = [];
-      if (drinkReq) parts.push("☕ " + drinkReq);
-      if (foodReq) parts.push("🍳 " + foodReq);
-      combinedReq = parts.join("  |  ") || null;
-    } else if (hasD && drinkReq) {
-      combinedReq = drinkReq;
-    } else if (hasF && foodReq) {
-      combinedReq = foodReq;
+    const drinkReq = drinkRequest.trim() || null;
+    const foodReq = foodRequest.trim() || null;
+    const time = new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"});
+
+    const drinkItems = cartItems.filter(i => DRINK_CATEGORIES.includes(i.category));
+    const foodItems = cartItems.filter(i => FOOD_CATEGORIES.includes(i.category));
+
+    const ordersToInsert = [];
+
+    if (drinkItems.length > 0) {
+      const drinkTotal = drinkItems.reduce((s,i) => s+i.price*i.qty, 0);
+      ordersToInsert.push({
+        table_no:tableNo, items:drinkItems, subtotal:drinkTotal, tax:0,
+        total:drinkTotal, status:"pending",
+        special_request:drinkReq, time
+      });
     }
-    await supabase.from("orders").insert({
-      table_no:tableNo, items:cartItems, subtotal:total, tax:0, total, status:"pending",
-      special_request:combinedReq,
-      time:new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"})
-    });
+
+    if (foodItems.length > 0) {
+      const foodTotal = foodItems.reduce((s,i) => s+i.price*i.qty, 0);
+      ordersToInsert.push({
+        table_no:tableNo, items:foodItems, subtotal:foodTotal, tax:0,
+        total:foodTotal, status:"pending",
+        special_request:foodReq, time
+      });
+    }
+
+    await supabase.from("orders").insert(ordersToInsert);
     setCart({}); setDrinkRequest(""); setFoodRequest(""); setView("orders");
   };
   const callWaiter = async () => {
@@ -436,51 +457,47 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             </div>
           ) : (
             <>
-              {pendingOrders.length > 0 && (
-                <div style={{ marginBottom:20 }}>
-                  <div style={{ fontSize:13, color:T.muted, letterSpacing:1, textTransform:"uppercase", marginBottom:12, fontWeight:"bold" }}>🟡 Being Prepared</div>
-                  {pendingOrders.map(order => (
-                    <div key={order.id} style={{ background:"#fff", border:`2px solid ${T.orange}`, borderRadius:14, padding:16, marginBottom:12, boxShadow:T.shadow }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
-                        <span style={{ fontSize:14, color:T.muted }}>{order.time}</span>
-                        <span style={{ background:T.orange, color:"#fff", borderRadius:8, padding:"3px 10px", fontSize:13, fontWeight:"bold" }}>🍳 Preparing...</span>
+              {myOrders.map(order => {
+                const isPending = order.status === "pending";
+                const isDrinkOrder = order.items.every(i => DRINK_CATEGORIES.includes(i.category));
+                const isFoodOrder = order.items.every(i => FOOD_CATEGORIES.includes(i.category));
+                const label = isDrinkOrder ? "☕ Drinks" : isFoodOrder ? "🍳 Food" : "🍽️ Order";
+                const borderColor = isPending ? T.orange : T.green;
+                const bgColor = isPending ? "#fff" : T.greenBg;
+                const statusText = isPending
+                  ? (isDrinkOrder ? "⏳ Preparing" : "⏳ Kitchen preparing")
+                  : "✅ Served";
+                const statusBg = isPending ? T.orange : T.green;
+                return (
+                  <div key={order.id} style={{ background:bgColor, border:`2px solid ${borderColor}`, borderRadius:14, padding:16, marginBottom:12, boxShadow:T.shadow }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <span style={{ fontSize:14, fontWeight:"bold", color:T.brown }}>{label}</span>
+                        <span style={{ fontSize:13, color:T.muted }}>{order.time}</span>
                       </div>
-                      {order.items.map((item,i) => (
-                        <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:16, marginBottom:6 }}>
-                          <span style={{ color:T.text }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:T.brown, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
-                          <span style={{ color:T.brown, fontWeight:"bold" }}>×{item.qty}</span>
-                        </div>
-                      ))}
-                      <div style={{ borderTop:`1px solid ${T.border}`, marginTop:10, paddingTop:10 }}>
-                        <span style={{ color:T.brown, fontWeight:"bold", fontSize:18 }}>RM {order.total.toFixed(2)}</span>
-                      </div>
+                      <span style={{ background:statusBg, color:"#fff", borderRadius:8, padding:"3px 10px", fontSize:13, fontWeight:"bold" }}>{statusText}</span>
                     </div>
-                  ))}
-                </div>
-              )}
-              {doneOrders.length > 0 && (
-                <div>
-                  <div style={{ fontSize:13, color:T.muted, letterSpacing:1, textTransform:"uppercase", marginBottom:12, fontWeight:"bold" }}>✅ Served</div>
-                  {doneOrders.map(order => (
-                    <div key={order.id} style={{ background:T.greenBg, border:`2px solid ${T.green}`, borderRadius:14, padding:16, marginBottom:12, boxShadow:T.shadow }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
-                        <span style={{ fontSize:14, color:T.muted }}>{order.time}</span>
-                        <span style={{ background:T.green, color:"#fff", borderRadius:8, padding:"3px 10px", fontSize:13, fontWeight:"bold" }}>✅ Served!</span>
+                    {order.items.map((item,i) => (
+                      <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:16, marginBottom:6 }}>
+                        <span style={{ color:isPending?T.text:T.muted }}>
+                          {item.item_no && <span style={{ color:T.brown, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}
+                          {item.name}
+                        </span>
+                        <span style={{ color:T.brown, fontWeight:"bold" }}>×{item.qty}</span>
                       </div>
-                      {order.items.map((item,i) => (
-                        <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:16, marginBottom:6, color:T.muted }}>
-                          <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:T.brown, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span><span>×{item.qty}</span>
-                        </div>
-                      ))}
-                      <div style={{ borderTop:`1px solid ${T.green}`, marginTop:10, paddingTop:10 }}>
-                        <span style={{ color:T.green, fontWeight:"bold", fontSize:18 }}>RM {order.total.toFixed(2)}</span>
-                      </div>
+                    ))}
+                    {order.special_request && (
+                      <div style={{ fontSize:13, color:T.orange, marginTop:6 }}>📝 {order.special_request}</div>
+                    )}
+                    <div style={{ borderTop:`1px solid ${isPending?T.border:T.green}`, marginTop:10, paddingTop:10 }}>
+                      <span style={{ color:isPending?T.brown:T.green, fontWeight:"bold", fontSize:18 }}>RM {order.total.toFixed(2)}</span>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                );
+              })}
               <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", marginTop:10, background:"#fff", border:`2px solid ${T.brown}`, color:T.brown, padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:12 }}>+ Add More Items</button>
             </>
+          )}
           )}
         </div>
       )}
@@ -741,11 +758,9 @@ function KitchenScreen({ goHome }) {
                   <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                 </div>
               ))}
-              {order.special_request && (() => {
-                const req = order.special_request;
-                const foodPart = req.includes("🍳") ? req.split("|").filter(s=>s.includes("🍳")).map(s=>s.replace("🍳","").trim()).join("").trim() : (req.includes("☕") ? null : req);
-                return foodPart ? <div style={{ background:"#2a1a00", border:"1px solid #c8973a44", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>📝 {foodPart}</div> : null;
-              })()}
+              {getFoodReq(order.special_request) && (
+                <div style={{ background:"#2a1a00", border:"1px solid #c8973a44", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>📝 {getFoodReq(order.special_request)}</div>
+              )}
               <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"flex-end" }}>
                 <button onClick={() => markDone(order.id)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 20px", fontSize:14, fontWeight:"bold" })}>Done ✓</button>
               </div>
@@ -910,7 +925,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                         <span style={{ color:"#5aaa5a", fontWeight:"bold", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                       </div>
                     ))}
-                    {order.special_request && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {order.special_request.includes("☕")||order.special_request.includes("🍳") ? order.special_request.split("|").filter(s=>!s.includes("🍳")).map(s=>s.replace("☕","").trim()).join("").trim()||null : order.special_request}</div>}
+                    {getDrinkReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getDrinkReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Pending":"✅ Served"} · {order.time}</span>
                       {isPending && <>
@@ -945,7 +960,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                         <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                       </div>
                     ))}
-                    {order.special_request && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {order.special_request.includes("☕")||order.special_request.includes("🍳") ? order.special_request.split("|").filter(s=>!s.includes("☕")).map(s=>s.replace("🍳","").trim()).join("").trim()||null : order.special_request}</div>}
+                    {getFoodReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getFoodReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Kitchen preparing":"✅ Served"} · {order.time}</span>
                       {isPending && (
