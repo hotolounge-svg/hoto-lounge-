@@ -286,34 +286,44 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
   useEffect(() => {
     const initSession = async () => {
-      const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
-      // Use localStorage so it persists across refresh/reopen
+      const { data, error } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
       const stored = localStorage.getItem(`session_table_${tableNo}`);
+      const serverSession = data?.session_id || null;
 
-      if (data) {
-        if (!stored) {
-          // No local session at all — fresh scan or first time
-          // Only allow if this looks like a genuine QR scan (table param in URL)
-          const isQRScan = window.location.search.includes(`table=${tableNo}`);
-          if (!isQRScan) { setSessionExpired(true); return; }
-          localStorage.setItem(`session_table_${tableNo}`, data.session_id);
-        } else if (stored !== data.session_id) {
-          // Stored session doesn't match server — cashier paid and reset the table
-          localStorage.removeItem(`session_table_${tableNo}`);
-          setSessionExpired(true); return;
-        }
-        // stored === data.session_id → valid session, allow ordering (refresh works)
-      } else {
-        // No server session — create one on genuine QR scan
-        if (stored) {
-          // Had local session but server wiped it → expired
-          localStorage.removeItem(`session_table_${tableNo}`);
-          setSessionExpired(true); return;
-        }
+      console.log("Session check — stored:", stored, "server:", serverSession);
+
+      if (stored && !serverSession) {
+        // Had a session but server deleted it (table was paid) → EXPIRED
+        console.log("Expired: server session gone");
+        localStorage.removeItem(`session_table_${tableNo}`);
+        setSessionExpired(true); return;
+      }
+
+      if (stored && serverSession && stored !== serverSession) {
+        // Session ID changed on server → EXPIRED
+        console.log("Expired: session mismatch");
+        localStorage.removeItem(`session_table_${tableNo}`);
+        setSessionExpired(true); return;
+      }
+
+      if (!stored && serverSession) {
+        // No local session — this is a fresh QR scan, store and allow
+        console.log("Fresh scan, storing session");
+        localStorage.setItem(`session_table_${tableNo}`, serverSession);
+        return;
+      }
+
+      if (!stored && !serverSession) {
+        // First ever scan for this table — create session
+        console.log("First ever scan, creating session");
         const s = Date.now().toString();
         await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
         localStorage.setItem(`session_table_${tableNo}`, s);
+        return;
       }
+
+      // stored === serverSession → valid session, refresh is fine
+      console.log("Valid session, continuing");
     };
     initSession();
     const ch = supabase.channel(`session-${tableNo}`)
