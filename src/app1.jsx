@@ -257,20 +257,23 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     const initSession = async () => {
       const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
       if (data) {
-        const stored = sessionStorage.getItem(`session_table_${tableNo}`);
+        const stored = localStorage.getItem(`session_table_${tableNo}`);
         if (stored && stored !== data.session_id) { setSessionExpired(true); return; }
-        if (!stored) sessionStorage.setItem(`session_table_${tableNo}`, data.session_id);
+        if (!stored) localStorage.setItem(`session_table_${tableNo}`, data.session_id);
       } else {
         const s = Date.now().toString();
         await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
-        sessionStorage.setItem(`session_table_${tableNo}`, s);
+        localStorage.setItem(`session_table_${tableNo}`, s);
       }
     };
     initSession();
     const ch = supabase.channel(`session-${tableNo}`)
       .on("postgres_changes", { event:"*", schema:"public", table:"table_sessions", filter:`table_no=eq.${tableNo}` }, (payload) => {
-        const stored = sessionStorage.getItem(`session_table_${tableNo}`);
-        if (payload.new?.session_id && stored && payload.new.session_id !== stored) setSessionExpired(true);
+        const stored = localStorage.getItem(`session_table_${tableNo}`);
+        if (payload.new?.session_id && stored && payload.new.session_id !== stored) {
+          localStorage.removeItem(`session_table_${tableNo}`);
+          setSessionExpired(true);
+        }
       }).subscribe();
     return () => supabase.removeChannel(ch);
   }, [tableNo]);
@@ -336,7 +339,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:20, padding:24, textAlign:"center", background:T.bg }}>
       <div style={{ fontSize:70 }}>🔒</div>
       <div style={{ fontSize:26, color:T.brown, fontWeight:"bold" }}>Session Ended</div>
-      <div style={{ color:T.muted, fontSize:18, lineHeight:1.8 }}>This table has been reset.<br/>Thank you for visiting {CAFE_NAME}! 😊</div>
+      <div style={{ color:T.muted, fontSize:18, lineHeight:1.8 }}>Your session has ended.<br/>Please <strong>scan the QR code again</strong><br/>to start a new order. 😊</div>
     </div>
   );
 
