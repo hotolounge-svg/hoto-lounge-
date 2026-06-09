@@ -258,37 +258,59 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
 
       if (!data) {
-        // No session row — first ever scan, create active session
+        // No server session — first ever QR scan for this table
         const s = Date.now().toString();
         await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
+        sessionStorage.setItem(`ss_table_${tableNo}`, s);
         return;
       }
 
       const session_id = data.session_id;
 
       if (session_id.startsWith("paid_")) {
-        // Table was paid — show expired until QR scanned again
-        // QR scan = fresh page load with ?table=X, which creates new active session
-        // But we need to distinguish QR scan from browser refresh/reopen
-        // Solution: check if this is a "navigation" (QR scan) vs "reload"
-        const navType = performance?.navigation?.type ?? performance?.getEntriesByType?.("navigation")?.[0]?.type;
-        const isReload = navType === 1 || navType === "reload";
-        if (isReload) {
+        // Server says table was paid
+        // Check sessionStorage — it survives refresh but clears on browser close
+        const ss = sessionStorage.getItem(`ss_table_${tableNo}`);
+        if (ss) {
+          // sessionStorage exists = this is a REFRESH after seeing paid screen
+          // Keep showing expired
           setSessionExpired(true); return;
         }
-        // Not a reload = genuine QR scan navigation, create new session
+        // sessionStorage empty = either:
+        // A) Fresh QR scan (new customer) → allow ordering
+        // B) Close & reopen browser → also looks same as A
+        // 
+        // To distinguish A from B: check performance.navigation
+        // Fresh QR scan = navigate type (0 or "navigate")
+        // Close & reopen = also navigate type unfortunately...
+        //
+        // SOLUTION: When we show expired screen, set a sessionStorage flag
+        // If customer closes browser, sessionStorage clears
+        // If customer scans QR fresh, no sessionStorage → allow
+        // If customer reopens browser (no scan), no sessionStorage → BUT server still "paid_"
+        // → We allow them in (can't distinguish from fresh scan)
+        // This is acceptable — they still see an empty table with no previous orders
         const s = Date.now().toString();
         await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
+        sessionStorage.setItem(`ss_table_${tableNo}`, s);
         return;
       }
 
-      // Active session — allow ordering (covers refresh case)
+      // Active session on server
+      const ss = sessionStorage.getItem(`ss_table_${tableNo}`);
+      if (!ss) {
+        // No sessionStorage — browser was closed and reopened while session was active
+        // Server session still valid, store in sessionStorage and allow
+        sessionStorage.setItem(`ss_table_${tableNo}`, session_id);
+      }
+      // Allow ordering
     };
     initSession();
     const ch = supabase.channel(`session-${tableNo}`)
       .on("postgres_changes", { event:"*", schema:"public", table:"table_sessions", filter:`table_no=eq.${tableNo}` }, (payload) => {
-        // If session changed to "paid_" prefix — show expired immediately on customer screen
         if (payload.new?.session_id?.startsWith("paid_")) {
+          // Mark in sessionStorage so refresh also shows expired
+          sessionStorage.setItem(`ss_table_${tableNo}`, "expired");
           setSessionExpired(true);
         }
       }).subscribe();
@@ -356,7 +378,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:20, padding:24, textAlign:"center", background:T.bg }}>
       <div style={{ fontSize:70 }}>🔒</div>
       <div style={{ fontSize:26, color:T.brown, fontWeight:"bold" }}>Session Ended</div>
-      <div style={{ color:T.muted, fontSize:18, lineHeight:1.8 }}>Your session has ended.<br/>Please <strong>scan the QR code again</strong><br/>to start a new order. 😊</div>
+      <div style={{ color:T.muted, fontSize:18, lineHeight:1.8 }}>Thank you for visiting {CAFE_NAME}! 😊<br/><br/><span style={{ fontSize:15 }}>Please scan the QR code on your table to place a new order.</span></div>
     </div>
   );
 
@@ -963,7 +985,6 @@ function CashierScreen({ goHome }) {
   };
 
   const fetchAll = async () => {
-    setLoading(true);
     const { data } = await supabase.from("orders").select("*").in("status",["pending","done"]).order("created_at",{ascending:true});
     const { data:w } = await supabase.from("waiter_calls").select("*");
     const newOrders = data||[];
