@@ -250,7 +250,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [menuLoading, setMenuLoading] = useState(true);
   const [myOrders, setMyOrders] = useState([]);
   const [sessionExpired, setSessionExpired] = useState(false);
-  const [specialRequest, setSpecialRequest] = useState("");
+  const [drinkRequest, setDrinkRequest] = useState("");
+  const [foodRequest, setFoodRequest] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -351,12 +352,31 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const total = cartItems.reduce((s,i) => s+i.price*i.qty, 0);
 
   const placeOrder = async () => {
+    // Build item-level special requests based on category
+    const drinkReq = drinkRequest.trim() || null;
+    const foodReq = foodRequest.trim() || null;
+    // Store as combined string with markers so kitchen/cashier can parse
+    const hasD = cartItems.some(i => DRINK_CATEGORIES.includes(i.category));
+    const hasF = cartItems.some(i => FOOD_CATEGORIES.includes(i.category));
+    let combinedReq = null;
+    if (hasD && hasF) {
+      const parts = [];
+      if (drinkReq) parts.push("☕ " + drinkReq);
+      if (foodReq) parts.push("🍳 " + foodReq);
+      combinedReq = parts.join(" | ") || null;
+    } else if (hasD) {
+      combinedReq = drinkReq;
+    } else if (hasF) {
+      combinedReq = foodReq;
+    }
     await supabase.from("orders").insert({
       table_no:tableNo, items:cartItems, subtotal:total, tax:0, total, status:"pending",
-      special_request:specialRequest.trim()||null,
+      special_request:combinedReq,
+      drink_request:drinkReq,
+      food_request:foodReq,
       time:new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"})
     });
-    setCart({}); setSpecialRequest(""); setView("orders");
+    setCart({}); setDrinkRequest(""); setFoodRequest(""); setView("orders");
   };
   const callWaiter = async () => {
     await supabase.from("waiter_calls").upsert({ table_no:tableNo, time:new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"}) });
@@ -559,9 +579,20 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                 ))}
               </div>
               <div style={{ padding:"10px 14px", borderTop:`1px solid ${T.border}` }}>
-                <div style={{ fontSize:13, color:T.muted, marginBottom:6 }}>Special Request (optional)</div>
-                <input value={specialRequest} onChange={e => setSpecialRequest(e.target.value)} placeholder="e.g. no sugar, extra ice..."
-                  style={{ width:"100%", background:"#f9f9f9", border:`1px solid ${T.border}`, color:T.text, padding:"8px 12px", borderRadius:8, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }} />
+                {cartItems.some(i => DRINK_CATEGORIES.includes(i.category)) && (
+                  <div style={{ marginBottom:8 }}>
+                    <div style={{ fontSize:13, color:T.muted, marginBottom:4 }}>☕ Drinks Special Request</div>
+                    <input value={drinkRequest} onChange={e => setDrinkRequest(e.target.value)} placeholder="e.g. no sugar, extra ice..."
+                      style={{ width:"100%", background:"#f9f9f9", border:`1px solid ${T.border}`, color:T.text, padding:"8px 12px", borderRadius:8, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box" }} />
+                  </div>
+                )}
+                {cartItems.some(i => FOOD_CATEGORIES.includes(i.category)) && (
+                  <div style={{ marginBottom:8 }}>
+                    <div style={{ fontSize:13, color:T.muted, marginBottom:4 }}>🍳 Food Special Request</div>
+                    <input value={foodRequest} onChange={e => setFoodRequest(e.target.value)} placeholder="e.g. no sauce, extra spicy..."
+                      style={{ width:"100%", background:"#f9f9f9", border:`1px solid ${T.border}`, color:T.text, padding:"8px 12px", borderRadius:8, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box" }} />
+                  </div>
+                )}
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <div>
                     <div style={{ fontSize:13, color:T.muted }}>Total</div>
@@ -713,8 +744,8 @@ function KitchenScreen({ goHome }) {
                   <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                 </div>
               ))}
-              {order.special_request && (
-                <div style={{ background:"#2a1a00", border:"1px solid #c8973a44", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>📝 {order.special_request}</div>
+              {(order.food_request||order.special_request) && (
+                <div style={{ background:"#2a1a00", border:"1px solid #c8973a44", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>📝 {order.food_request||order.special_request}</div>
               )}
               <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"flex-end" }}>
                 <button onClick={() => markDone(order.id)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 20px", fontSize:14, fontWeight:"bold" })}>Done ✓</button>
@@ -880,7 +911,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                         <span style={{ color:"#5aaa5a", fontWeight:"bold", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                       </div>
                     ))}
-                    {order.special_request && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {order.special_request}</div>}
+                    {(order.drink_request||order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {order.drink_request||order.special_request}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Pending":"✅ Served"} · {order.time}</span>
                       {isPending && <>
@@ -915,7 +946,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                         <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                       </div>
                     ))}
-                    {order.special_request && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {order.special_request}</div>}
+                    {(order.food_request||order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {order.food_request||order.special_request}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Kitchen preparing":"✅ Served"} · {order.time}</span>
                       {isPending && (
