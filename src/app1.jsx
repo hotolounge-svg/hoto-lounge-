@@ -457,7 +457,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           )}
 
           {/* Items grid — Zeoniq style */}
-          <div style={{ flex:1, overflowY:"auto", padding:"10px 12px" }}>
+          <div style={{ flex:1, overflowY:"auto", padding:"10px 14px" }}>
             {menuLoading ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>Loading menu...</div>
               : currentMenuItems.length===0 ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>{searchQuery ? `No results for "${searchQuery}"` : "No items yet"}</div>
               : (
@@ -466,7 +466,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     const qty = cart[item.id]?.qty || 0;
                     const soldOut = item.is_available===false;
                     return (
-                      <div key={item.id} style={{ background:"#fff", border:qty>0?`2px solid ${T.brown}`:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden", position:"relative", opacity:soldOut?0.5:1, boxShadow:T.shadow }}>
+                      <div key={item.id} style={{ background:"#fff", border:qty>0?`2px solid ${T.brown}`:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden", position:"relative", opacity:soldOut?0.5:1, boxShadow:T.shadow, display:"flex", flexDirection:"column" }}>
                         {/* Price badge top right */}
                         <div style={{ position:"absolute", top:8, right:8, background:"rgba(0,0,0,0.7)", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:13, fontWeight:"bold", zIndex:1 }}>
                           RM {parseFloat(item.price).toFixed(2)}
@@ -476,8 +476,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                           ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:80, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
                           : <div style={{ height:80, display:"flex", alignItems:"center", justifyContent:"center", fontSize:40, background:"#f9f9f9" }}>{item.emoji}</div>
                         }
-                        <div style={{ padding:"10px 10px 12px" }}>
-                          <div style={{ fontWeight:"bold", fontSize:14, marginBottom:8, color:T.text, lineHeight:1.3 }}>
+                        <div style={{ padding:"10px 10px 12px", flex:1, display:"flex", flexDirection:"column" }}>
+                          <div style={{ fontWeight:"bold", fontSize:14, marginBottom:8, color:T.text, lineHeight:1.3, flex:1 }}>
                             {item.item_no && <span style={{ color:T.brown, marginRight:6 }}>{item.item_no}</span>}{item.name}
                           </div>
                           {soldOut ? (
