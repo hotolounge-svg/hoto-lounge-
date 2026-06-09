@@ -319,7 +319,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     const ch = supabase.channel(`session-${tableNo}`)
       .on("postgres_changes", { event:"*", schema:"public", table:"table_sessions", filter:`table_no=eq.${tableNo}` }, (payload) => {
         const stored = localStorage.getItem(`session_table_${tableNo}`);
-        if (payload.new?.session_id && stored && payload.new.session_id !== stored) {
+        // Handle DELETE event (table paid) or session_id change
+        if (payload.eventType === "DELETE" || (payload.new?.session_id && stored && payload.new.session_id !== stored)) {
           localStorage.removeItem(`session_table_${tableNo}`);
           setSessionExpired(true);
         }
@@ -1027,8 +1028,8 @@ function CashierScreen({ goHome }) {
   const markPaid = async (tableNo) => {
     setPaying(tableNo);
     await supabase.from("orders").update({status:"paid"}).eq("table_no",tableNo).in("status",["pending","done"]);
-    const s = Date.now().toString();
-    await supabase.from("table_sessions").upsert({table_no:parseInt(tableNo),session_id:s,updated_at:new Date().toISOString()});
+    // DELETE session so customer MUST scan QR again to order — refresh won't work
+    await supabase.from("table_sessions").delete().eq("table_no", parseInt(tableNo));
     setPaying(null); fetchAll();
   };
 
