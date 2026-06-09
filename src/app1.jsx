@@ -53,37 +53,6 @@ export default function App() {
 }
 
 function HomeScreen({ setScreen, setTableNo }) {
-  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem("staff_auth") === "ok");
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState(false);
-
-  const handlePin = () => {
-    if (pin === "Jack@126") { sessionStorage.setItem("staff_auth","ok"); setUnlocked(true); setPinError(false); }
-    else { setPinError(true); setPin(""); setTimeout(() => setPinError(false), 2000); }
-  };
-
-  if (!unlocked) return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:24, padding:24 }}>
-      <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:52 }}>☕</div>
-        <div style={{ fontSize:28, color:C.goldLight, fontWeight:"bold", letterSpacing:2 }}>{CAFE_NAME}</div>
-        <div style={{ fontSize:12, color:C.muted, letterSpacing:4, textTransform:"uppercase", marginTop:4 }}>Staff Access</div>
-      </div>
-      <div style={{ width:"100%", maxWidth:320, display:"flex", flexDirection:"column", gap:12 }}>
-        <input
-          type="password" placeholder="Enter PIN" value={pin}
-          onChange={e => setPin(e.target.value)}
-          onKeyDown={e => e.key==="Enter" && handlePin()}
-          style={{ background:C.panel, border:`2px solid ${pinError?"#cc4444":C.gold}`, color:C.text, padding:"16px 20px", borderRadius:10, fontSize:18, fontFamily:"Georgia,serif", textAlign:"center", letterSpacing:4, outline:"none" }}
-        />
-        {pinError && <div style={{ color:"#ff7777", fontSize:13, textAlign:"center", fontWeight:"bold" }}>❌ Wrong PIN — try again</div>}
-        <button onClick={handlePin}
-          style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"16px 0", fontSize:16, fontWeight:"bold" })}>
-          🔓 Unlock
-        </button>
-      </div>
-    </div>
-  );
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:28, padding:24 }}>
       <div style={{ textAlign:"center" }}>
@@ -286,54 +255,22 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
   useEffect(() => {
     const initSession = async () => {
-      const { data, error } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
-      const stored = localStorage.getItem(`session_table_${tableNo}`);
-      const serverSession = data?.session_id || null;
-
-      console.log("Session check — stored:", stored, "server:", serverSession);
-
-      if (stored && !serverSession) {
-        // Had a session but server deleted it (table was paid) → EXPIRED
-        console.log("Expired: server session gone");
-        localStorage.removeItem(`session_table_${tableNo}`);
-        setSessionExpired(true); return;
-      }
-
-      if (stored && serverSession && stored !== serverSession) {
-        // Session ID changed on server → EXPIRED
-        console.log("Expired: session mismatch");
-        localStorage.removeItem(`session_table_${tableNo}`);
-        setSessionExpired(true); return;
-      }
-
-      if (!stored && serverSession) {
-        // No local session — this is a fresh QR scan, store and allow
-        console.log("Fresh scan, storing session");
-        localStorage.setItem(`session_table_${tableNo}`, serverSession);
-        return;
-      }
-
-      if (!stored && !serverSession) {
-        // First ever scan for this table — create session
-        console.log("First ever scan, creating session");
+      const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
+      if (data) {
+        const stored = sessionStorage.getItem(`session_table_${tableNo}`);
+        if (stored && stored !== data.session_id) { setSessionExpired(true); return; }
+        if (!stored) sessionStorage.setItem(`session_table_${tableNo}`, data.session_id);
+      } else {
         const s = Date.now().toString();
         await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
-        localStorage.setItem(`session_table_${tableNo}`, s);
-        return;
+        sessionStorage.setItem(`session_table_${tableNo}`, s);
       }
-
-      // stored === serverSession → valid session, refresh is fine
-      console.log("Valid session, continuing");
     };
     initSession();
     const ch = supabase.channel(`session-${tableNo}`)
       .on("postgres_changes", { event:"*", schema:"public", table:"table_sessions", filter:`table_no=eq.${tableNo}` }, (payload) => {
-        const stored = localStorage.getItem(`session_table_${tableNo}`);
-        // Handle DELETE event (table paid) or session_id change
-        if (payload.eventType === "DELETE" || (payload.new?.session_id && stored && payload.new.session_id !== stored)) {
-          localStorage.removeItem(`session_table_${tableNo}`);
-          setSessionExpired(true);
-        }
+        const stored = sessionStorage.getItem(`session_table_${tableNo}`);
+        if (payload.new?.session_id && stored && payload.new.session_id !== stored) setSessionExpired(true);
       }).subscribe();
     return () => supabase.removeChannel(ch);
   }, [tableNo]);
@@ -399,7 +336,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:20, padding:24, textAlign:"center", background:T.bg }}>
       <div style={{ fontSize:70 }}>🔒</div>
       <div style={{ fontSize:26, color:T.brown, fontWeight:"bold" }}>Session Ended</div>
-      <div style={{ color:T.muted, fontSize:18, lineHeight:1.8 }}>Your session has ended.<br/>Please <span style={{ color:T.brown, fontWeight:"bold" }}>scan the QR code again</span><br/>to start a new order. 😊</div>
+      <div style={{ color:T.muted, fontSize:18, lineHeight:1.8 }}>This table has been reset.<br/>Thank you for visiting {CAFE_NAME}! 😊</div>
     </div>
   );
 
@@ -859,6 +796,8 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
 
   return (
     <div style={{ background:C.panel, border:`2px solid ${hasPending?"#c8973a":"#5aaa5a"}`, borderRadius:14, overflow:"hidden" }}>
+
+      {/* Header */}
       <div style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div style={{ fontSize:22, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>Table {tableNo}</div>
         <div style={{ display:"flex", gap:6 }}>
@@ -866,6 +805,8 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
           {data.done.length>0 && <span style={{ background:"#1a3a1a", color:"#5aaa5a", borderRadius:6, padding:"3px 10px", fontSize:12 }}>✅ {data.done.length} done</span>}
         </div>
       </div>
+
+      {/* Card tabs */}
       <div style={{ display:"flex", borderBottom:`2px solid ${C.border}`, background:"#160e04" }}>
         {[["drinks",`☕ Drinks (${drinkOrders.length})`],["food",`🍳 Food (${foodOrders.length})`],["all","📋 All"]].map(([key, label]) => (
           <button key={key} onClick={() => setCardTab(key)}
@@ -877,6 +818,8 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
           </button>
         ))}
       </div>
+
+      {/* DRINKS */}
       {(cardTab==="drinks" || cardTab==="all") && (
         <div style={{ padding:"14px 16px", borderBottom: cardTab==="all" ? `2px solid ${C.border}` : "none" }}>
           {cardTab==="all" && <div style={{ fontSize:11, color:"#5aaa5a", fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:10 }}>☕ Drinks</div>}
@@ -910,6 +853,8 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
           }
         </div>
       )}
+
+      {/* FOOD */}
       {(cardTab==="food" || cardTab==="all") && (
         <div style={{ padding:"14px 16px", background:"#1a1208", borderBottom:`1px solid ${C.border}` }}>
           {cardTab==="all" && <div style={{ fontSize:11, color:C.muted, fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:10 }}>🍳 Food (Kitchen)</div>}
@@ -942,6 +887,8 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
           }
         </div>
       )}
+
+      {/* Footer */}
       <div style={{ background:"#0f0a04", padding:"12px 16px" }}>
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
           <span>TOTAL</span><span>RM {data.total.toFixed(2)}</span>
@@ -1038,8 +985,8 @@ function CashierScreen({ goHome }) {
   const markPaid = async (tableNo) => {
     setPaying(tableNo);
     await supabase.from("orders").update({status:"paid"}).eq("table_no",tableNo).in("status",["pending","done"]);
-    // DELETE session so customer MUST scan QR again to order — refresh won't work
-    await supabase.from("table_sessions").delete().eq("table_no", parseInt(tableNo));
+    const s = Date.now().toString();
+    await supabase.from("table_sessions").upsert({table_no:parseInt(tableNo),session_id:s,updated_at:new Date().toISOString()});
     setPaying(null); fetchAll();
   };
 
