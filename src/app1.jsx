@@ -829,8 +829,7 @@ function SalesScreen({ goHome }) {
   );
 }
 
-function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder }) {
-  const [cardTab, setCardTab] = useState("drinks");
+function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder, cardTab, setCardTab }) {
   const hasPending = data.pending.length>0;
   const allOrders = [...data.done, ...data.pending];
   const drinkOrders = allOrders.filter(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
@@ -953,6 +952,7 @@ function CashierScreen({ goHome }) {
   const [soundOn, setSoundOn] = useState(true);
   const [filterTab, setFilterTab] = useState("all");
   const [selectedTable, setSelectedTable] = useState(null);
+  const [cardTabs, setCardTabs] = useState({});
   const prevDrinkCount = useRef(0);
   const prevWaiterCount = useRef(0);
 
@@ -1131,7 +1131,7 @@ function CashierScreen({ goHome }) {
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(340px,1fr))", gap:14 }}>
                 {displayTables.map(([tableNo, data]) => (
-                  <TableCard key={tableNo} tableNo={tableNo} data={data} paying={paying} markPaid={markPaid} markOrderDone={markOrderDone} cancelOrder={cancelOrder} />
+                  <TableCard key={tableNo} tableNo={tableNo} data={data} paying={paying} markPaid={markPaid} markOrderDone={markOrderDone} cancelOrder={cancelOrder} cardTab={cardTabs[tableNo]||"drinks"} setCardTab={(tab) => setCardTabs(prev => ({...prev, [tableNo]:tab}))} />
                 ))}
               </div>
             </>
