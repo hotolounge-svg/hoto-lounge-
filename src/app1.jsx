@@ -287,35 +287,40 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   useEffect(() => {
     const initSession = async () => {
       const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
-      const stored = sessionStorage.getItem(`session_table_${tableNo}`);
+      // Use localStorage so it persists across refresh/reopen
+      const stored = localStorage.getItem(`session_table_${tableNo}`);
 
       if (data) {
-        // Server has a session
         if (!stored) {
-          // No local session — this is a fresh QR scan, accept server session
-          sessionStorage.setItem(`session_table_${tableNo}`, data.session_id);
+          // No local session at all — fresh scan or first time
+          // Only allow if this looks like a genuine QR scan (table param in URL)
+          const isQRScan = window.location.search.includes(`table=${tableNo}`);
+          if (!isQRScan) { setSessionExpired(true); return; }
+          localStorage.setItem(`session_table_${tableNo}`, data.session_id);
         } else if (stored !== data.session_id) {
-          // Local session doesn't match server — table was cleared/paid, show expired
+          // Stored session doesn't match server — cashier paid and reset the table
+          localStorage.removeItem(`session_table_${tableNo}`);
           setSessionExpired(true); return;
         }
-        // stored === data.session_id → same session, continue normally
+        // stored === data.session_id → valid session, allow ordering (refresh works)
       } else {
-        // No server session yet — create one (first ever scan for this table)
+        // No server session — create one on genuine QR scan
         if (stored) {
-          // Had a local session but server has none → session was wiped, expired
+          // Had local session but server wiped it → expired
+          localStorage.removeItem(`session_table_${tableNo}`);
           setSessionExpired(true); return;
         }
         const s = Date.now().toString();
         await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
-        sessionStorage.setItem(`session_table_${tableNo}`, s);
+        localStorage.setItem(`session_table_${tableNo}`, s);
       }
     };
     initSession();
     const ch = supabase.channel(`session-${tableNo}`)
       .on("postgres_changes", { event:"*", schema:"public", table:"table_sessions", filter:`table_no=eq.${tableNo}` }, (payload) => {
-        const stored = sessionStorage.getItem(`session_table_${tableNo}`);
+        const stored = localStorage.getItem(`session_table_${tableNo}`);
         if (payload.new?.session_id && stored && payload.new.session_id !== stored) {
-          sessionStorage.removeItem(`session_table_${tableNo}`);
+          localStorage.removeItem(`session_table_${tableNo}`);
           setSessionExpired(true);
         }
       }).subscribe();
