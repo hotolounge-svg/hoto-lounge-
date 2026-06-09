@@ -374,7 +374,6 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     const fetchMyOrders = async () => {
       const { data } = await supabase.from("orders").select("*").eq("table_no", tableNo)
         .not("status", "in", '("cancelled","paid")').order("created_at", { ascending:true });
-      console.log("My orders from DB:", JSON.stringify(data?.[0]?.items, null, 2));
       setMyOrders(data || []);
     };
     fetchMyOrders();
@@ -412,6 +411,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     const drinkItems = cleanItems(cartItems.filter(i => DRINK_CATEGORIES.includes(i.category)));
     const foodItems = cleanItems(cartItems.filter(i => FOOD_CATEGORIES.includes(i.category)));
 
+    console.log("foodItems to insert:", JSON.stringify(foodItems));
     const ordersToInsert = [];
 
     if (drinkItems.length > 0) {
@@ -432,7 +432,6 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       });
     }
 
-    console.log("Inserting orders:", JSON.stringify(ordersToInsert, null, 2));
     await supabase.from("orders").insert(ordersToInsert);
     setCart({}); setDrinkRequest(""); setFoodRequest(""); setView("orders");
   };
