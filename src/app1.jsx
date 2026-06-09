@@ -256,68 +256,60 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   useEffect(() => {
     const initSession = async () => {
       const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
-      const stored = localStorage.getItem(`session_table_${tableNo}`);
-      const claimed = localStorage.getItem(`claimed_table_${tableNo}`); // tracks if this device ever claimed this table
+      // Use both localStorage (persists browser close) and sessionStorage (persists refresh)
+      const storedLocal = localStorage.getItem(`session_table_${tableNo}`);
+      const storedSession = sessionStorage.getItem(`session_table_${tableNo}`);
+      const stored = storedLocal || storedSession;
       const serverSession = data ? data.session_id : null;
 
-      if (serverSession && stored && stored === serverSession) {
-        // Valid — same session on device and server, allow ordering
+      console.log(`[Session T${tableNo}] stored=${stored} server=${serverSession}`);
+
+      if (stored && serverSession && stored === serverSession) {
+        // Valid — refresh is fine
+        sessionStorage.setItem(`session_table_${tableNo}`, serverSession);
         return;
       }
 
-      if (serverSession && stored && stored !== serverSession) {
-        // Session ID changed — table was paid and reset
-        localStorage.removeItem(`session_table_${tableNo}`);
-        localStorage.removeItem(`claimed_table_${tableNo}`);
+      if (stored && serverSession && stored !== serverSession) {
+        // Mismatch — expired
+        console.log("[Session] EXPIRED: mismatch");
         setSessionExpired(true); return;
       }
 
-      if (serverSession && !stored) {
-        // No local session — check if this device previously had a session
-        if (claimed) {
-          // Device had a session before (browser was closed/cleared) — expired
-          localStorage.removeItem(`claimed_table_${tableNo}`);
-          setSessionExpired(true); return;
-        }
-        // Truly fresh QR scan — accept server session
+      if (stored && !serverSession) {
+        // Server session gone — expired
+        console.log("[Session] EXPIRED: server gone");
+        setSessionExpired(true); return;
+      }
+
+      if (!stored && serverSession) {
+        // Fresh QR scan — store and allow
+        console.log("[Session] Fresh scan, storing");
         localStorage.setItem(`session_table_${tableNo}`, serverSession);
-        localStorage.setItem(`claimed_table_${tableNo}`, "1");
+        sessionStorage.setItem(`session_table_${tableNo}`, serverSession);
         return;
       }
 
-      if (!serverSession && stored) {
-        // Server session gone but device still has old one — expired
-        localStorage.removeItem(`session_table_${tableNo}`);
-        localStorage.removeItem(`claimed_table_${tableNo}`);
-        setSessionExpired(true); return;
-      }
-
-      if (!serverSession && !stored) {
-        if (claimed) {
-          // Had a session before, server wiped it — expired
-          localStorage.removeItem(`claimed_table_${tableNo}`);
-          setSessionExpired(true); return;
-        }
-        // First ever scan — create session
+      if (!stored && !serverSession) {
+        // First ever — create session
+        console.log("[Session] First scan, creating");
         const s = Date.now().toString();
         await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
         localStorage.setItem(`session_table_${tableNo}`, s);
-        localStorage.setItem(`claimed_table_${tableNo}`, "1");
+        sessionStorage.setItem(`session_table_${tableNo}`, s);
         return;
       }
     };
     initSession();
     const ch = supabase.channel(`session-${tableNo}`)
       .on("postgres_changes", { event:"*", schema:"public", table:"table_sessions", filter:`table_no=eq.${tableNo}` }, (payload) => {
-        const stored = localStorage.getItem(`session_table_${tableNo}`);
-        // Handle UPDATE (session_id changed) or DELETE
+        const stored = localStorage.getItem(`session_table_${tableNo}`) || sessionStorage.getItem(`session_table_${tableNo}`);
+        console.log(`[Realtime T${tableNo}] event=${payload.eventType} stored=${stored} new=${payload.new?.session_id}`);
         if (payload.eventType === "DELETE") {
-          localStorage.removeItem(`session_table_${tableNo}`);
-          localStorage.removeItem(`claimed_table_${tableNo}`);
           setSessionExpired(true);
         } else if (payload.new?.session_id && stored && payload.new.session_id !== stored) {
-          localStorage.removeItem(`session_table_${tableNo}`);
-          localStorage.removeItem(`claimed_table_${tableNo}`);
+          // Don't update localStorage — keep old ID so refresh still shows expired
+          sessionStorage.removeItem(`session_table_${tableNo}`);
           setSessionExpired(true);
         }
       }).subscribe();
