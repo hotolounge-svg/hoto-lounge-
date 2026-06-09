@@ -352,28 +352,25 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const total = cartItems.reduce((s,i) => s+i.price*i.qty, 0);
 
   const placeOrder = async () => {
-    // Build item-level special requests based on category
-    const drinkReq = drinkRequest.trim() || null;
-    const foodReq = foodRequest.trim() || null;
-    // Store as combined string with markers so kitchen/cashier can parse
+    const drinkReq = drinkRequest.trim();
+    const foodReq = foodRequest.trim();
     const hasD = cartItems.some(i => DRINK_CATEGORIES.includes(i.category));
     const hasF = cartItems.some(i => FOOD_CATEGORIES.includes(i.category));
+    // Build special_request string — prefix with emoji so kitchen/cashier knows which is which
     let combinedReq = null;
     if (hasD && hasF) {
       const parts = [];
       if (drinkReq) parts.push("☕ " + drinkReq);
       if (foodReq) parts.push("🍳 " + foodReq);
-      combinedReq = parts.join(" | ") || null;
-    } else if (hasD) {
+      combinedReq = parts.join("  |  ") || null;
+    } else if (hasD && drinkReq) {
       combinedReq = drinkReq;
-    } else if (hasF) {
+    } else if (hasF && foodReq) {
       combinedReq = foodReq;
     }
     await supabase.from("orders").insert({
       table_no:tableNo, items:cartItems, subtotal:total, tax:0, total, status:"pending",
       special_request:combinedReq,
-      drink_request:drinkReq,
-      food_request:foodReq,
       time:new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"})
     });
     setCart({}); setDrinkRequest(""); setFoodRequest(""); setView("orders");
@@ -744,9 +741,11 @@ function KitchenScreen({ goHome }) {
                   <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                 </div>
               ))}
-              {(order.food_request||order.special_request) && (
-                <div style={{ background:"#2a1a00", border:"1px solid #c8973a44", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>📝 {order.food_request||order.special_request}</div>
-              )}
+              {order.special_request && (() => {
+                const req = order.special_request;
+                const foodPart = req.includes("🍳") ? req.split("|").filter(s=>s.includes("🍳")).map(s=>s.replace("🍳","").trim()).join("").trim() : (req.includes("☕") ? null : req);
+                return foodPart ? <div style={{ background:"#2a1a00", border:"1px solid #c8973a44", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>📝 {foodPart}</div> : null;
+              })()}
               <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"flex-end" }}>
                 <button onClick={() => markDone(order.id)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 20px", fontSize:14, fontWeight:"bold" })}>Done ✓</button>
               </div>
@@ -911,7 +910,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                         <span style={{ color:"#5aaa5a", fontWeight:"bold", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                       </div>
                     ))}
-                    {(order.drink_request||order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {order.drink_request||order.special_request}</div>}
+                    {order.special_request && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {order.special_request.includes("☕")||order.special_request.includes("🍳") ? order.special_request.split("|").filter(s=>!s.includes("🍳")).map(s=>s.replace("☕","").trim()).join("").trim()||null : order.special_request}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Pending":"✅ Served"} · {order.time}</span>
                       {isPending && <>
@@ -946,7 +945,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                         <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                       </div>
                     ))}
-                    {(order.food_request||order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {order.food_request||order.special_request}</div>}
+                    {order.special_request && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {order.special_request.includes("☕")||order.special_request.includes("🍳") ? order.special_request.split("|").filter(s=>!s.includes("☕")).map(s=>s.replace("🍳","").trim()).join("").trim()||null : order.special_request}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Kitchen preparing":"✅ Served"} · {order.time}</span>
                       {isPending && (
