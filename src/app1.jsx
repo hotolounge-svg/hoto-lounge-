@@ -206,29 +206,6 @@ function AdminScreen({ goHome }) {
               {form.image_url && <button onClick={() => setForm(f => ({ ...f, image_url:"" }))} style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"8px 12px", fontSize:12 })}>Remove</button>}
             </div>
           </div>
-          {/* Add-ons section */}
-          <div style={{ marginTop:16 }}>
-            <div style={{ fontSize:13, color:C.muted, marginBottom:8, fontWeight:"bold" }}>➕ Add-ons (optional extras customer can select)</div>
-            {(form.addons||[]).map((addon, ai) => (
-              <div key={ai} style={{ display:"flex", gap:8, alignItems:"center", marginBottom:8 }}>
-                <input value={addon.name} onChange={e => {
-                  const updated = [...form.addons]; updated[ai]={...updated[ai], name:e.target.value};
-                  setForm(f=>({...f, addons:updated}));
-                }} placeholder="e.g. Extra Egg"
-                  style={{ flex:1, background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"7px 12px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
-                <input value={addon.price} onChange={e => {
-                  const updated = [...form.addons]; updated[ai]={...updated[ai], price:e.target.value};
-                  setForm(f=>({...f, addons:updated}));
-                }} placeholder="RM" type="number" step="0.50"
-                  style={{ width:80, background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"7px 10px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
-                <button onClick={() => setForm(f=>({...f, addons:f.addons.filter((_,i)=>i!==ai)}))}
-                  style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"6px 10px", fontSize:13 })}>✕</button>
-              </div>
-            ))}
-            <button onClick={() => setForm(f=>({...f, addons:[...(f.addons||[]), {name:"", price:""}]}))}
-              style={btn({ background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 16px", fontSize:13 })}>+ Add Option</button>
-          </div>
-
           <div style={{ marginTop:16 }}>
             <div style={{ fontSize:13, color:C.muted, marginBottom:8, fontWeight:"bold" }}>➕ Add-ons (optional extras customer can select)</div>
             {(form.addons||[]).map((addon, ai) => (
@@ -257,7 +234,7 @@ function AdminScreen({ goHome }) {
             return (
               <div key={cat} style={{ marginBottom:24 }}>
                 <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>
-                  {cat} ({catItems.length}) — {DRINK_CATEGORIES.includes(cat) ? "☕ Cashier (Beverage)" : cat==="Add-ons" ? "➕ Kitchen prepares (Add-ons)" : "🍳 Kitchen prepares"}
+                  {cat} ({catItems.length}) — {DRINK_CATEGORIES.includes(cat) ? "☕ Cashier (Beverage)" : "🍳 Kitchen prepares"}
                 </div>
                 {catItems.length===0 && <div style={{ color:C.border, fontSize:13 }}>No items yet</div>}
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
