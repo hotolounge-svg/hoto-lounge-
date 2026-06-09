@@ -747,20 +747,22 @@ function KitchenScreen({ goHome }) {
         {pending.length===0 && <div style={{ color:C.muted, textAlign:"center", padding:40 }}>All clear! ✅</div>}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(260px,1fr))", gap:14, marginBottom:24 }}>
           {pending.map(order => (
-            <div key={order.id} style={{ background:C.panel, border:`1.5px solid ${C.gold}`, borderRadius:14, padding:16 }}>
+            <div key={order.id} style={{ background:C.panel, border:`1.5px solid ${C.gold}`, borderRadius:14, padding:16, display:"flex", flexDirection:"column" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                 <div style={{ fontSize:20, fontWeight:"bold", color:C.goldLight }}>Table {order.table_no}</div>
                 <div style={{ fontSize:11, color:C.muted }}>{order.time}</div>
               </div>
-              {order.items.map((item,i) => (
-                <div key={i} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:14 }}>
-                  <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
-                  <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
-                </div>
-              ))}
-              {getFoodReq(order.special_request) && (
-                <div style={{ background:"#2a1a00", border:"1px solid #c8973a44", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>📝 {getFoodReq(order.special_request)}</div>
-              )}
+              <div style={{ flex:1 }}>
+                {order.items.map((item,i) => (
+                  <div key={i} style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:14 }}>
+                    <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
+                    <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
+                  </div>
+                ))}
+                {getFoodReq(order.special_request) && (
+                  <div style={{ background:"#2a1a00", border:"1px solid #c8973a44", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>📝 {getFoodReq(order.special_request)}</div>
+                )}
+              </div>
               <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"flex-end" }}>
                 <button onClick={() => markDone(order.id)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 20px", fontSize:14, fontWeight:"bold" })}>Done ✓</button>
               </div>
