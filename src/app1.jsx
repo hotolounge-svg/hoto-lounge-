@@ -256,60 +256,39 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   useEffect(() => {
     const initSession = async () => {
       const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
-      // Use both localStorage (persists browser close) and sessionStorage (persists refresh)
-      const storedLocal = localStorage.getItem(`session_table_${tableNo}`);
-      const storedSession = sessionStorage.getItem(`session_table_${tableNo}`);
-      const stored = storedLocal || storedSession;
-      const serverSession = data ? data.session_id : null;
 
-      console.log(`[Session T${tableNo}] stored=${stored} server=${serverSession}`);
-
-      if (stored && serverSession && stored === serverSession) {
-        // Valid — refresh is fine
-        sessionStorage.setItem(`session_table_${tableNo}`, serverSession);
-        return;
-      }
-
-      if (stored && serverSession && stored !== serverSession) {
-        // Mismatch — expired
-        console.log("[Session] EXPIRED: mismatch");
-        setSessionExpired(true); return;
-      }
-
-      if (stored && !serverSession) {
-        // Server session gone — expired
-        console.log("[Session] EXPIRED: server gone");
-        setSessionExpired(true); return;
-      }
-
-      if (!stored && serverSession) {
-        // Fresh QR scan — store and allow
-        console.log("[Session] Fresh scan, storing");
-        localStorage.setItem(`session_table_${tableNo}`, serverSession);
-        sessionStorage.setItem(`session_table_${tableNo}`, serverSession);
-        return;
-      }
-
-      if (!stored && !serverSession) {
-        // First ever — create session
-        console.log("[Session] First scan, creating");
+      if (!data) {
+        // No session row — first ever scan, create active session
         const s = Date.now().toString();
         await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
-        localStorage.setItem(`session_table_${tableNo}`, s);
-        sessionStorage.setItem(`session_table_${tableNo}`, s);
         return;
       }
+
+      const session_id = data.session_id;
+
+      if (session_id.startsWith("paid_")) {
+        // Table was paid — show expired until QR scanned again
+        // QR scan = fresh page load with ?table=X, which creates new active session
+        // But we need to distinguish QR scan from browser refresh/reopen
+        // Solution: check if this is a "navigation" (QR scan) vs "reload"
+        const navType = performance?.navigation?.type ?? performance?.getEntriesByType?.("navigation")?.[0]?.type;
+        const isReload = navType === 1 || navType === "reload";
+        if (isReload) {
+          setSessionExpired(true); return;
+        }
+        // Not a reload = genuine QR scan navigation, create new session
+        const s = Date.now().toString();
+        await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
+        return;
+      }
+
+      // Active session — allow ordering (covers refresh case)
     };
     initSession();
     const ch = supabase.channel(`session-${tableNo}`)
       .on("postgres_changes", { event:"*", schema:"public", table:"table_sessions", filter:`table_no=eq.${tableNo}` }, (payload) => {
-        const stored = localStorage.getItem(`session_table_${tableNo}`) || sessionStorage.getItem(`session_table_${tableNo}`);
-        console.log(`[Realtime T${tableNo}] event=${payload.eventType} stored=${stored} new=${payload.new?.session_id}`);
-        if (payload.eventType === "DELETE") {
-          setSessionExpired(true);
-        } else if (payload.new?.session_id && stored && payload.new.session_id !== stored) {
-          // Don't update localStorage — keep old ID so refresh still shows expired
-          sessionStorage.removeItem(`session_table_${tableNo}`);
+        // If session changed to "paid_" prefix — show expired immediately on customer screen
+        if (payload.new?.session_id?.startsWith("paid_")) {
           setSessionExpired(true);
         }
       }).subscribe();
@@ -1026,9 +1005,9 @@ function CashierScreen({ goHome }) {
   const markPaid = async (tableNo) => {
     setPaying(tableNo);
     await supabase.from("orders").update({status:"paid"}).eq("table_no",tableNo).in("status",["pending","done"]);
-    // Update session with new ID — triggers realtime on customer screen immediately
-    const s = Date.now().toString();
-    await supabase.from("table_sessions").upsert({table_no:parseInt(tableNo), session_id:s, updated_at:new Date().toISOString()});
+    // Mark session as paid — triggers realtime on customer screen immediately
+    // "paid_" prefix tells the system this table needs a fresh QR scan
+    await supabase.from("table_sessions").upsert({table_no:parseInt(tableNo), session_id:"paid_"+Date.now(), updated_at:new Date().toISOString()});
     setPaying(null); fetchAll();
   };
 
