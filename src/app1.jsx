@@ -256,11 +256,27 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   useEffect(() => {
     const initSession = async () => {
       const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
+      const stored = localStorage.getItem(`session_table_${tableNo}`);
+
       if (data) {
-        const stored = localStorage.getItem(`session_table_${tableNo}`);
-        if (stored && stored !== data.session_id) { setSessionExpired(true); return; }
-        if (!stored) localStorage.setItem(`session_table_${tableNo}`, data.session_id);
+        if (!stored) {
+          // No local session — show expired, must scan QR to get a session
+          setSessionExpired(true); return;
+        }
+        if (stored !== data.session_id) {
+          // Session mismatch — table was paid and reset
+          localStorage.removeItem(`session_table_${tableNo}`);
+          setSessionExpired(true); return;
+        }
+        // stored matches server — valid, allow ordering
       } else {
+        // No server session exists yet — first ever use of this table
+        if (stored) {
+          // Had local session but server has none — expired
+          localStorage.removeItem(`session_table_${tableNo}`);
+          setSessionExpired(true); return;
+        }
+        // Truly first time — create session and store it
         const s = Date.now().toString();
         await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
         localStorage.setItem(`session_table_${tableNo}`, s);
@@ -988,8 +1004,8 @@ function CashierScreen({ goHome }) {
   const markPaid = async (tableNo) => {
     setPaying(tableNo);
     await supabase.from("orders").update({status:"paid"}).eq("table_no",tableNo).in("status",["pending","done"]);
-    const s = Date.now().toString();
-    await supabase.from("table_sessions").upsert({table_no:parseInt(tableNo),session_id:s,updated_at:new Date().toISOString()});
+    // Delete session — customer must scan QR again to create a fresh session
+    await supabase.from("table_sessions").delete().eq("table_no", parseInt(tableNo));
     setPaying(null); fetchAll();
   };
 
