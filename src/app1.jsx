@@ -8,9 +8,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const ADMIN_PASSWORD = "hotolounge2024";
 const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 const CAFE_NAME = "HOTO LOUNGE";
-const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts", "Add-ons"];
+const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts", "Add-ons", "Promo"];
 const DRINK_CATEGORIES = ["Beverage"];
-const FOOD_CATEGORIES = ["Food & Snacks", "Desserts", "Add-ons"];
+const FOOD_CATEGORIES = ["Food & Snacks", "Desserts", "Add-ons", "Promo"];
 
 // Staff dark theme
 const C = { bg:"#1a1208", panel:"#2c1a0e", border:"#3d2d1a", gold:"#c8973a", goldLight:"#e8c77a", muted:"#a07840", text:"#f5ede0", dark:"#1a1208" };
@@ -36,6 +36,20 @@ const getFoodReq = (req) => {
   if (req.includes("☕") && req.includes("🍳")) return req.split("|").filter(s=>s.includes("🍳")).map(s=>s.replace("🍳","").trim()).join("").trim() || null;
   if (req.includes("☕")) return null; // drink only request
   return req; // food only or plain request
+};
+
+
+// Check if a promo item is currently active based on promo_start and promo_end
+const isPromoActive = (item) => {
+  if (item.category !== "Promo") return true;
+  if (!item.promo_start || !item.promo_end) return true;
+  const now = new Date();
+  const [sh, sm] = item.promo_start.split(":").map(Number);
+  const [eh, em] = item.promo_end.split(":").map(Number);
+  const start = sh * 60 + sm;
+  const end = eh * 60 + em;
+  const cur = now.getHours() * 60 + now.getMinutes();
+  return cur >= start && cur <= end;
 };
 
 function QRCode({ url, size=160 }) {
@@ -105,7 +119,7 @@ function AdminScreen({ goHome }) {
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[] });
+  const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], promo_start:"", promo_end:"" });
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef();
 
@@ -122,11 +136,11 @@ function AdminScreen({ goHome }) {
     else setPwError(true);
   };
   const openAdd = () => {
-    setForm({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[] });
+    setForm({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], promo_start:"", promo_end:"" });
     setEditItem(null); setShowForm(true);
   };
   const openEdit = (item) => {
-    setForm({ item_no:item.item_no, name:item.name, category:item.category, price:item.price, description:item.description||"", emoji:item.emoji||"🍽️", image_url:item.image_url||"", is_available:item.is_available!==false, addons:item.addons||[] });
+    setForm({ item_no:item.item_no, name:item.name, category:item.category, price:item.price, description:item.description||"", emoji:item.emoji||"🍽️", image_url:item.image_url||"", is_available:item.is_available!==false, addons:item.addons||[], promo_start:item.promo_start||"", promo_end:item.promo_end||"" });
     setEditItem(item); setShowForm(true);
   };
   const handleUpload = async (e) => {
@@ -140,7 +154,7 @@ function AdminScreen({ goHome }) {
     setUploading(false);
   };
   const handleSave = async () => {
-    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, addons:form.addons||[] };
+    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, addons:form.addons||[], promo_start:form.promo_start||null, promo_end:form.promo_end||null };
     if (editItem) await supabase.from("menu_items").update(p).eq("id", editItem.id);
     else await supabase.from("menu_items").insert(p);
     setShowForm(false); fetchItems();
@@ -222,6 +236,26 @@ function AdminScreen({ goHome }) {
             <button onClick={() => setForm(f=>({...f,addons:[...(f.addons||[]),{name:"",price:""}]}))}
               style={btn({ background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 16px", fontSize:13 })}>+ Add Option</button>
           </div>
+          {form.category === "Promo" && (
+            <div style={{ marginTop:16 }}>
+              <div style={{ fontSize:13, color:C.muted, marginBottom:8, fontWeight:"bold" }}>⏰ Promo Time Window</div>
+              <div style={{ display:"flex", gap:12, alignItems:"center", flexWrap:"wrap" }}>
+                <div>
+                  <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Start Time</div>
+                  <input type="time" value={form.promo_start} onChange={e => setForm(f=>({...f, promo_start:e.target.value}))}
+                    style={{ background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+                </div>
+                <div>
+                  <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>End Time</div>
+                  <input type="time" value={form.promo_end} onChange={e => setForm(f=>({...f, promo_end:e.target.value}))}
+                    style={{ background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+                </div>
+                <div style={{ fontSize:12, color:C.muted, marginTop:16 }}>
+                  Item only shows on customer menu during this time window
+                </div>
+              </div>
+            </div>
+          )}
           <div style={{ display:"flex", gap:10, marginTop:16 }}>
             <button onClick={() => setShowForm(false)} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"10px 20px", fontSize:13 })}>Cancel</button>
             <button onClick={handleSave} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 28px", fontSize:14, fontWeight:"bold" })}>{editItem ? "Save Changes" : "Add Item"} ✓</button>
@@ -235,7 +269,7 @@ function AdminScreen({ goHome }) {
             return (
               <div key={cat} style={{ marginBottom:24 }}>
                 <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>
-                  {cat} ({catItems.length}) — {DRINK_CATEGORIES.includes(cat) ? "☕ Cashier (Beverage)" : "🍳 Kitchen prepares"}
+                  {cat} ({catItems.length}) — {cat==="Promo" ? "🎉 Time-limited promo" : DRINK_CATEGORIES.includes(cat) ? "☕ Cashier (Beverage)" : "🍳 Kitchen prepares"}
                 </div>
                 {catItems.length===0 && <div style={{ color:C.border, fontSize:13 }}>No items yet</div>}
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -283,6 +317,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [drinkRequest, setDrinkRequest] = useState("");
   const [foodRequest, setFoodRequest] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [addonModal, setAddonModal] = useState(null); // {item, selected:[]}
 
   useEffect(() => {
     const initSession = async () => {
@@ -374,7 +409,19 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     return () => supabase.removeChannel(ch);
   }, [tableNo]);
 
-  const addToCart = (item) => setCart(p => ({ ...p, [item.id]: { ...item, qty:(p[item.id]?.qty||0)+1 } }));
+  const addToCart = (item, selectedAddons=[]) => {
+    const key = item.id + (selectedAddons.length ? "_" + selectedAddons.map(a=>a.name).join("_") : "");
+    const addonPrice = selectedAddons.reduce((s,a) => s+parseFloat(a.price||0), 0);
+    const itemWithAddons = { ...item, price: item.price + addonPrice, basePrice: item.price, selectedAddons: selectedAddons, cartKey: key };
+    setCart(p => ({ ...p, [key]: { ...itemWithAddons, qty:(p[key]?.qty||0)+1 } }));
+  };
+  const openAddonModal = (item) => {
+    if (item.addons && item.addons.length > 0) {
+      setAddonModal({ item, selected:[] });
+    } else {
+      addToCart(item);
+    }
+  };
   const removeFromCart = (id) => setCart(p => { const u={...p}; if (!u[id]) return u; if (u[id].qty>1) u[id]={...u[id],qty:u[id].qty-1}; else delete u[id]; return u; });
   const clearItem = (id) => setCart(p => { const u={...p}; delete u[id]; return u; });
 
@@ -427,7 +474,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.item_no && String(item.item_no).toLowerCase().includes(searchQuery.toLowerCase()))
       )
-    : (menu[activeCategory] || []);
+    : (menu[activeCategory] || []).filter(item => isPromoActive(item));
   const hasOrders = myOrders.length > 0;
 
   if (sessionExpired && !isStaff) return (
@@ -504,7 +551,11 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                           </span>
                           <span style={{ color:T.brown, fontWeight:"bold" }}>×{item.qty}</span>
                         </div>
-
+                        {item.selectedAddons && item.selectedAddons.length>0 && (
+                          <div style={{ fontSize:13, color:T.muted, paddingLeft:8, marginTop:2 }}>
+                            + {item.selectedAddons.map(a=>`${a.name} (RM ${parseFloat(a.price).toFixed(2)})`).join(", ")}
+                          </div>
+                        )}
                       </div>
                     ))}
                     {order.special_request && (
@@ -542,12 +593,22 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             </div>
           </div>
 
+          {/* Promo banner */}
+          {!searchQuery && Object.values(menu).flat().filter(i => i.category==="Promo" && isPromoActive(i)).length > 0 && (
+            <div style={{ background:"linear-gradient(135deg,#b8860b,#daa520)", padding:"10px 16px", display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ fontSize:20 }}>🎉</span>
+              <div>
+                <div style={{ fontSize:13, fontWeight:"bold", color:"#fff" }}>Special Promo Available!</div>
+                <div style={{ fontSize:12, color:"#fff8dc" }}>Check the Promo tab for today's special offers</div>
+              </div>
+            </div>
+          )}
           {/* Category tabs — hidden when searching */}
           {!searchQuery && (
             <div style={{ display:"flex", background:"#fff", borderBottom:`1px solid ${T.border}`, overflowX:"auto", flexShrink:0 }}>
               {CATEGORIES.map(cat => (
                 <button key={cat} onClick={() => setActiveCategory(cat)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:activeCategory===cat?T.brown:"#fff", border:"none", color:activeCategory===cat?"#fff":T.muted, padding:"14px 18px", fontSize:15, fontWeight:activeCategory===cat?"bold":"normal", whiteSpace:"nowrap", flexShrink:0, borderBottom:activeCategory===cat?`3px solid #5a3a00`:"3px solid transparent" }}>
-                  {cat==="Beverage"?"☕ Beverage":cat==="Food & Snacks"?"🍽️ Food":cat==="Desserts"?"🍰 Desserts":"➕ Add-ons"}
+                  {cat==="Beverage"?"☕ Beverage":cat==="Food & Snacks"?"🍽️ Food":cat==="Desserts"?"🍰 Desserts":cat==="Add-ons"?"➕ Add-ons":"🎉 Promo"}
                 </button>
               ))}
             </div>
@@ -580,7 +641,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                           {soldOut ? (
                             <div style={{ textAlign:"center", color:T.red, fontSize:13, fontWeight:"bold", padding:"8px 0", background:"#fff0f0", borderRadius:8 }}>Sold Out</div>
                           ) : qty===0 ? (
-                            <button onClick={() => addToCart(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
+                            <button onClick={() => openAddonModal(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
                           ) : (
                             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                               <button onClick={() => removeFromCart(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:`2px solid ${T.brown}`, color:T.brown, width:40, height:40, fontSize:24, fontWeight:"bold", borderRadius:8 }}>−</button>
@@ -596,20 +657,66 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
               )}
           </div>
 
+          {/* Add-on Modal */}
+          {addonModal && (
+            <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:1000, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+              <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:24, width:"100%", maxWidth:500, maxHeight:"80vh", overflowY:"auto" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                  <div style={{ fontSize:18, fontWeight:"bold", color:T.brown }}>{addonModal.item.name}</div>
+                  <button onClick={() => setAddonModal(null)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", fontSize:24, color:T.muted }}>×</button>
+                </div>
+                <div style={{ fontSize:13, color:T.muted, marginBottom:12 }}>Select add-ons (optional)</div>
+                {addonModal.item.addons.map((addon, ai) => {
+                  const isSelected = addonModal.selected.some(s=>s.name===addon.name);
+                  return (
+                    <div key={ai} onClick={() => setAddonModal(m => ({ ...m, selected: isSelected ? m.selected.filter(s=>s.name!==addon.name) : [...m.selected, addon] }))}
+                      style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px", marginBottom:8, borderRadius:12, border:`2px solid ${isSelected?T.brown:T.border}`, background:isSelected?"#fff8f0":"#fff", cursor:"pointer" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ width:24, height:24, borderRadius:6, border:`2px solid ${isSelected?T.brown:T.border}`, background:isSelected?T.brown:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          {isSelected && <span style={{ color:"#fff", fontSize:14, fontWeight:"bold" }}>✓</span>}
+                        </div>
+                        <span style={{ fontSize:15, color:T.text, fontWeight:isSelected?"bold":"normal" }}>{addon.name}</span>
+                      </div>
+                      <span style={{ fontSize:15, color:T.brown, fontWeight:"bold" }}>+ RM {parseFloat(addon.price||0).toFixed(2)}</span>
+                    </div>
+                  );
+                })}
+                <div style={{ marginTop:16, paddingTop:12, borderTop:`1px solid ${T.border}` }}>
+                  <div style={{ fontSize:13, color:T.muted, marginBottom:4 }}>
+                    Base: RM {parseFloat(addonModal.item.price).toFixed(2)}
+                    {addonModal.selected.length > 0 && ` + RM ${addonModal.selected.reduce((s,a)=>s+parseFloat(a.price||0),0).toFixed(2)} add-ons`}
+                  </div>
+                  <div style={{ fontSize:20, color:T.brown, fontWeight:"bold", marginBottom:12 }}>
+                    Total: RM {(parseFloat(addonModal.item.price) + addonModal.selected.reduce((s,a)=>s+parseFloat(a.price||0),0)).toFixed(2)}
+                  </div>
+                  <button onClick={() => { addToCart(addonModal.item, addonModal.selected); setAddonModal(null); }}
+                    style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"16px 0", fontSize:17, fontWeight:"bold", borderRadius:12, marginBottom:10 }}>
+                    Add to Cart ✓
+                  </button>
+                  <button onClick={() => { addToCart(addonModal.item, []); setAddonModal(null); }}
+                    style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"transparent", border:`2px solid ${T.border}`, color:T.muted, padding:"12px 0", fontSize:15, borderRadius:12 }}>
+                    No add-ons, just add
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Cart bar */}
           {cartItems.length > 0 && (
             <div style={{ background:"#fff", borderTop:`2px solid ${T.brown}`, flexShrink:0, boxShadow:"0 -2px 10px rgba(0,0,0,0.08)" }}>
               <div style={{ maxHeight:130, overflowY:"auto", padding:"8px 14px" }}>
                 {cartItems.map(item => (
-                  <div key={item.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+                  <div key={item.cartKey||item.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
                     <div style={{ flex:1 }}>
                       <span style={{ fontSize:15, color:T.text }}>{item.name}</span>
+                      {item.selectedAddons && item.selectedAddons.length>0 && <div style={{ fontSize:12, color:T.muted }}>{item.selectedAddons.map(a=>a.name).join(", ")}</div>}
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <button onClick={() => removeFromCart(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#f5f5f5", border:`1px solid ${T.border}`, color:T.brown, width:28, height:28, fontSize:16, borderRadius:6 }}>−</button>
+                      <button onClick={() => removeFromCart(item.cartKey||item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#f5f5f5", border:`1px solid ${T.border}`, color:T.brown, width:28, height:28, fontSize:16, borderRadius:6 }}>−</button>
                       <span style={{ fontSize:15, color:T.brown, fontWeight:"bold", minWidth:20, textAlign:"center" }}>{item.qty}</span>
-                      <button onClick={() => addToCart(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", width:28, height:28, fontSize:16, fontWeight:"bold", borderRadius:6 }}>+</button>
-                      <button onClick={() => clearItem(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", color:T.red, fontSize:20, padding:"0 2px" }}>×</button>
+                      <button onClick={() => addToCart(item, item.selectedAddons||[])} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", width:28, height:28, fontSize:16, fontWeight:"bold", borderRadius:6 }}>+</button>
+                      <button onClick={() => clearItem(item.cartKey||item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", color:T.red, fontSize:20, padding:"0 2px" }}>×</button>
                       <span style={{ fontSize:14, color:T.brown, fontWeight:"bold", minWidth:55, textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
                     </div>
                   </div>
@@ -782,7 +889,9 @@ function KitchenScreen({ goHome }) {
                       <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
                       <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                     </div>
-
+                    {item.selectedAddons && item.selectedAddons.length>0 && (
+                      <div style={{ fontSize:12, color:C.muted, paddingLeft:20, marginTop:2 }}>+ {item.selectedAddons.map(a=>a.name).join(", ")}</div>
+                    )}
                   </div>
                 ))}
                 {getFoodReq(order.special_request) && (
@@ -987,7 +1096,9 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                         </span>
                         <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                       </div>
-
+                      {item.selectedAddons && item.selectedAddons.length>0 && (
+                        <div style={{ fontSize:12, color:isPending?C.gold:"#5aaa5a", paddingLeft:20, marginBottom:4 }}>+ {item.selectedAddons.map(a=>a.name).join(", ")}</div>
+                      )}
                     ))}
                     {getFoodReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getFoodReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
