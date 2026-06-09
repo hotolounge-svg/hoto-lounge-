@@ -385,7 +385,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const addToCart = (item, selectedAddons=[]) => {
     const key = item.id + (selectedAddons.length ? "_" + selectedAddons.map(a=>a.name).join("_") : "");
     const addonPrice = selectedAddons.reduce((s,a) => s+parseFloat(a.price||0), 0);
-    const itemWithAddons = { ...item, price: item.price + addonPrice, _basePrice: item.price, _addons: selectedAddons, _cartKey: key };
+    const itemWithAddons = { ...item, price: item.price + addonPrice, basePrice: item.price, selectedAddons: selectedAddons, cartKey: key };
     setCart(p => ({ ...p, [key]: { ...itemWithAddons, qty:(p[key]?.qty||0)+1 } }));
   };
   const openAddonModal = (item) => {
@@ -407,7 +407,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     const time = new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"});
 
     // Clean cart items for storage (remove internal keys)
-    const cleanItems = (items) => items.map(i => ({ ...i, _cartKey:undefined, _basePrice:undefined }));
+    const cleanItems = (items) => items.map(i => { const {cartKey, basePrice, ...rest} = i; return rest; });
     const drinkItems = cleanItems(cartItems.filter(i => DRINK_CATEGORIES.includes(i.category)));
     const foodItems = cleanItems(cartItems.filter(i => FOOD_CATEGORIES.includes(i.category)));
 
@@ -516,12 +516,19 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       <span style={{ background:statusBg, color:"#fff", borderRadius:8, padding:"3px 10px", fontSize:13, fontWeight:"bold" }}>{statusText}</span>
                     </div>
                     {order.items.map((item,i) => (
-                      <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:16, marginBottom:6 }}>
-                        <span style={{ color:isPending?T.text:T.muted }}>
-                          {item.item_no && <span style={{ color:T.brown, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}
-                          {item.name}
-                        </span>
-                        <span style={{ color:T.brown, fontWeight:"bold" }}>×{item.qty}</span>
+                      <div key={i} style={{ marginBottom:6 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:16 }}>
+                          <span style={{ color:isPending?T.text:T.muted }}>
+                            {item.item_no && <span style={{ color:T.brown, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}
+                            {item.name}
+                          </span>
+                          <span style={{ color:T.brown, fontWeight:"bold" }}>×{item.qty}</span>
+                        </div>
+                        {item.selectedAddons && item.selectedAddons.length>0 && (
+                          <div style={{ fontSize:13, color:T.muted, paddingLeft:8, marginTop:2 }}>
+                            + {item.selectedAddons.map(a=>`${a.name} (RM ${parseFloat(a.price).toFixed(2)})`).join(", ")}
+                          </div>
+                        )}
                       </div>
                     ))}
                     {order.special_request && (
@@ -661,16 +668,16 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             <div style={{ background:"#fff", borderTop:`2px solid ${T.brown}`, flexShrink:0, boxShadow:"0 -2px 10px rgba(0,0,0,0.08)" }}>
               <div style={{ maxHeight:130, overflowY:"auto", padding:"8px 14px" }}>
                 {cartItems.map(item => (
-                  <div key={item._cartKey||item.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+                  <div key={item.cartKey||item.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
                     <div style={{ flex:1 }}>
                       <span style={{ fontSize:15, color:T.text }}>{item.name}</span>
-                      {item._addons && item._addons.length>0 && <div style={{ fontSize:12, color:T.muted }}>{item._addons.map(a=>a.name).join(", ")}</div>}
+                      {item.selectedAddons && item.selectedAddons.length>0 && <div style={{ fontSize:12, color:T.muted }}>{item.selectedAddons.map(a=>a.name).join(", ")}</div>}
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <button onClick={() => removeFromCart(item._cartKey||item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#f5f5f5", border:`1px solid ${T.border}`, color:T.brown, width:28, height:28, fontSize:16, borderRadius:6 }}>−</button>
+                      <button onClick={() => removeFromCart(item.cartKey||item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#f5f5f5", border:`1px solid ${T.border}`, color:T.brown, width:28, height:28, fontSize:16, borderRadius:6 }}>−</button>
                       <span style={{ fontSize:15, color:T.brown, fontWeight:"bold", minWidth:20, textAlign:"center" }}>{item.qty}</span>
-                      <button onClick={() => addToCart(item, item._addons||[])} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", width:28, height:28, fontSize:16, fontWeight:"bold", borderRadius:6 }}>+</button>
-                      <button onClick={() => clearItem(item._cartKey||item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", color:T.red, fontSize:20, padding:"0 2px" }}>×</button>
+                      <button onClick={() => addToCart(item, item.selectedAddons||[])} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", width:28, height:28, fontSize:16, fontWeight:"bold", borderRadius:6 }}>+</button>
+                      <button onClick={() => clearItem(item.cartKey||item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", color:T.red, fontSize:20, padding:"0 2px" }}>×</button>
                       <span style={{ fontSize:14, color:T.brown, fontWeight:"bold", minWidth:55, textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
                     </div>
                   </div>
@@ -843,8 +850,8 @@ function KitchenScreen({ goHome }) {
                       <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
                       <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                     </div>
-                    {item._addons && item._addons.length>0 && (
-                      <div style={{ fontSize:12, color:C.muted, paddingLeft:20, marginTop:2 }}>+ {item._addons.map(a=>a.name).join(", ")}</div>
+                    {item.selectedAddons && item.selectedAddons.length>0 && (
+                      <div style={{ fontSize:12, color:C.muted, paddingLeft:20, marginTop:2 }}>+ {item.selectedAddons.map(a=>a.name).join(", ")}</div>
                     )}
                   </div>
                 ))}
@@ -1050,8 +1057,8 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                         </span>
                         <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                       </div>
-                      {item._addons && item._addons.length>0 && (
-                        <div style={{ fontSize:12, color:isPending?C.gold:"#5aaa5a", paddingLeft:20, marginBottom:4 }}>+ {item._addons.map(a=>a.name).join(", ")}</div>
+                      {item.selectedAddons && item.selectedAddons.length>0 && (
+                        <div style={{ fontSize:12, color:isPending?C.gold:"#5aaa5a", paddingLeft:20, marginBottom:4 }}>+ {item.selectedAddons.map(a=>a.name).join(", ")}</div>
                       )}
                     ))}
                     {getFoodReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getFoodReq(order.special_request)}</div>}
