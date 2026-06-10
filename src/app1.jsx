@@ -350,9 +350,9 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [menuLoading, setMenuLoading] = useState(true);
   const [now, setNow] = useState(new Date());
 
-  // Auto-refresh every 30 seconds to update promo/happy hour status
+  // Tick every 10s so promo time checks (isHappyHour/getEffectivePrice) stay current
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 30000);
+    const timer = setInterval(() => setNow(new Date()), 10000);
     return () => clearInterval(timer);
   }, []);
   const [myOrders, setMyOrders] = useState([]);
@@ -439,6 +439,12 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       setMenuLoading(false);
     };
     fetchMenu();
+    // Realtime: re-fetch menu whenever any menu_item changes (promo start/end, price, availability)
+    // This means every device (iPhone, Android, laptop) updates instantly — no manual refresh needed
+    const menuCh = supabase.channel("menu-items-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"menu_items" }, fetchMenu)
+      .subscribe();
+    return () => supabase.removeChannel(menuCh);
   }, []);
 
   useEffect(() => {
