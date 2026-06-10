@@ -38,7 +38,7 @@ const getFoodReq = (req) => {
   return req; // food only or plain request
 };
 
-// Uses promo_active column set by Supabase pg_cron — no client time math needed
+// promo_active is set by admin save — no client time math needed
 const isPromoActive = (item) => {
   if (item.category !== "Promo") return true;
   if (!item.promo_start || !item.promo_end) return true;
@@ -156,7 +156,6 @@ function AdminScreen({ goHome }) {
     setUploading(false);
   };
   const handleSave = async () => {
-    // Calculate promo_active right now based on current MYT time
     const nowMins = (() => {
       const d = new Date();
       const myt = new Date(d.toLocaleString("en-US", { timeZone:"Asia/Kuala_Lumpur" }));
@@ -339,7 +338,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [waiterCalled, setWaiterCalled] = useState(false);
   const [menu, setMenu] = useState({});
   const [menuLoading, setMenuLoading] = useState(true);
-  // promo_active controlled server-side by pg_cron — no client timer needed
+  // No timer — promo_active controlled via admin save + Supabase realtime
   const [myOrders, setMyOrders] = useState([]);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [drinkRequest, setDrinkRequest] = useState("");
