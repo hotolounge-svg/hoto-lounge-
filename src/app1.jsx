@@ -10,7 +10,7 @@ const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 const CAFE_NAME = "HOTO LOUNGE";
 const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts"];
 const DRINK_CATEGORIES = ["Beverage"];
-const FOOD_CATEGORIES = ["Food & Snacks", "Desserts", "Promo"];
+const FOOD_CATEGORIES = ["Food & Snacks", "Desserts"];
 
 // Staff dark theme
 const C = { bg:"#1a1208", panel:"#2c1a0e", border:"#3d2d1a", gold:"#c8973a", goldLight:"#e8c77a", muted:"#a07840", text:"#f5ede0", dark:"#1a1208" };
@@ -38,20 +38,38 @@ const getFoodReq = (req) => {
   return req; // food only or plain request
 };
 
-// Uses promo_active column set by Supabase pg_cron — no client time math needed
+// Check if promo time is currently active
 const isPromoActive = (item) => {
   if (item.category !== "Promo") return true;
   if (!item.promo_start || !item.promo_end) return true;
-  return item.promo_active === true;
+  const now = new Date();
+  const [sh, sm] = item.promo_start.split(":").map(Number);
+  const [eh, em] = item.promo_end.split(":").map(Number);
+  const start = sh * 60 + sm;
+  const end = eh * 60 + em;
+  const cur = now.getHours() * 60 + now.getMinutes();
+  return cur >= start && cur <= end;
 };
-const getEffectivePrice = (item) => {
+// Get effective price (happy hour price if active)
+const getEffectivePrice = (item, now=new Date()) => {
   if (!item.promo_price || !item.promo_start || !item.promo_end) return item.price;
-  return item.promo_active ? item.promo_price : item.price;
+  const [sh, sm] = item.promo_start.split(":").map(Number);
+  const [eh, em] = item.promo_end.split(":").map(Number);
+  const start = sh * 60 + sm;
+  const end = eh * 60 + em;
+  const cur = now.getHours() * 60 + now.getMinutes();
+  return (cur >= start && cur <= end) ? item.promo_price : item.price;
 };
-const isHappyHour = (item) => {
+// Check if item is in happy hour right now
+const isHappyHour = (item, now=new Date()) => {
   if (!item.promo_start || !item.promo_end) return false;
   if (!item.promo_price && (!item.promo_drinks || item.promo_drinks.length === 0)) return false;
-  return item.promo_active === true;
+  const [sh, sm] = item.promo_start.split(":").map(Number);
+  const [eh, em] = item.promo_end.split(":").map(Number);
+  const start = sh * 60 + sm;
+  const end = eh * 60 + em;
+  const cur = now.getHours() * 60 + now.getMinutes();
+  return cur >= start && cur <= end;
 };
 
 function QRCode({ url, size=160 }) {
@@ -156,16 +174,7 @@ function AdminScreen({ goHome }) {
     setUploading(false);
   };
   const handleSave = async () => {
-    // Calculate promo_active right now based on current MYT time
-    const nowMins = (() => {
-      const d = new Date();
-      const myt = new Date(d.toLocaleString("en-US", { timeZone:"Asia/Kuala_Lumpur" }));
-      return myt.getHours() * 60 + myt.getMinutes();
-    })();
-    const toMins = (t) => { if (!t) return null; const [h,m] = t.split(":").map(Number); return h*60+m; };
-    const s = toMins(form.promo_start); const e = toMins(form.promo_end);
-    const promo_active = s !== null && e !== null && nowMins >= s && nowMins < e;
-    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, addons:form.addons||[], promo_start:form.promo_start||null, promo_end:form.promo_end||null, promo_price:form.promo_price?parseFloat(form.promo_price):null, promo_drinks:form.promo_drinks||[], promo_active };
+    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, addons:form.addons||[], promo_start:form.promo_start||null, promo_end:form.promo_end||null, promo_price:form.promo_price?parseFloat(form.promo_price):null, promo_drinks:form.promo_drinks||[] };
     if (editItem) await supabase.from("menu_items").update(p).eq("id", editItem.id);
     else await supabase.from("menu_items").insert(p);
     setShowForm(false); fetchItems();
@@ -339,7 +348,13 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [waiterCalled, setWaiterCalled] = useState(false);
   const [menu, setMenu] = useState({});
   const [menuLoading, setMenuLoading] = useState(true);
-  // promo_active controlled server-side by pg_cron — no client timer needed
+  const [now, setNow] = useState(new Date());
+
+  // Auto-refresh every 30 seconds to update promo/happy hour status
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, []);
   const [myOrders, setMyOrders] = useState([]);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [drinkRequest, setDrinkRequest] = useState("");
@@ -347,7 +362,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [promoModal, setPromoModal] = useState(null); // {item, selectedDrink:""}
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const submittingRef = useRef(false);
+  const submittingRef = useRef(false); // ref survives re-renders — prevents stuck button
 
   useEffect(() => {
     const initSession = async () => {
@@ -425,12 +440,6 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       setMenuLoading(false);
     };
     fetchMenu();
-    // Realtime: re-fetch menu whenever any menu_item changes (promo start/end, price, availability)
-    // This means every device (iPhone, Android, laptop) updates instantly — no manual refresh needed
-    const menuCh = supabase.channel("menu-items-watch")
-      .on("postgres_changes", { event:"*", schema:"public", table:"menu_items" }, fetchMenu)
-      .subscribe();
-    return () => supabase.removeChannel(menuCh);
   }, []);
 
   useEffect(() => {
@@ -446,7 +455,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   }, [tableNo]);
 
   const addToCart = (item, freeDrink=null) => {
-    const effectivePrice = getEffectivePrice(item);
+    const effectivePrice = getEffectivePrice(item,now);
     const itemToAdd = { ...item, price: effectivePrice };
     setCart(p => ({ ...p, [item.id]: { ...itemToAdd, qty:(p[item.id]?.qty||0)+1 } }));
     // If free drink selected, add it to cart at RM 0
@@ -457,7 +466,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     }
   };
   const handleAddItem = (item) => {
-    if (isHappyHour(item) && item.promo_drinks && item.promo_drinks.length > 0) {
+    if (isHappyHour(item,now) && item.promo_drinks && item.promo_drinks.length > 0) {
       setPromoModal({ item, selectedDrink:"" });
     } else {
       addToCart(item);
@@ -470,7 +479,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const total = cartItems.reduce((s,i) => s+i.price*i.qty, 0);
 
   const placeOrder = async () => {
-    if (submittingRef.current) return;
+    if (submittingRef.current) return; // Block duplicate taps (ref survives re-renders)
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
@@ -662,10 +671,10 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     return (
                       <div key={item.id} style={{ background:"#fff", border:qty>0?`2px solid ${T.brown}`:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden", position:"relative", opacity:soldOut?0.5:1, boxShadow:T.shadow, display:"flex", flexDirection:"column" }}>
                         {/* Price badge top right */}
-                        <div style={{ position:"absolute", top:8, right:8, background:isHappyHour(item)?"#e65100":"rgba(0,0,0,0.7)", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:13, fontWeight:"bold", zIndex:1 }}>
-                          {isHappyHour(item) && <span style={{ textDecoration:"line-through", opacity:0.7, marginRight:4, fontSize:11 }}>RM {parseFloat(item.price).toFixed(2)}</span>}
-                          RM {parseFloat(getEffectivePrice(item)).toFixed(2)}
-                          {isHappyHour(item) && <span style={{ fontSize:10, display:"block", textAlign:"center" }}>🍺 Happy Hour</span>}
+                        <div style={{ position:"absolute", top:8, right:8, background:isHappyHour(item,now)?"#e65100":"rgba(0,0,0,0.7)", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:13, fontWeight:"bold", zIndex:1 }}>
+                          {isHappyHour(item,now) && <span style={{ textDecoration:"line-through", opacity:0.7, marginRight:4, fontSize:11 }}>RM {parseFloat(item.price).toFixed(2)}</span>}
+                          RM {parseFloat(getEffectivePrice(item,now)).toFixed(2)}
+                          {isHappyHour(item,now) && <span style={{ fontSize:10, display:"block", textAlign:"center" }}>🍺 Happy Hour</span>}
                         </div>
                         {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
                         {item.image_url
@@ -679,7 +688,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                           {soldOut ? (
                             <div style={{ textAlign:"center", color:T.red, fontSize:13, fontWeight:"bold", padding:"8px 0", background:"#fff0f0", borderRadius:8 }}>Sold Out</div>
                           ) : qty===0 ? (
-                            <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:isHappyHour(item)?T.orange:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
+                            <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:isHappyHour(item,now)?T.orange:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
                           ) : (
                             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                               <button onClick={() => removeFromCart(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:`2px solid ${T.brown}`, color:T.brown, width:40, height:40, fontSize:24, fontWeight:"bold", borderRadius:8 }}>−</button>
