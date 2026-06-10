@@ -51,9 +51,8 @@ const isPromoActive = (item) => {
   return cur >= start && cur <= end;
 };
 // Get effective price (happy hour price if active)
-const getEffectivePrice = (item) => {
+const getEffectivePrice = (item, now=new Date()) => {
   if (!item.promo_price || !item.promo_start || !item.promo_end) return item.price;
-  const now = new Date();
   const [sh, sm] = item.promo_start.split(":").map(Number);
   const [eh, em] = item.promo_end.split(":").map(Number);
   const start = sh * 60 + sm;
@@ -63,8 +62,7 @@ const getEffectivePrice = (item) => {
 };
 // Check if item is in happy hour right now
 const isHappyHour = (item) => {
-  if (!item.promo_start || !item.promo_end) return false;
-  if (!item.promo_price && (!item.promo_drinks || item.promo_drinks.length === 0)) return false;
+  if (!item.promo_price || !item.promo_start || !item.promo_end) return false;
   const now = new Date();
   const [sh, sm] = item.promo_start.split(":").map(Number);
   const [eh, em] = item.promo_end.split(":").map(Number);
@@ -350,6 +348,13 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [waiterCalled, setWaiterCalled] = useState(false);
   const [menu, setMenu] = useState({});
   const [menuLoading, setMenuLoading] = useState(true);
+  const [now, setNow] = useState(new Date());
+
+  // Auto-refresh every 30 seconds to update promo/happy hour status
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, []);
   const [myOrders, setMyOrders] = useState([]);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [drinkRequest, setDrinkRequest] = useState("");
@@ -448,7 +453,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   }, [tableNo]);
 
   const addToCart = (item, freeDrink=null) => {
-    const effectivePrice = getEffectivePrice(item);
+    const effectivePrice = getEffectivePrice(item,now);
     const itemToAdd = { ...item, price: effectivePrice };
     setCart(p => ({ ...p, [item.id]: { ...itemToAdd, qty:(p[item.id]?.qty||0)+1 } }));
     // If free drink selected, add it to cart at RM 0
@@ -459,7 +464,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     }
   };
   const handleAddItem = (item) => {
-    if (isHappyHour(item) && item.promo_drinks && item.promo_drinks.length > 0) {
+    if (isHappyHour(item,now) && item.promo_drinks && item.promo_drinks.length > 0) {
       setPromoModal({ item, selectedDrink:"" });
     } else {
       addToCart(item);
@@ -656,10 +661,10 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     return (
                       <div key={item.id} style={{ background:"#fff", border:qty>0?`2px solid ${T.brown}`:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden", position:"relative", opacity:soldOut?0.5:1, boxShadow:T.shadow, display:"flex", flexDirection:"column" }}>
                         {/* Price badge top right */}
-                        <div style={{ position:"absolute", top:8, right:8, background:isHappyHour(item)?"#e65100":"rgba(0,0,0,0.7)", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:13, fontWeight:"bold", zIndex:1 }}>
-                          {isHappyHour(item) && <span style={{ textDecoration:"line-through", opacity:0.7, marginRight:4, fontSize:11 }}>RM {parseFloat(item.price).toFixed(2)}</span>}
-                          RM {parseFloat(getEffectivePrice(item)).toFixed(2)}
-                          {isHappyHour(item) && <span style={{ fontSize:10, display:"block", textAlign:"center" }}>🍺 Happy Hour</span>}
+                        <div style={{ position:"absolute", top:8, right:8, background:isHappyHour(item,now)?"#e65100":"rgba(0,0,0,0.7)", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:13, fontWeight:"bold", zIndex:1 }}>
+                          {isHappyHour(item,now) && <span style={{ textDecoration:"line-through", opacity:0.7, marginRight:4, fontSize:11 }}>RM {parseFloat(item.price).toFixed(2)}</span>}
+                          RM {parseFloat(getEffectivePrice(item,now)).toFixed(2)}
+                          {isHappyHour(item,now) && <span style={{ fontSize:10, display:"block", textAlign:"center" }}>🍺 Happy Hour</span>}
                         </div>
                         {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
                         {item.image_url
@@ -673,7 +678,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                           {soldOut ? (
                             <div style={{ textAlign:"center", color:T.red, fontSize:13, fontWeight:"bold", padding:"8px 0", background:"#fff0f0", borderRadius:8 }}>Sold Out</div>
                           ) : qty===0 ? (
-                            <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:isHappyHour(item)?T.orange:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
+                            <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:isHappyHour(item,now)?T.orange:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
                           ) : (
                             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                               <button onClick={() => removeFromCart(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:`2px solid ${T.brown}`, color:T.brown, width:40, height:40, fontSize:24, fontWeight:"bold", borderRadius:8 }}>−</button>
