@@ -10,7 +10,7 @@ const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 const CAFE_NAME = "HOTO LOUNGE";
 const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts"];
 const DRINK_CATEGORIES = ["Beverage"];
-const FOOD_CATEGORIES = ["Food & Snacks", "Desserts"];
+const FOOD_CATEGORIES = ["Food & Snacks", "Desserts", "Promo"];
 
 // Staff dark theme
 const C = { bg:"#1a1208", panel:"#2c1a0e", border:"#3d2d1a", gold:"#c8973a", goldLight:"#e8c77a", muted:"#a07840", text:"#f5ede0", dark:"#1a1208" };
