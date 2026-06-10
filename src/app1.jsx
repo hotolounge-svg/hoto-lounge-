@@ -12,6 +12,17 @@ const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts"];
 const DRINK_CATEGORIES = ["Beverage"];
 const FOOD_CATEGORIES = ["Food & Snacks", "Desserts", "Promo"];
 
+// Check if promo is active right now based on promo_start/promo_end
+const isPromoNow = (item) => {
+  if (!item.promo_start || !item.promo_end) return false;
+  if (!item.promo_drinks || item.promo_drinks.length === 0) return false;
+  const myt = new Date(new Date().toLocaleString("en-US", { timeZone:"Asia/Kuala_Lumpur" }));
+  const cur = myt.getHours() * 60 + myt.getMinutes();
+  const [sh, sm] = item.promo_start.split(":").map(Number);
+  const [eh, em] = item.promo_end.split(":").map(Number);
+  return cur >= sh * 60 + sm && cur < eh * 60 + em;
+};
+
 // Staff dark theme
 const C = { bg:"#1a1208", panel:"#2c1a0e", border:"#3d2d1a", gold:"#c8973a", goldLight:"#e8c77a", muted:"#a07840", text:"#f5ede0", dark:"#1a1208" };
 const btn = (x={}) => ({ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:8, transition:"all 0.2s", ...x });
@@ -435,7 +446,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     }
   };
   const handleAddItem = (item) => {
-    if (item.promo_active && item.promo_drinks && item.promo_drinks.length > 0) {
+    if (isPromoNow(item)) {
       setPromoModal({ item, selectedDrink:"" });
     } else {
       addToCart(item);
@@ -656,7 +667,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                             <div style={{ textAlign:"center", color:T.red, fontSize:13, fontWeight:"bold", padding:"8px 0", background:"#fff0f0", borderRadius:8 }}>Sold Out</div>
                           ) : qty===0 ? (
                             <div>
-                              {item.promo_active && item.promo_drinks && item.promo_drinks.length > 0 && (
+                              {isPromoNow(item) && (
                                 <div style={{ textAlign:"center", fontSize:11, color:T.green, fontWeight:"bold", marginBottom:4 }}>🎁 with free drinks</div>
                               )}
                               <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
