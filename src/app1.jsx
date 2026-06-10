@@ -8,9 +8,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const ADMIN_PASSWORD = "hotolounge2024";
 const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 const CAFE_NAME = "HOTO LOUNGE";
-const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts"];
+const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts", "Add-ons"];
 const DRINK_CATEGORIES = ["Beverage"];
-const FOOD_CATEGORIES = ["Food & Snacks", "Desserts", "Promo"];
+const FOOD_CATEGORIES = ["Food & Snacks", "Desserts", "Promo", "Add-ons"];
 
 // Staff dark theme
 const C = { bg:"#1a1208", panel:"#2c1a0e", border:"#3d2d1a", gold:"#c8973a", goldLight:"#e8c77a", muted:"#a07840", text:"#f5ede0", dark:"#1a1208" };
@@ -288,7 +288,7 @@ function AdminScreen({ goHome }) {
             return (
               <div key={cat} style={{ marginBottom:24 }}>
                 <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>
-                  {cat} ({catItems.length}) — {DRINK_CATEGORIES.includes(cat) ? "☕ Cashier (Beverage)" : "🍳 Kitchen prepares"}
+                  {cat} ({catItems.length}) — {DRINK_CATEGORIES.includes(cat) ? "☕ Cashier (Beverage)" : cat==="Add-ons" ? "➕ Kitchen prepares (Add-ons)" : "🍳 Kitchen prepares"}
                 </div>
                 {catItems.length===0 && <div style={{ color:C.border, fontSize:13 }}>No items yet</div>}
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -348,6 +348,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [foodRequest, setFoodRequest] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [promoModal, setPromoModal] = useState(null); // {item, selectedDrink:""}
+  const [addonModal, setAddonModal] = useState(null); // {item, selectedAddons:[]}
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
@@ -447,8 +448,12 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     return () => supabase.removeChannel(ch);
   }, [tableNo]);
 
-  const addToCart = (item, freeDrink=null) => {
-    setCart(p => ({ ...p, [item.id]: { ...item, qty:(p[item.id]?.qty||0)+1 } }));
+  const addToCart = (item, freeDrink=null, selectedAddons=[]) => {
+    const addonPrice = selectedAddons.reduce((s,a) => s + parseFloat(a.price||0), 0);
+    const addonNames = selectedAddons.length > 0 ? " +" + selectedAddons.map(a=>a.name).join(" +") : "";
+    const cartKey = item.id + (selectedAddons.length > 0 ? "_" + selectedAddons.map(a=>a.name).join("_") : "");
+    const itemToAdd = { ...item, price: item.price + addonPrice, name: item.name + addonNames, cartKey };
+    setCart(p => ({ ...p, [cartKey]: { ...itemToAdd, qty:(p[cartKey]?.qty||0)+1 } }));
     if (freeDrink) {
       const drinkKey = `free_${item.id}`;
       const freeItem = { id:drinkKey, name:`${freeDrink} (Free)`, price:0, qty:1, category:"Beverage", emoji:"☕", item_no:"" };
@@ -456,14 +461,16 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     }
   };
   const handleAddItem = (item) => {
-    if (isPromoNow(item)) {
+    if (item.addons && item.addons.length > 0) {
+      setAddonModal({ item, selectedAddons:[], freeDrink: isPromoNow(item) ? "" : null });
+    } else if (isPromoNow(item)) {
       setPromoModal({ item, selectedDrink:"" });
     } else {
       addToCart(item);
     }
   };
-  const removeFromCart = (id) => setCart(p => { const u={...p}; if (!u[id]) return u; if (u[id].qty>1) u[id]={...u[id],qty:u[id].qty-1}; else delete u[id]; return u; });
-  const clearItem = (id) => setCart(p => { const u={...p}; delete u[id]; return u; });
+  const removeFromCart = (key) => setCart(p => { const u={...p}; if (!u[key]) return u; if (u[key].qty>1) u[key]={...u[key],qty:u[key].qty-1}; else delete u[key]; return u; });
+  const clearItem = (key) => setCart(p => { const u={...p}; delete u[key]; return u; });
 
   const cartItems = Object.values(cart);
   const total = cartItems.reduce((s,i) => s+i.price*i.qty, 0);
@@ -643,7 +650,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             <div style={{ display:"flex", background:"#fff", borderBottom:`1px solid ${T.border}`, overflowX:"auto", flexShrink:0 }}>
               {CATEGORIES.map(cat => (
                 <button key={cat} onClick={() => setActiveCategory(cat)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:activeCategory===cat?T.brown:"#fff", border:"none", color:activeCategory===cat?"#fff":T.muted, padding:"14px 18px", fontSize:15, fontWeight:activeCategory===cat?"bold":"normal", whiteSpace:"nowrap", flexShrink:0, borderBottom:activeCategory===cat?`3px solid #5a3a00`:"3px solid transparent" }}>
-                  {cat==="Beverage"?"☕ Beverage":cat==="Food & Snacks"?"🍽️ Food":"🍰 Desserts"}
+                  {cat==="Beverage"?"☕ Beverage":cat==="Food & Snacks"?"🍽️ Food":cat==="Desserts"?"🍰 Desserts":"➕ Add-ons"}
                 </button>
               ))}
             </div>
@@ -696,6 +703,58 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                 </div>
               )}
           </div>
+
+          {/* Add-ons Modal */}
+          {addonModal && (
+            <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:1000, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+              <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:24, width:"100%", maxWidth:500, maxHeight:"80vh", overflowY:"auto" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                  <div style={{ fontSize:18, fontWeight:"bold", color:T.brown }}>{addonModal.item.name}</div>
+                  <button onClick={() => setAddonModal(null)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", fontSize:24, color:T.muted }}>×</button>
+                </div>
+                <div style={{ fontSize:13, color:T.muted, marginBottom:12 }}>Add extras (optional):</div>
+                {addonModal.item.addons.map((addon, ai) => {
+                  const selected = addonModal.selectedAddons.some(a => a.name === addon.name);
+                  return (
+                    <div key={ai} onClick={() => setAddonModal(m => ({
+                      ...m,
+                      selectedAddons: selected
+                        ? m.selectedAddons.filter(a => a.name !== addon.name)
+                        : [...m.selectedAddons, addon]
+                    }))} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px", marginBottom:8, borderRadius:12, border:`2px solid ${selected?T.brown:T.border}`, background:selected?"#fff8f0":"#fff", cursor:"pointer" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ width:24, height:24, borderRadius:6, border:`2px solid ${selected?T.brown:T.border}`, background:selected?T.brown:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          {selected && <span style={{ color:"#fff", fontSize:14, fontWeight:"bold" }}>✓</span>}
+                        </div>
+                        <span style={{ fontSize:15, color:T.text }}>{addon.name}</span>
+                      </div>
+                      <span style={{ fontSize:14, color:T.brown, fontWeight:"bold" }}>+RM {parseFloat(addon.price||0).toFixed(2)}</span>
+                    </div>
+                  );
+                })}
+                {addonModal.freeDrink !== null && (
+                  <div style={{ marginTop:12, background:"#fff8e1", borderRadius:10, padding:"10px 14px", marginBottom:8 }}>
+                    <div style={{ fontSize:13, fontWeight:"bold", color:"#e65100", marginBottom:8 }}>🎁 Choose a free drink:</div>
+                    {addonModal.item.promo_drinks.map((drink, di) => (
+                      <div key={di} onClick={() => setAddonModal(m=>({...m, freeDrink:drink}))}
+                        style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", marginBottom:6, borderRadius:10, border:`2px solid ${addonModal.freeDrink===drink?T.brown:T.border}`, background:addonModal.freeDrink===drink?"#fff8f0":"#fff", cursor:"pointer" }}>
+                        <span style={{ fontSize:14, color:T.text }}>☕ {drink}</span>
+                        <span style={{ fontSize:13, color:T.green, fontWeight:"bold" }}>FREE</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ marginTop:16 }}>
+                  <button onClick={() => {
+                    addToCart(addonModal.item, addonModal.freeDrink||null, addonModal.selectedAddons);
+                    setAddonModal(null);
+                  }} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"16px 0", fontSize:17, fontWeight:"bold", borderRadius:12 }}>
+                    Add to Order ✓
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Promo / Free Drink Modal */}
           {promoModal && (
