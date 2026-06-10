@@ -61,9 +61,9 @@ const getEffectivePrice = (item, now=new Date()) => {
   return (cur >= start && cur <= end) ? item.promo_price : item.price;
 };
 // Check if item is in happy hour right now
-const isHappyHour = (item) => {
-  if (!item.promo_price || !item.promo_start || !item.promo_end) return false;
-  const now = new Date();
+const isHappyHour = (item, now=new Date()) => {
+  if (!item.promo_start || !item.promo_end) return false;
+  if (!item.promo_price && (!item.promo_drinks || item.promo_drinks.length === 0)) return false;
   const [sh, sm] = item.promo_start.split(":").map(Number);
   const [eh, em] = item.promo_end.split(":").map(Number);
   const start = sh * 60 + sm;
