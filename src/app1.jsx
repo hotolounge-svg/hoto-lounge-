@@ -350,9 +350,9 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [menuLoading, setMenuLoading] = useState(true);
   const [now, setNow] = useState(new Date());
 
-  // Tick every 10s so promo time checks (isHappyHour/getEffectivePrice) stay current
+  // Auto-refresh every 30 seconds to update promo/happy hour status
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 10000);
+    const timer = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(timer);
   }, []);
   const [myOrders, setMyOrders] = useState([]);
@@ -362,6 +362,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [promoModal, setPromoModal] = useState(null); // {item, selectedDrink:""}
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false); // ref survives re-renders — prevents stuck button
 
   useEffect(() => {
     const initSession = async () => {
@@ -439,12 +440,6 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       setMenuLoading(false);
     };
     fetchMenu();
-    // Realtime: re-fetch menu whenever any menu_item changes (promo start/end, price, availability)
-    // This means every device (iPhone, Android, laptop) updates instantly — no manual refresh needed
-    const menuCh = supabase.channel("menu-items-watch")
-      .on("postgres_changes", { event:"*", schema:"public", table:"menu_items" }, fetchMenu)
-      .subscribe();
-    return () => supabase.removeChannel(menuCh);
   }, []);
 
   useEffect(() => {
@@ -484,7 +479,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const total = cartItems.reduce((s,i) => s+i.price*i.qty, 0);
 
   const placeOrder = async () => {
-    if (isSubmitting) return; // Block duplicate taps
+    if (submittingRef.current) return; // Block duplicate taps (ref survives re-renders)
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
       const drinkReq = drinkRequest.trim() || null;
@@ -519,6 +515,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       await supabase.from("orders").insert(ordersToInsert);
       setCart({}); setDrinkRequest(""); setFoodRequest(""); setView("orders");
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
