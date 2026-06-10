@@ -362,6 +362,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [promoModal, setPromoModal] = useState(null); // {item, selectedDrink:""}
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false); // ref survives re-renders — state alone can reset mid-flight
 
   useEffect(() => {
     const initSession = async () => {
@@ -484,7 +485,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const total = cartItems.reduce((s,i) => s+i.price*i.qty, 0);
 
   const placeOrder = async () => {
-    if (isSubmitting) return; // Block duplicate taps
+    if (submittingRef.current) return; // ref survives re-renders, state does not
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
       const drinkReq = drinkRequest.trim() || null;
@@ -519,6 +521,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       await supabase.from("orders").insert(ordersToInsert);
       setCart({}); setDrinkRequest(""); setFoodRequest(""); setView("orders");
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
