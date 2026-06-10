@@ -361,6 +361,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [foodRequest, setFoodRequest] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [promoModal, setPromoModal] = useState(null); // {item, selectedDrink:""}
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const initSession = async () => {
@@ -477,37 +478,43 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const total = cartItems.reduce((s,i) => s+i.price*i.qty, 0);
 
   const placeOrder = async () => {
-    const drinkReq = drinkRequest.trim() || null;
-    const foodReq = foodRequest.trim() || null;
-    const time = new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"});
+    if (isSubmitting) return; // Block duplicate taps
+    setIsSubmitting(true);
+    try {
+      const drinkReq = drinkRequest.trim() || null;
+      const foodReq = foodRequest.trim() || null;
+      const time = new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"});
 
-    // Clean cart items for storage (remove internal keys)
-    const cleanItems = (items) => items.map(i => { const {cartKey, basePrice, ...rest} = i; return rest; });
-    const drinkItems = cleanItems(cartItems.filter(i => DRINK_CATEGORIES.includes(i.category)));
-    const foodItems = cleanItems(cartItems.filter(i => FOOD_CATEGORIES.includes(i.category)));
+      // Clean cart items for storage (remove internal keys)
+      const cleanItems = (items) => items.map(i => { const {cartKey, basePrice, ...rest} = i; return rest; });
+      const drinkItems = cleanItems(cartItems.filter(i => DRINK_CATEGORIES.includes(i.category)));
+      const foodItems = cleanItems(cartItems.filter(i => FOOD_CATEGORIES.includes(i.category)));
 
-    const ordersToInsert = [];
+      const ordersToInsert = [];
 
-    if (drinkItems.length > 0) {
-      const drinkTotal = drinkItems.reduce((s,i) => s+i.price*i.qty, 0);
-      ordersToInsert.push({
-        table_no:tableNo, items:drinkItems, subtotal:drinkTotal, tax:0,
-        total:drinkTotal, status:"pending",
-        special_request:drinkReq, time
-      });
+      if (drinkItems.length > 0) {
+        const drinkTotal = drinkItems.reduce((s,i) => s+i.price*i.qty, 0);
+        ordersToInsert.push({
+          table_no:tableNo, items:drinkItems, subtotal:drinkTotal, tax:0,
+          total:drinkTotal, status:"pending",
+          special_request:drinkReq, time
+        });
+      }
+
+      if (foodItems.length > 0) {
+        const foodTotal = foodItems.reduce((s,i) => s+i.price*i.qty, 0);
+        ordersToInsert.push({
+          table_no:tableNo, items:foodItems, subtotal:foodTotal, tax:0,
+          total:foodTotal, status:"pending",
+          special_request:foodReq, time
+        });
+      }
+
+      await supabase.from("orders").insert(ordersToInsert);
+      setCart({}); setDrinkRequest(""); setFoodRequest(""); setView("orders");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    if (foodItems.length > 0) {
-      const foodTotal = foodItems.reduce((s,i) => s+i.price*i.qty, 0);
-      ordersToInsert.push({
-        table_no:tableNo, items:foodItems, subtotal:foodTotal, tax:0,
-        total:foodTotal, status:"pending",
-        special_request:foodReq, time
-      });
-    }
-
-    await supabase.from("orders").insert(ordersToInsert);
-    setCart({}); setDrinkRequest(""); setFoodRequest(""); setView("orders");
   };
   const callWaiter = async () => {
     await supabase.from("waiter_calls").upsert({ table_no:tableNo, time:new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"}) });
@@ -767,8 +774,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     <div style={{ fontSize:13, color:T.muted }}>Total</div>
                     <div style={{ fontSize:24, color:T.brown, fontWeight:"bold" }}>RM {total.toFixed(2)}</div>
                   </div>
-                  <button onClick={placeOrder} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", padding:"14px 28px", fontSize:18, fontWeight:"bold", borderRadius:12 }}>
-                    Place Order ✓
+                  <button onClick={placeOrder} disabled={isSubmitting} style={{ fontFamily:"Georgia,serif", cursor:isSubmitting?"not-allowed":"pointer", background:isSubmitting?"#a0836a":T.brown, border:"none", color:"#fff", padding:"14px 28px", fontSize:18, fontWeight:"bold", borderRadius:12, opacity:isSubmitting?0.7:1, transition:"all 0.2s" }}>
+                    {isSubmitting ? "Placing…" : "Place Order ✓"}
                   </button>
                 </div>
               </div>
