@@ -156,7 +156,16 @@ function AdminScreen({ goHome }) {
     setUploading(false);
   };
   const handleSave = async () => {
-    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, addons:form.addons||[], promo_start:form.promo_start||null, promo_end:form.promo_end||null, promo_price:form.promo_price?parseFloat(form.promo_price):null, promo_drinks:form.promo_drinks||[] };
+    // Calculate promo_active right now based on current MYT time
+    const nowMins = (() => {
+      const d = new Date();
+      const myt = new Date(d.toLocaleString("en-US", { timeZone:"Asia/Kuala_Lumpur" }));
+      return myt.getHours() * 60 + myt.getMinutes();
+    })();
+    const toMins = (t) => { if (!t) return null; const [h,m] = t.split(":").map(Number); return h*60+m; };
+    const s = toMins(form.promo_start); const e = toMins(form.promo_end);
+    const promo_active = s !== null && e !== null && nowMins >= s && nowMins < e;
+    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, addons:form.addons||[], promo_start:form.promo_start||null, promo_end:form.promo_end||null, promo_price:form.promo_price?parseFloat(form.promo_price):null, promo_drinks:form.promo_drinks||[], promo_active };
     if (editItem) await supabase.from("menu_items").update(p).eq("id", editItem.id);
     else await supabase.from("menu_items").insert(p);
     setShowForm(false); fetchItems();
