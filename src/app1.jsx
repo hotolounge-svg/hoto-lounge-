@@ -691,7 +691,12 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                           {soldOut ? (
                             <div style={{ textAlign:"center", color:T.red, fontSize:13, fontWeight:"bold", padding:"8px 0", background:"#fff0f0", borderRadius:8 }}>Sold Out</div>
                           ) : qty===0 ? (
-                            <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:isHappyHour(item,now)?T.orange:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
+                            <div>
+                              {item.promo_active && item.promo_drinks && item.promo_drinks.length > 0 && (
+                                <div style={{ textAlign:"center", fontSize:11, color:T.green, fontWeight:"bold", marginBottom:4 }}>🎁 with free drinks</div>
+                              )}
+                              <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
+                            </div>
                           ) : (
                             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                               <button onClick={() => removeFromCart(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:`2px solid ${T.brown}`, color:T.brown, width:40, height:40, fontSize:24, fontWeight:"bold", borderRadius:8 }}>−</button>
