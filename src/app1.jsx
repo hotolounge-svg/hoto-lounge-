@@ -491,7 +491,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   };
   const handleAddItem = (item) => {
     if (item.addons && item.addons.length > 0) {
-      setAddonModal({ item, selectedAddons:[], freeDrink: isPromoNow(item) ? "" : null });
+      setAddonModal({ item, selectedAddons:[], freeDrink: isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0 ? "" : null });
     } else if (isPromoNow(item)) {
       setPromoModal({ item, selectedDrink:"" });
     } else {
@@ -804,7 +804,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     </div>
                   );
                 })}
-                {addonModal.freeDrink !== null && (
+                {addonModal.freeDrink !== null && addonModal.item.promo_drinks && addonModal.item.promo_drinks.length > 0 && (
                   <div style={{ marginTop:12, background:"#fff8e1", borderRadius:10, padding:"10px 14px", marginBottom:8 }}>
                     <div style={{ fontSize:13, fontWeight:"bold", color:"#e65100", marginBottom:8 }}>🎁 Choose a free drink:</div>
                     {addonModal.item.promo_drinks.map((drink, di) => (
