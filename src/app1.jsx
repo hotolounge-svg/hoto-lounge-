@@ -469,8 +469,29 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       addToCart(item);
     }
   };
-  const removeFromCart = (key) => setCart(p => { const u={...p}; if (!u[key]) return u; if (u[key].qty>1) u[key]={...u[key],qty:u[key].qty-1}; else delete u[key]; return u; });
-  const clearItem = (key) => setCart(p => { const u={...p}; delete u[key]; return u; });
+  const removeFromCart = (key) => setCart(p => {
+    const u = {...p};
+    if (!u[key]) return u;
+    if (u[key].qty > 1) {
+      u[key] = {...u[key], qty: u[key].qty - 1};
+    } else {
+      delete u[key];
+      // Also remove linked free drink when food item fully removed
+      const originalId = key.toString().replace(/_.*/, "");
+      const freeKey = `free_${originalId}`;
+      if (u[freeKey]) delete u[freeKey];
+    }
+    return u;
+  });
+  const clearItem = (key) => setCart(p => {
+    const u = {...p};
+    delete u[key];
+    // Also remove linked free drink if exists (keyed as free_{originalId})
+    const originalId = key.toString().replace(/_.*/, ""); // strip addon suffix
+    const freeKey = `free_${originalId}`;
+    if (u[freeKey]) delete u[freeKey];
+    return u;
+  });
 
   const cartItems = Object.values(cart);
   const total = cartItems.reduce((s,i) => s+i.price*i.qty, 0);
