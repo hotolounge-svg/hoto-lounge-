@@ -193,7 +193,9 @@ function AdminScreen({ goHome }) {
         </div>
       </div>
       {showForm && (
-        <div style={{ background:"#0a0804", borderBottom:`2px solid ${C.gold}`, padding:20 }}>
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.75)", zIndex:2000, display:"flex", alignItems:"flex-start", justifyContent:"center", overflowY:"auto", padding:"20px 0" }}>
+        <div style={{ background:"#0a0804", border:`2px solid ${C.gold}`, borderRadius:16, padding:20, width:"100%", maxWidth:900, margin:"auto", position:"relative" }}>
+          <button onClick={() => setShowForm(false)} style={{ position:"absolute", top:12, right:12, background:"transparent", border:"none", color:C.muted, fontSize:24, cursor:"pointer", fontFamily:"Georgia,serif" }}>✕</button>
           <div style={{ fontSize:16, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>{editItem ? "Edit Item" : "Add New Item"}</div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:12 }}>
             {[["Item No.","item_no","e.g. A1"],["Item Name","name","e.g. Latte"],["Price (RM)","price","e.g. 8.00"],["Emoji","emoji","e.g. ☕"],["Description","description","Short description"]].map(([label,key,ph]) => (
@@ -300,6 +302,7 @@ function AdminScreen({ goHome }) {
             <button onClick={() => setShowForm(false)} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"10px 20px", fontSize:13 })}>Cancel</button>
             <button onClick={handleSave} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 28px", fontSize:14, fontWeight:"bold" })}>{editItem ? "Save Changes" : "Add Item"} ✓</button>
           </div>
+        </div>
         </div>
       )}
       <div style={{ flex:1, padding:16, overflowY:"auto" }}>
