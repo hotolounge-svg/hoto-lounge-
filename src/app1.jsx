@@ -271,6 +271,10 @@ function AdminScreen({ goHome }) {
                   <input value={addon.promo_price||""} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],promo_price:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="optional" type="number" step="0.50"
                     style={{ width:90, background:"#1a1208", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 10px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
                 </div>
+                <button onClick={() => setForm(f=>({...f,addons:f.addons.map((a,i)=>i===ai?{...a,sold_out:!a.sold_out}:a)}))}
+                  style={btn({ background:addon.sold_out?"#6a2d2d":"transparent", border:`1px solid ${addon.sold_out?"#cc4444":C.border}`, color:addon.sold_out?"#ff7777":C.muted, padding:"6px 10px", fontSize:12, fontWeight:"bold" })}>
+                  {addon.sold_out?"❌ Out":"✅"}
+                </button>
                 <button onClick={() => setForm(f=>({...f,addons:f.addons.filter((_,i)=>i!==ai)}))}
                   style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"6px 10px", fontSize:13 })}>✕</button>
               </div>
@@ -826,17 +830,17 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                   const selected = addonModal.selectedAddons.some(a => a.name === addon.name);
                   const isRequired = addonModal.item.addon_required;
                   return (
-                    <div key={ai} onClick={() => setAddonModal(m => ({
+                    <div key={ai} onClick={() => { if (addon.sold_out) return; setAddonModal(m => ({
                       ...m,
                       selectedAddons: isRequired ? [addon] : selected
                         ? m.selectedAddons.filter(a => a.name !== addon.name)
                         : [...m.selectedAddons, addon]
-                    }))} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px", marginBottom:8, borderRadius:12, border:`2px solid ${selected?T.brown:T.border}`, background:selected?"#fff8f0":"#fff", cursor:"pointer" }}>
+                    }));}} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px", marginBottom:8, borderRadius:12, border:`2px solid ${addon.sold_out?"#eee":selected?T.brown:T.border}`, background:addon.sold_out?"#f9f9f9":selected?"#fff8f0":"#fff", cursor:addon.sold_out?"not-allowed":"pointer", opacity:addon.sold_out?0.5:1 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                         <div style={{ width:24, height:24, borderRadius:isRequired?12:6, border:`2px solid ${selected?T.brown:T.border}`, background:selected?T.brown:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
                           {selected && <span style={{ color:"#fff", fontSize:14, fontWeight:"bold" }}>✓</span>}
                         </div>
-                        <span style={{ fontSize:15, color:T.text }}>{addon.name}</span>
+                        <span style={{ fontSize:15, color:addon.sold_out?T.muted:T.text }}>{addon.name}{addon.sold_out && <span style={{ fontSize:11, color:T.red, marginLeft:6, fontWeight:"bold" }}>SOLD OUT</span>}</span>
                       </div>
                       <span style={{ fontSize:14, color:T.brown, fontWeight:"bold", textAlign:"right" }}>
                         {isPromoNow(addonModal.item) && addon.promo_price && parseFloat(addon.promo_price) > 0 ? (
