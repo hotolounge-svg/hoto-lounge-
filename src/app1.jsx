@@ -5,7 +5,7 @@ const SUPABASE_URL = "https://qjbfoooshpvjlqiepxxb.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqYmZvb29zaHB2amxxaWVweHhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NTIxNDAsImV4cCI6MjA5NjEyODE0MH0.5psVFUbii5Wi5MHhoR3FVVs4C8UPMwgt2K1Tzb6VTxQ";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const ADMIN_PASSWORD = "hotolounge2024";
+const ADMIN_PASSWORD = localStorage.getItem("admin_pw") || "hotolounge2026";
 const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 const CAFE_NAME = "HOTO LOUNGE";
 const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts", "Add-ons"];
@@ -63,6 +63,14 @@ function QRCode({ url, size=160 }) {
 export default function App() {
   const [screen, setScreen] = useState("home");
   const [tableNo, setTableNo] = useState(null);
+  const STAFF_PIN = localStorage.getItem("staff_pin") || "Jack@126";
+  const [pinUnlocked, setPinUnlocked] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState(false);
+  const submitPin = () => {
+    if (pinInput === STAFF_PIN) { setPinUnlocked(true); }
+    else { setPinError(true); setPinInput(""); }
+  };
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = parseInt(params.get("table"));
@@ -72,6 +80,19 @@ export default function App() {
   }, []);
   return (
     <div style={{ fontFamily:"Georgia,serif", background:C.bg, minHeight:"100vh", color:C.text }}>
+      {screen === "home" && !pinUnlocked && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:16, padding:32, width:"100%", maxWidth:320, textAlign:"center" }}>
+            <div style={{ fontSize:28, marginBottom:8 }}>🔐</div>
+            <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:20 }}>Staff Access</div>
+            <input type="password" value={pinInput} onChange={e => { setPinInput(e.target.value); setPinError(false); }} onKeyDown={e => e.key==="Enter" && submitPin()}
+              placeholder="Enter PIN" autoFocus
+              style={{ width:"100%", background:C.bg, border:`2px solid ${pinError?"#cc4444":C.gold}`, color:C.text, padding:"12px 16px", borderRadius:10, fontSize:20, fontFamily:"Georgia,serif", textAlign:"center", letterSpacing:4, boxSizing:"border-box", marginBottom:8 }} />
+            {pinError && <div style={{ color:"#ff7777", fontSize:13, marginBottom:8 }}>Wrong PIN</div>}
+            <button onClick={submitPin} style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:14, fontSize:15, fontWeight:"bold", marginTop:8 })}>Unlock ✓</button>
+          </div>
+        </div>
+      )}
       {screen === "home"    && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} />}
       {screen === "tablet"  && <TabletScreen  tableNo={tableNo} isStaff={tableNo !== null && !window.location.search.includes("table=")} goHome={() => setScreen("home")} />}
       {screen === "kitchen" && <KitchenScreen goHome={() => setScreen("home")} />}
@@ -124,6 +145,9 @@ function AdminScreen({ goHome }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[] });
   const [uploading, setUploading] = useState(false);
+  const [showPwForm, setShowPwForm] = useState(false);
+  const [newStaffPin, setNewStaffPin] = useState("");
+  const [newAdminPw, setNewAdminPw] = useState("");
   const fileRef = useRef();
 
   const fetchItems = async () => {
@@ -189,6 +213,7 @@ function AdminScreen({ goHome }) {
         <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold" }}>⚙️ Menu Management</div>
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={openAdd} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>+ Add Item</button>
+          <button onClick={() => setShowPwForm(s=>!s)} style={btn({ background:showPwForm?"#2d6a2d":"transparent", border:`1px solid ${showPwForm?"#5aaa5a":C.border}`, color:showPwForm?"#aaffaa":C.muted, padding:"8px 12px", fontSize:13 })}>🔑 Passwords</button>
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"8px 12px", fontSize:13 })}>← Back</button>
         </div>
       </div>
@@ -306,6 +331,28 @@ function AdminScreen({ goHome }) {
         </div>
       )}
       <div style={{ flex:1, padding:16, overflowY:"auto" }}>
+        {showPwForm && (
+          <div style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:12, padding:20, marginBottom:20 }}>
+            <div style={{ fontSize:15, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>🔑 Change Passwords</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(260px,1fr))", gap:16 }}>
+              <div style={{ background:"#1a1208", borderRadius:10, padding:16 }}>
+                <div style={{ fontSize:13, color:C.muted, marginBottom:10, fontWeight:"bold" }}>🔐 Staff Home PIN</div>
+                <input type="password" placeholder="New PIN" value={newStaffPin} onChange={e=>setNewStaffPin(e.target.value)}
+                  style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:8 }} />
+                <button onClick={() => { if(newStaffPin){ localStorage.setItem("staff_pin", newStaffPin); setNewStaffPin(""); alert("Staff PIN updated! Reload page to apply."); }}}
+                  style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>Save PIN</button>
+              </div>
+              <div style={{ background:"#1a1208", borderRadius:10, padding:16 }}>
+                <div style={{ fontSize:13, color:C.muted, marginBottom:10, fontWeight:"bold" }}>⚙️ Admin Password</div>
+                <input type="password" placeholder="New Password" value={newAdminPw} onChange={e=>setNewAdminPw(e.target.value)}
+                  style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:8 }} />
+                <button onClick={() => { if(newAdminPw){ localStorage.setItem("admin_pw", newAdminPw); setNewAdminPw(""); alert("Admin password updated! Reload page to apply."); }}}
+                  style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>Save Password</button>
+              </div>
+            </div>
+            <div style={{ fontSize:11, color:C.muted, marginTop:12 }}>💡 Passwords saved on this device. Reload page after changing.</div>
+          </div>
+        )}
         {loading ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>Loading...</div> :
           CATEGORIES.map(cat => {
             const catItems = items.filter(i => i.category===cat);
@@ -725,7 +772,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                             const normalMin = Math.min(...item.addons.map(a=>parseFloat(a.price||0)));
                             const min = Math.min(...prices);
                             return hasPromo ? <span><span style={{textDecoration:"line-through",opacity:0.6,fontSize:11,marginRight:3}}>RM {normalMin.toFixed(2)}</span>RM {min.toFixed(2)}<span style={{fontSize:10,display:"block",textAlign:"center"}}>🍺 Happy Hour</span></span>
-                              : <span>from RM {min.toFixed(2)}</span>;
+                              : <span>RM {min.toFixed(2)}</span>;
                           })() : `RM ${parseFloat(item.price).toFixed(2)}`}
                         </div>
                         {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
