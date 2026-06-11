@@ -43,7 +43,11 @@ const getFoodReq = (req) => {
 // Check if promo is active right now based on promo_start/promo_end (MYT)
 const isPromoNow = (item) => {
   if (!item.promo_start || !item.promo_end) return false;
-  if (!item.promo_drinks || item.promo_drinks.length === 0) return false;
+  // Valid if has free drinks, item promo_price, OR addon-level promo_price
+  const hasDrinks = item.promo_drinks && item.promo_drinks.length > 0;
+  const hasItemPromo = item.promo_price && parseFloat(item.promo_price) > 0;
+  const hasAddonPromo = item.addons && item.addons.some(a => a.promo_price && parseFloat(a.promo_price) > 0);
+  if (!hasDrinks && !hasItemPromo && !hasAddonPromo) return false;
   const myt = new Date(new Date().toLocaleString("en-US", { timeZone:"Asia/Kuala_Lumpur" }));
   const cur = myt.getHours() * 60 + myt.getMinutes();
   const [sh, sm] = item.promo_start.split(":").map(Number);
@@ -470,9 +474,11 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       const usePromo = isPromoNow(item) && a.promo_price && parseFloat(a.promo_price) > 0;
       return s + parseFloat(usePromo ? a.promo_price : (a.price||0));
     }, 0);
-    const addonNames = selectedAddons.length > 0 ? " +" + selectedAddons.map(a=>a.name).join(" +") : "";
+    // addon_required: price comes fully from addon (e.g. beer brand), base = 0
+    const basePrice = item.addon_required ? 0 : parseFloat(item.price);
+    const addonNames = selectedAddons.length > 0 ? (item.addon_required ? " " : " +") + selectedAddons.map(a=>a.name).join(" +") : "";
     const cartKey = item.id + (selectedAddons.length > 0 ? "_" + selectedAddons.map(a=>a.name).join("_") : "");
-    const itemToAdd = { ...item, price: item.price + addonPrice, name: item.name + addonNames, cartKey };
+    const itemToAdd = { ...item, price: basePrice + addonPrice, name: item.name + addonNames, cartKey };
     setCart(p => ({ ...p, [cartKey]: { ...itemToAdd, qty:(p[cartKey]?.qty||0)+1 } }));
     if (freeDrink) {
       const drinkKey = `free_${item.id}`;
@@ -709,8 +715,15 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     return (
                       <div key={item.id} style={{ background:"#fff", border:qty>0?`2px solid ${T.brown}`:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden", position:"relative", opacity:soldOut?0.5:1, boxShadow:T.shadow, display:"flex", flexDirection:"column" }}>
                         {/* Price badge top right */}
-                        <div style={{ position:"absolute", top:8, right:8, background:"rgba(0,0,0,0.7)", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:13, fontWeight:"bold", zIndex:1 }}>
-                          RM {parseFloat(item.price).toFixed(2)}
+                        <div style={{ position:"absolute", top:8, right:8, background:isPromoNow(item)&&item.addons&&item.addons.some(a=>a.promo_price&&parseFloat(a.promo_price)>0)?"#e65100":"rgba(0,0,0,0.7)", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:13, fontWeight:"bold", zIndex:1 }}>
+                          {item.addon_required && item.addons && item.addons.length > 0 ? (() => {
+                            const hasPromo = isPromoNow(item) && item.addons.some(a=>a.promo_price&&parseFloat(a.promo_price)>0);
+                            const prices = item.addons.map(a => hasPromo && a.promo_price && parseFloat(a.promo_price)>0 ? parseFloat(a.promo_price) : parseFloat(a.price||0));
+                            const normalMin = Math.min(...item.addons.map(a=>parseFloat(a.price||0)));
+                            const min = Math.min(...prices);
+                            return hasPromo ? <span><span style={{textDecoration:"line-through",opacity:0.6,fontSize:11,marginRight:3}}>RM {normalMin.toFixed(2)}</span>RM {min.toFixed(2)}<span style={{fontSize:10,display:"block",textAlign:"center"}}>🍺 Happy Hour</span></span>
+                              : <span>from RM {min.toFixed(2)}</span>;
+                          })() : `RM ${parseFloat(item.price).toFixed(2)}`}
                         </div>
                         {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
                         {item.image_url
@@ -729,7 +742,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                                 <div style={{ textAlign:"center", fontSize:11, color:T.green, fontWeight:"bold", marginBottom:4 }}>🎁 with free drinks</div>
                               )}
                               {isPromoNow(item) && item.addons && item.addons.some(a => a.promo_price && parseFloat(a.promo_price) > 0) && (
-                                <div style={{ textAlign:"center", fontSize:11, color:"#e65100", fontWeight:"bold", marginBottom:4 }}>🍺 Happy Hour pricing</div>
+                                <div style={{ textAlign:"center", fontSize:11, color:"#e65100", fontWeight:"bold", marginBottom:4 }}>🍺 Happy Hour!</div>
                               )}
                               <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
                             </div>
