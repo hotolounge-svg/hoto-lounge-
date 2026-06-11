@@ -118,7 +118,7 @@ function AdminScreen({ goHome }) {
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], promo_start:"", promo_end:"", promo_price:"", promo_drinks:[] });
+  const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[] });
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef();
 
@@ -135,11 +135,11 @@ function AdminScreen({ goHome }) {
     else setPwError(true);
   };
   const openAdd = () => {
-    setForm({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], promo_start:"", promo_end:"", promo_price:"", promo_drinks:[] });
+    setForm({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[] });
     setEditItem(null); setShowForm(true);
   };
   const openEdit = (item) => {
-    setForm({ item_no:item.item_no, name:item.name, category:item.category, price:item.price, description:item.description||"", emoji:item.emoji||"🍽️", image_url:item.image_url||"", is_available:item.is_available!==false, addons:item.addons||[], promo_start:item.promo_start||"", promo_end:item.promo_end||"", promo_price:item.promo_price||"", promo_drinks:item.promo_drinks||[] });
+    setForm({ item_no:item.item_no, name:item.name, category:item.category, price:item.price, description:item.description||"", emoji:item.emoji||"🍽️", image_url:item.image_url||"", is_available:item.is_available!==false, addons:item.addons||[], addon_required:item.addon_required||false, promo_start:item.promo_start||"", promo_end:item.promo_end||"", promo_price:item.promo_price||"", promo_drinks:item.promo_drinks||[] });
     setEditItem(item); setShowForm(true);
   };
   const handleUpload = async (e) => {
@@ -157,7 +157,7 @@ function AdminScreen({ goHome }) {
     const toMins = (t) => { if (!t) return null; const [h,m] = t.split(":").map(Number); return h*60+m; };
     const s = toMins(form.promo_start); const e = toMins(form.promo_end);
     const promo_active = s !== null && e !== null && nowMins >= s && nowMins < e;
-    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, addons:form.addons||[], promo_start:form.promo_start||null, promo_end:form.promo_end||null, promo_price:form.promo_price?parseFloat(form.promo_price):null, promo_drinks:form.promo_drinks||[], promo_active };
+    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, addons:form.addons||[], addon_required:form.addon_required||false, promo_start:form.promo_start||null, promo_end:form.promo_end||null, promo_price:form.promo_price?parseFloat(form.promo_price):null, promo_drinks:form.promo_drinks||[], promo_active };
     if (editItem) await supabase.from("menu_items").update(p).eq("id", editItem.id);
     else await supabase.from("menu_items").insert(p);
     setShowForm(false); fetchItems();
@@ -238,6 +238,15 @@ function AdminScreen({ goHome }) {
             ))}
             <button onClick={() => setForm(f=>({...f,addons:[...(f.addons||[]),{name:"",price:""}]}))}
               style={btn({ background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 16px", fontSize:13 })}>+ Add Option</button>
+            {(form.addons||[]).length > 0 && (
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:10 }}>
+                <button onClick={() => setForm(f=>({...f, addon_required:!f.addon_required}))}
+                  style={btn({ background:form.addon_required?"#2d6a2d":"transparent", border:`1px solid ${form.addon_required?"#5aaa5a":C.border}`, color:form.addon_required?"#aaffaa":C.muted, padding:"6px 14px", fontSize:12, fontWeight:"bold" })}>
+                  {form.addon_required ? "✅ Must Select One" : "⬜ Optional (multi-select)"}
+                </button>
+                <span style={{ fontSize:11, color:C.muted }}>e.g. beer brand = Must Select One</span>
+              </div>
+            )}
           </div>
           <div style={{ marginTop:16, background:C.panel, border:`1px solid ${C.border}`, borderRadius:10, padding:14 }}>
             <div style={{ fontSize:13, color:C.goldLight, marginBottom:12, fontWeight:"bold" }}>⏰ Time-Based Promo (optional)</div>
@@ -733,23 +742,28 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                   <div style={{ fontSize:18, fontWeight:"bold", color:T.brown }}>{addonModal.item.name}</div>
                   <button onClick={() => setAddonModal(null)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", fontSize:24, color:T.muted }}>×</button>
                 </div>
-                <div style={{ fontSize:13, color:T.muted, marginBottom:12 }}>Add extras (optional):</div>
+                <div style={{ fontSize:13, color:T.muted, marginBottom:12 }}>
+                  {addonModal.item.addon_required ? "Select one (required):" : "Add extras (optional):"}
+                </div>
                 {addonModal.item.addons.map((addon, ai) => {
                   const selected = addonModal.selectedAddons.some(a => a.name === addon.name);
+                  const isRequired = addonModal.item.addon_required;
                   return (
                     <div key={ai} onClick={() => setAddonModal(m => ({
                       ...m,
-                      selectedAddons: selected
+                      selectedAddons: isRequired ? [addon] : selected
                         ? m.selectedAddons.filter(a => a.name !== addon.name)
                         : [...m.selectedAddons, addon]
                     }))} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px", marginBottom:8, borderRadius:12, border:`2px solid ${selected?T.brown:T.border}`, background:selected?"#fff8f0":"#fff", cursor:"pointer" }}>
                       <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                        <div style={{ width:24, height:24, borderRadius:6, border:`2px solid ${selected?T.brown:T.border}`, background:selected?T.brown:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <div style={{ width:24, height:24, borderRadius:isRequired?12:6, border:`2px solid ${selected?T.brown:T.border}`, background:selected?T.brown:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
                           {selected && <span style={{ color:"#fff", fontSize:14, fontWeight:"bold" }}>✓</span>}
                         </div>
                         <span style={{ fontSize:15, color:T.text }}>{addon.name}</span>
                       </div>
-                      <span style={{ fontSize:14, color:T.brown, fontWeight:"bold" }}>+RM {parseFloat(addon.price||0).toFixed(2)}</span>
+                      <span style={{ fontSize:14, color:T.brown, fontWeight:"bold" }}>
+                        {parseFloat(addon.price||0) > 0 ? `+RM ${parseFloat(addon.price||0).toFixed(2)}` : ""}
+                      </span>
                     </div>
                   );
                 })}
@@ -767,10 +781,11 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                 )}
                 <div style={{ marginTop:16 }}>
                   <button onClick={() => {
+                    if (addonModal.item.addon_required && addonModal.selectedAddons.length===0) return;
                     addToCart(addonModal.item, addonModal.freeDrink||null, addonModal.selectedAddons);
                     setAddonModal(null);
-                  }} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"16px 0", fontSize:17, fontWeight:"bold", borderRadius:12 }}>
-                    Add to Order ✓
+                  }} style={{ fontFamily:"Georgia,serif", cursor:(addonModal.item.addon_required && addonModal.selectedAddons.length===0)?"not-allowed":"pointer", width:"100%", background:(addonModal.item.addon_required && addonModal.selectedAddons.length===0)?"#ccc":T.brown, border:"none", color:"#fff", padding:"16px 0", fontSize:17, fontWeight:"bold", borderRadius:12 }}>
+                    {addonModal.item.addon_required && addonModal.selectedAddons.length===0 ? "Please select one ↑" : "Add to Order ✓"}
                   </button>
                 </div>
               </div>
