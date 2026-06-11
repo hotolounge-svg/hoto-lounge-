@@ -227,11 +227,19 @@ function AdminScreen({ goHome }) {
           <div style={{ marginTop:16 }}>
             <div style={{ fontSize:13, color:C.muted, marginBottom:8, fontWeight:"bold" }}>➕ Add-ons (optional extras customer can select)</div>
             {(form.addons||[]).map((addon, ai) => (
-              <div key={ai} style={{ display:"flex", gap:8, alignItems:"center", marginBottom:8 }}>
-                <input value={addon.name} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],name:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="e.g. Extra Egg"
-                  style={{ flex:1, background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"7px 12px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
-                <input value={addon.price} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],price:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="RM" type="number" step="0.50"
-                  style={{ width:80, background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"7px 10px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
+              <div key={ai} style={{ display:"flex", gap:8, alignItems:"center", marginBottom:8, flexWrap:"wrap" }}>
+                <input value={addon.name} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],name:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="e.g. Tiger Beer"
+                  style={{ flex:2, minWidth:120, background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"7px 12px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
+                <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+                  <div style={{ fontSize:10, color:C.muted }}>Normal Price</div>
+                  <input value={addon.price} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],price:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="RM" type="number" step="0.50"
+                    style={{ width:90, background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"7px 10px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+                  <div style={{ fontSize:10, color:"#e8c77a" }}>Happy Hour Price</div>
+                  <input value={addon.promo_price||""} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],promo_price:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="optional" type="number" step="0.50"
+                    style={{ width:90, background:"#1a1208", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 10px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
+                </div>
                 <button onClick={() => setForm(f=>({...f,addons:f.addons.filter((_,i)=>i!==ai)}))}
                   style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"6px 10px", fontSize:13 })}>✕</button>
               </div>
@@ -458,7 +466,10 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   }, [tableNo]);
 
   const addToCart = (item, freeDrink=null, selectedAddons=[]) => {
-    const addonPrice = selectedAddons.reduce((s,a) => s + parseFloat(a.price||0), 0);
+    const addonPrice = selectedAddons.reduce((s,a) => {
+      const usePromo = isPromoNow(item) && a.promo_price && parseFloat(a.promo_price) > 0;
+      return s + parseFloat(usePromo ? a.promo_price : (a.price||0));
+    }, 0);
     const addonNames = selectedAddons.length > 0 ? " +" + selectedAddons.map(a=>a.name).join(" +") : "";
     const cartKey = item.id + (selectedAddons.length > 0 ? "_" + selectedAddons.map(a=>a.name).join("_") : "");
     const itemToAdd = { ...item, price: item.price + addonPrice, name: item.name + addonNames, cartKey };
@@ -714,8 +725,11 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                             <div style={{ textAlign:"center", color:T.red, fontSize:13, fontWeight:"bold", padding:"8px 0", background:"#fff0f0", borderRadius:8 }}>Sold Out</div>
                           ) : qty===0 ? (
                             <div>
-                              {isPromoNow(item) && (
+                              {isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0 && (
                                 <div style={{ textAlign:"center", fontSize:11, color:T.green, fontWeight:"bold", marginBottom:4 }}>🎁 with free drinks</div>
+                              )}
+                              {isPromoNow(item) && item.addons && item.addons.some(a => a.promo_price && parseFloat(a.promo_price) > 0) && (
+                                <div style={{ textAlign:"center", fontSize:11, color:"#e65100", fontWeight:"bold", marginBottom:4 }}>🍺 Happy Hour pricing</div>
                               )}
                               <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
                             </div>
@@ -761,8 +775,15 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                         </div>
                         <span style={{ fontSize:15, color:T.text }}>{addon.name}</span>
                       </div>
-                      <span style={{ fontSize:14, color:T.brown, fontWeight:"bold" }}>
-                        {parseFloat(addon.price||0) > 0 ? `+RM ${parseFloat(addon.price||0).toFixed(2)}` : ""}
+                      <span style={{ fontSize:14, color:T.brown, fontWeight:"bold", textAlign:"right" }}>
+                        {isPromoNow(addonModal.item) && addon.promo_price && parseFloat(addon.promo_price) > 0 ? (
+                          <span>
+                            <span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>RM {parseFloat(addon.price||0).toFixed(2)}</span>
+                            <span style={{ color:"#e65100" }}>RM {parseFloat(addon.promo_price).toFixed(2)}</span>
+                          </span>
+                        ) : (
+                          parseFloat(addon.price||0) > 0 ? `RM ${parseFloat(addon.price||0).toFixed(2)}` : ""
+                        )}
                       </span>
                     </div>
                   );
