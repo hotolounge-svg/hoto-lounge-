@@ -693,7 +693,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                               <button onClick={() => removeFromCart(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:`2px solid ${T.brown}`, color:T.brown, width:40, height:40, fontSize:24, fontWeight:"bold", borderRadius:8 }}>−</button>
                               <span style={{ color:T.brown, fontWeight:"bold", fontSize:22 }}>{qty}</span>
-                              <button onClick={() => addToCart(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", width:40, height:40, fontSize:24, fontWeight:"bold", borderRadius:8 }}>+</button>
+                              <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", width:40, height:40, fontSize:24, fontWeight:"bold", borderRadius:8 }}>+</button>
                             </div>
                           )}
                         </div>
@@ -795,15 +795,15 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             <div style={{ background:"#fff", borderTop:`2px solid ${T.brown}`, flexShrink:0, boxShadow:"0 -2px 10px rgba(0,0,0,0.08)" }}>
               <div style={{ maxHeight:130, overflowY:"auto", padding:"8px 14px" }}>
                 {cartItems.map(item => (
-                  <div key={item.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+                  <div key={item.cartKey||item.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
                     <div style={{ flex:1 }}>
                       <span style={{ fontSize:15, color:T.text }}>{item.name}</span>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <button onClick={() => removeFromCart(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#f5f5f5", border:`1px solid ${T.border}`, color:T.brown, width:28, height:28, fontSize:16, borderRadius:6 }}>−</button>
+                      <button onClick={() => removeFromCart(item.cartKey||item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#f5f5f5", border:`1px solid ${T.border}`, color:T.brown, width:28, height:28, fontSize:16, borderRadius:6 }}>−</button>
                       <span style={{ fontSize:15, color:T.brown, fontWeight:"bold", minWidth:20, textAlign:"center" }}>{item.qty}</span>
-                      <button onClick={() => addToCart(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", width:28, height:28, fontSize:16, fontWeight:"bold", borderRadius:6 }}>+</button>
-                      <button onClick={() => clearItem(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", color:T.red, fontSize:20, padding:"0 2px" }}>×</button>
+                      <button onClick={() => setCart(p => ({ ...p, [item.cartKey||item.id]: { ...p[item.cartKey||item.id], qty:p[item.cartKey||item.id].qty+1 } }))} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", width:28, height:28, fontSize:16, fontWeight:"bold", borderRadius:6 }}>+</button>
+                      <button onClick={() => clearItem(item.cartKey||item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", color:T.red, fontSize:20, padding:"0 2px" }}>×</button>
                       <span style={{ fontSize:14, color:T.brown, fontWeight:"bold", minWidth:55, textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
                     </div>
                   </div>
