@@ -423,6 +423,51 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [foodRequest, setFoodRequest] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [promoModal, setPromoModal] = useState(null); // {item, selectedDrink:""}
+  const [lang, setLang] = useState("en");
+  const t = {
+    en: {
+      menu:"Menu", myOrders:"My Orders", callWaiter:"Call Waiter", coming:"Coming!",
+      searchPlaceholder:"Search menu...", beverage:"☕ Beverage", food:"🍽️ Food",
+      desserts:"🍰 Desserts", addons:"➕ Add-ons", addToOrder:"Add to Order ✓",
+      pleaseSelect:"Please select one ↑", selectOne:"Select one (required):",
+      addExtras:"Add extras (optional):", freeDrink:t.freeDrink,
+      free:"FREE", withFreeDrinks:"🎁 with free drinks", happyHour:"🍺 Happy Hour!",
+      add:"+ Add", soldOut:"Sold Out", soldOutBadge:"SOLD OUT",
+      noItems:t.noItems, noResults:"No results for",
+      loadingMenu:"Loading menu...", noOrders:"No orders yet — browse the menu!",
+      browseMenu:"Browse Menu", addMoreItems:"+ Add More Items",
+      drinksRequest:t.drinksRequest, foodRequest:t.foodRequest,
+      drinksPlaceholder:"e.g. no sugar, extra ice...", foodPlaceholder:"e.g. no sauce, extra spicy...",
+      total:"Total", placeOrder:"Place Order ✓", placing:"Placing…",
+      pending:t.pending, kitchenPreparing:t.kitchenPreparing, served:t.served,
+      drinks:t.drinks, foodLabel:t.foodLabel, order:t.order,
+      sessionEnded:t.sessionEnded, sessionMsg:"Thank you for visiting",
+      sessionScan:"{t.sessionScan}",
+      addWithFree:"Add + Free", addWithoutFree:t.addWithoutFree,
+      breakfastPromo:t.breakfastPromo, chooseFree:t.chooseFree,
+    },
+    zh: {
+      menu:"菜单", myOrders:"我的订单", callWaiter:"呼叫服务员", coming:"来了！",
+      searchPlaceholder:"搜索菜单...", beverage:"☕ 饮料", food:"🍽️ 食物",
+      desserts:"🍰 甜点", addons:"➕ 加料", addToOrder:"加入订单 ✓",
+      pleaseSelect:"请先选择 ↑", selectOne:"请选择一项（必选）：",
+      addExtras:"添加配料（可选）：", freeDrink:"🎁 选择免费饮料：",
+      free:"免费", withFreeDrinks:"🎁 附赠免费饮料", happyHour:"🍺 欢乐时光！",
+      add:"+ 添加", soldOut:"售罄", soldOutBadge:"售罄",
+      noItems:"暂无商品", noResults:"没有找到",
+      loadingMenu:"加载菜单中...", noOrders:"暂无订单 — 去浏览菜单！",
+      browseMenu:"浏览菜单", addMoreItems:"+ 继续点餐",
+      drinksRequest:"☕ 饮料特别要求", foodRequest:"🍳 食物特别要求",
+      drinksPlaceholder:"如：不加糖、多加冰...", foodPlaceholder:"如：不加酱、加辣...",
+      total:"总计", placeOrder:"下单 ✓", placing:"下单中…",
+      pending:"⏳ 准备中", kitchenPreparing:"⏳ 厨房准备中", served:"✅ 已上菜",
+      drinks:"☕ 饮料", foodLabel:"🍳 食物", order:"🍽️ 订单",
+      sessionEnded:"会话已结束", sessionMsg:"感谢您光临",
+      sessionScan:"请扫描桌上的二维码以重新下单。",
+      addWithFree:"添加 + 免费", addWithoutFree:"不要免费饮料",
+      breakfastPromo:"🎉 早餐优惠！", chooseFree:"选择一份免费饮料",
+    }
+  }[lang];
   const [addonModal, setAddonModal] = useState(null); // {item, selectedAddons:[]}
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
@@ -637,7 +682,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:20, padding:24, textAlign:"center", background:T.bg }}>
       <div style={{ fontSize:70 }}>🔒</div>
       <div style={{ fontSize:26, color:T.brown, fontWeight:"bold" }}>Session Ended</div>
-      <div style={{ color:T.muted, fontSize:18, lineHeight:1.8 }}>Thank you for visiting {CAFE_NAME}! 😊<br/><br/><span style={{ fontSize:15 }}>Please scan the QR code on your table to place a new order.</span></div>
+      <div style={{ color:T.muted, fontSize:18, lineHeight:1.8 }}>{t.sessionMsg} {CAFE_NAME}! 😊<br/><br/><span style={{ fontSize:15 }}>{t.sessionScan}</span></div>
     </div>
   );
 
@@ -652,18 +697,23 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             <div style={{ fontSize:13, color:"#ffe099" }}>TABLE {tableNo}</div>
           </div>
         </div>
-        <button onClick={callWaiter} style={{ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:10, background:waiterCalled?"#2e7d32":"#fff", border:"none", color:waiterCalled?"#fff":T.brown, padding:"10px 14px", fontSize:14, fontWeight:"bold" }}>
-          {waiterCalled ? "✅ Coming!" : "🔔 Call Waiter"}
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <button onClick={() => setLang(l => l==="en"?"zh":"en")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.4)", color:"#fff", borderRadius:8, padding:"6px 10px", fontSize:13, fontWeight:"bold" }}>
+            {lang==="en" ? "中文" : "EN"}
+          </button>
+          <button onClick={callWaiter} style={{ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:10, background:waiterCalled?"#2e7d32":"#fff", border:"none", color:waiterCalled?"#fff":T.brown, padding:"10px 14px", fontSize:14, fontWeight:"bold" }}>
+          {waiterCalled ? t.coming : `🔔 ${t.callWaiter}`}
         </button>
+        </div>
       </div>
 
       {/* Tab bar */}
       <div style={{ display:"flex", background:"#fff", borderBottom:`2px solid ${T.border}`, flexShrink:0 }}>
         <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:"transparent", border:"none", borderBottom:view==="menu"?`3px solid ${T.brown}`:"3px solid transparent", color:view==="menu"?T.brown:T.muted, padding:"14px 0", fontSize:17, fontWeight:view==="menu"?"bold":"normal" }}>
-          🍽️ Menu
+          {t.menu}
         </button>
         <button onClick={() => setView("orders")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:"transparent", border:"none", borderBottom:view==="orders"?`3px solid ${T.brown}`:"3px solid transparent", color:view==="orders"?T.brown:T.muted, padding:"14px 0", fontSize:17, fontWeight:view==="orders"?"bold":"normal" }}>
-          📋 My Orders {hasOrders && <span style={{ background:pendingOrders.length>0?T.orange:T.green, color:"#fff", borderRadius:12, padding:"2px 9px", fontSize:13, marginLeft:6 }}>{myOrders.length}</span>}
+          {t.myOrders} {hasOrders && <span style={{ background:pendingOrders.length>0?T.orange:T.green, color:"#fff", borderRadius:12, padding:"2px 9px", fontSize:13, marginLeft:6 }}>{myOrders.length}</span>}
         </button>
       </div>
 
@@ -673,8 +723,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           {myOrders.length === 0 ? (
             <div style={{ textAlign:"center", color:T.muted, marginTop:60 }}>
               <div style={{ fontSize:52, marginBottom:16 }}>🍽️</div>
-              <div style={{ fontSize:18 }}>No orders yet — browse the menu!</div>
-              <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", marginTop:20, background:T.brown, border:"none", color:"#fff", padding:"14px 32px", fontSize:18, fontWeight:"bold", borderRadius:12 }}>Browse Menu</button>
+              <div style={{ fontSize:18 }}>{t.noOrders}</div>
+              <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", marginTop:20, background:T.brown, border:"none", color:"#fff", padding:"14px 32px", fontSize:18, fontWeight:"bold", borderRadius:12 }}>{t.browseMenu}</button>
             </div>
           ) : (
             <>
@@ -682,12 +732,12 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                 const isPending = order.status === "pending";
                 const isDrinkOrder = order.items.every(i => DRINK_CATEGORIES.includes(i.category));
                 const isFoodOrder = order.items.every(i => FOOD_CATEGORIES.includes(i.category));
-                const label = isDrinkOrder ? "☕ Drinks" : isFoodOrder ? "🍳 Food" : "🍽️ Order";
+                const label = isDrinkOrder ? t.drinks : isFoodOrder ? t.foodLabel : t.order;
                 const borderColor = isPending ? T.orange : T.green;
                 const bgColor = isPending ? "#fff" : T.greenBg;
                 const statusText = isPending
-                  ? (isDrinkOrder ? "⏳ Preparing" : "⏳ Kitchen preparing")
-                  : "✅ Served";
+                  ? (isDrinkOrder ? t.pending : t.kitchenPreparing)
+                  : t.served;
                 const statusBg = isPending ? T.orange : T.green;
                 return (
                   <div key={order.id} style={{ background:bgColor, border:`2px solid ${borderColor}`, borderRadius:14, padding:16, marginBottom:12, boxShadow:T.shadow }}>
@@ -719,7 +769,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                   </div>
                 );
               })}
-              <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", marginTop:10, background:"#fff", border:`2px solid ${T.brown}`, color:T.brown, padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:12 }}>+ Add More Items</button>
+              <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", marginTop:10, background:"#fff", border:`2px solid ${T.brown}`, color:T.brown, padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:12 }}>{t.addMoreItems}</button>
             </>
           )}
           )}
@@ -736,7 +786,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
               <input
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search menu..."
+                placeholder={t.searchPlaceholder}
                 style={{ width:"100%", background:"#f5f5f5", border:`1px solid ${T.border}`, color:T.text, padding:"10px 12px 10px 40px", borderRadius:10, fontSize:16, fontFamily:"Georgia,serif", boxSizing:"border-box" }}
               />
               {searchQuery && (
@@ -751,7 +801,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             <div style={{ display:"flex", background:"#fff", borderBottom:`1px solid ${T.border}`, overflowX:"auto", flexShrink:0 }}>
               {CATEGORIES.map(cat => (
                 <button key={cat} onClick={() => setActiveCategory(cat)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:activeCategory===cat?T.brown:"#fff", border:"none", color:activeCategory===cat?"#fff":T.muted, padding:"14px 18px", fontSize:15, fontWeight:activeCategory===cat?"bold":"normal", whiteSpace:"nowrap", flexShrink:0, borderBottom:activeCategory===cat?`3px solid #5a3a00`:"3px solid transparent" }}>
-                  {cat==="Beverage"?"☕ Beverage":cat==="Food & Snacks"?"🍽️ Food":cat==="Desserts"?"🍰 Desserts":"➕ Add-ons"}
+                  {cat==="Beverage"?t.beverage:cat==="Food & Snacks"?t.food:cat==="Desserts"?t.desserts:t.addons}
                 </button>
               ))}
             </div>
@@ -759,8 +809,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
           {/* Items grid — Zeoniq style */}
           <div style={{ flex:1, overflowY:"auto", padding:"10px 14px" }}>
-            {menuLoading ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>Loading menu...</div>
-              : currentMenuItems.length===0 ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>{searchQuery ? `No results for "${searchQuery}"` : "No items yet"}</div>
+            {menuLoading ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>{t.loadingMenu}</div>
+              : currentMenuItems.length===0 ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>{searchQuery ? `No results for "${searchQuery}"` : t.noItems}</div>
               : (
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(160px, 45%), 1fr))", gap:10 }}>
                   {currentMenuItems.map(item => {
@@ -779,7 +829,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                               : <span>RM {min.toFixed(2)}</span>;
                           })() : `RM ${parseFloat(item.price).toFixed(2)}`}
                         </div>
-                        {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>SOLD OUT</div>}
+                        {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>{t.soldOutBadge}</div>}
                         {item.image_url
                           ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:80, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
                           : <div style={{ height:80, display:"flex", alignItems:"center", justifyContent:"center", fontSize:40, background:"#f9f9f9" }}>{item.emoji}</div>
@@ -789,16 +839,16 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                             {item.item_no && <span style={{ color:T.brown, marginRight:6 }}>{item.item_no}</span>}{item.name}
                           </div>
                           {soldOut ? (
-                            <div style={{ textAlign:"center", color:T.red, fontSize:13, fontWeight:"bold", padding:"8px 0", background:"#fff0f0", borderRadius:8 }}>Sold Out</div>
+                            <div style={{ textAlign:"center", color:T.red, fontSize:13, fontWeight:"bold", padding:"8px 0", background:"#fff0f0", borderRadius:8 }}>{t.soldOut}</div>
                           ) : qty===0 ? (
                             <div>
                               {isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0 && (
-                                <div style={{ textAlign:"center", fontSize:11, color:T.green, fontWeight:"bold", marginBottom:4 }}>🎁 with free drinks</div>
+                                <div style={{ textAlign:"center", fontSize:11, color:T.green, fontWeight:"bold", marginBottom:4 }}>{t.withFreeDrinks}</div>
                               )}
                               {isPromoNow(item) && item.addons && item.addons.some(a => a.promo_price && parseFloat(a.promo_price) > 0) && (
-                                <div style={{ textAlign:"center", fontSize:11, color:"#e65100", fontWeight:"bold", marginBottom:4 }}>🍺 Happy Hour!</div>
+                                <div style={{ textAlign:"center", fontSize:11, color:"#e65100", fontWeight:"bold", marginBottom:4 }}>{t.happyHour}</div>
                               )}
-                              <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>+ Add</button>
+                              <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>{t.add}</button>
                             </div>
                           ) : (
                             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
@@ -824,7 +874,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                   <button onClick={() => setAddonModal(null)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", fontSize:24, color:T.muted }}>×</button>
                 </div>
                 <div style={{ fontSize:13, color:T.muted, marginBottom:12 }}>
-                  {addonModal.item.addon_required ? "Select one (required):" : "Add extras (optional):"}
+                  {addonModal.item.addon_required ? t.selectOne : t.addExtras}
                 </div>
                 {addonModal.item.addons.map((addon, ai) => {
                   const selected = addonModal.selectedAddons.some(a => a.name === addon.name);
@@ -862,7 +912,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       <div key={di} onClick={() => setAddonModal(m=>({...m, freeDrink:drink}))}
                         style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", marginBottom:6, borderRadius:10, border:`2px solid ${addonModal.freeDrink===drink?T.brown:T.border}`, background:addonModal.freeDrink===drink?"#fff8f0":"#fff", cursor:"pointer" }}>
                         <span style={{ fontSize:14, color:T.text }}>☕ {drink}</span>
-                        <span style={{ fontSize:13, color:T.green, fontWeight:"bold" }}>FREE</span>
+                        <span style={{ fontSize:13, color:T.green, fontWeight:"bold" }}>{t.free}</span>
                       </div>
                     ))}
                   </div>
@@ -873,7 +923,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     addToCart(addonModal.item, addonModal.freeDrink||null, addonModal.selectedAddons);
                     setAddonModal(null);
                   }} style={{ fontFamily:"Georgia,serif", cursor:(addonModal.item.addon_required && addonModal.selectedAddons.length===0)?"not-allowed":"pointer", width:"100%", background:(addonModal.item.addon_required && addonModal.selectedAddons.length===0)?"#ccc":T.brown, border:"none", color:"#fff", padding:"16px 0", fontSize:17, fontWeight:"bold", borderRadius:12 }}>
-                    {addonModal.item.addon_required && addonModal.selectedAddons.length===0 ? "Please select one ↑" : "Add to Order ✓"}
+                    {addonModal.item.addon_required && addonModal.selectedAddons.length===0 ? t.pleaseSelect : t.addToOrder}
                   </button>
                 </div>
               </div>
@@ -901,13 +951,13 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       </div>
                       <span style={{ fontSize:15, color:T.text }}>☕ {drink}</span>
                     </div>
-                    <span style={{ fontSize:14, color:T.green, fontWeight:"bold" }}>FREE</span>
+                    <span style={{ fontSize:14, color:T.green, fontWeight:"bold" }}>{t.free}</span>
                   </div>
                 ))}
                 <div style={{ marginTop:16, display:"flex", gap:10 }}>
                   <button onClick={() => { addToCart(promoModal.item, promoModal.selectedDrink||null); setPromoModal(null); }}
                     style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:T.brown, border:"none", color:"#fff", padding:"16px 0", fontSize:17, fontWeight:"bold", borderRadius:12 }}>
-                    {promoModal.selectedDrink ? `Add + Free ${promoModal.selectedDrink} ✓` : "Add without free drink"}
+                    {promoModal.selectedDrink ? `Add + Free ${promoModal.selectedDrink} ✓` : t.addWithoutFree}
                   </button>
                 </div>
               </div>
@@ -937,24 +987,24 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                 {cartItems.some(i => DRINK_CATEGORIES.includes(i.category)) && (
                   <div style={{ marginBottom:8 }}>
                     <div style={{ fontSize:13, color:T.muted, marginBottom:4 }}>☕ Drinks Special Request</div>
-                    <input value={drinkRequest} onChange={e => setDrinkRequest(e.target.value)} placeholder="e.g. no sugar, extra ice..."
+                    <input value={drinkRequest} onChange={e => setDrinkRequest(e.target.value)} placeholder={t.drinksPlaceholder}
                       style={{ width:"100%", background:"#f9f9f9", border:`1px solid ${T.border}`, color:T.text, padding:"8px 12px", borderRadius:8, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box" }} />
                   </div>
                 )}
                 {cartItems.some(i => FOOD_CATEGORIES.includes(i.category)) && (
                   <div style={{ marginBottom:8 }}>
                     <div style={{ fontSize:13, color:T.muted, marginBottom:4 }}>🍳 Food Special Request</div>
-                    <input value={foodRequest} onChange={e => setFoodRequest(e.target.value)} placeholder="e.g. no sauce, extra spicy..."
+                    <input value={foodRequest} onChange={e => setFoodRequest(e.target.value)} placeholder={t.foodPlaceholder}
                       style={{ width:"100%", background:"#f9f9f9", border:`1px solid ${T.border}`, color:T.text, padding:"8px 12px", borderRadius:8, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box" }} />
                   </div>
                 )}
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <div>
-                    <div style={{ fontSize:13, color:T.muted }}>Total</div>
+                    <div style={{ fontSize:13, color:T.muted }}>{t.total}</div>
                     <div style={{ fontSize:24, color:T.brown, fontWeight:"bold" }}>RM {total.toFixed(2)}</div>
                   </div>
                   <button onClick={placeOrder} disabled={isSubmitting} style={{ fontFamily:"Georgia,serif", cursor:isSubmitting?"not-allowed":"pointer", background:isSubmitting?"#a0836a":T.brown, border:"none", color:"#fff", padding:"14px 28px", fontSize:18, fontWeight:"bold", borderRadius:12, opacity:isSubmitting?0.7:1, transition:"all 0.2s" }}>
-                    {isSubmitting ? "Placing…" : "Place Order ✓"}
+                    {isSubmitting ? t.placing : t.placeOrder}
                   </button>
                 </div>
               </div>
@@ -1273,7 +1323,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                     ))}
                     {getDrinkReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getDrinkReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
-                      <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Pending":"✅ Served"} · {order.time}</span>
+                      <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Pending":t.served} · {order.time}</span>
                       {isPending && <>
                         <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#2d6a2d", border:"none", color:"#aaffaa", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:100 })}>✓ Done</button>
                         <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
@@ -1309,7 +1359,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                     ))}
                     {getFoodReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getFoodReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
-                      <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Kitchen preparing":"✅ Served"} · {order.time}</span>
+                      <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?t.kitchenPreparing:t.served} · {order.time}</span>
                       {isPending && (
                         <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:110 })}>✕ Cancel</button>
                       )}
