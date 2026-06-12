@@ -1076,14 +1076,32 @@ function QRScreen({ goHome }) {
 function KitchenScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
   const [soundOn, setSoundOn] = useState(true);
+  const [voiceOn, setVoiceOn] = useState(false);
   const prevPendingCount = useRef(0);
   const soundOnRef = useRef(true);
+  const voiceOnRef = useRef(false);
 
   const toggleSound = () => {
     setSoundOn(s => { soundOnRef.current = !s; return !s; });
   };
+  const toggleVoice = () => {
+    setVoiceOn(v => { voiceOnRef.current = !v; return !v; });
+  };
 
-  const playAlert = () => {
+  const speak = (text) => {
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "en-US"; u.rate = 0.95; u.pitch = 1.1; u.volume = 1;
+      window.speechSynthesis.speak(u);
+    } catch(e) {}
+  };
+
+  const playAlert = (tableNo) => {
+    if (voiceOnRef.current && tableNo) {
+      speak(`New order, Table ${tableNo}`);
+      return;
+    }
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       [0,200,400].forEach(delay => {
@@ -1105,7 +1123,11 @@ function KitchenScreen({ goHome }) {
       items: order.items.filter(item => FOOD_CATEGORIES.includes(item.category))
     })).filter(order => order.items.length > 0);
     const newPending = filtered.filter(x => x.status==="pending").length;
-    if (soundOnRef.current && newPending > prevPendingCount.current) playAlert();
+    if (soundOnRef.current && newPending > prevPendingCount.current) {
+      const newOrders = filtered.filter(x => x.status==="pending").slice(prevPendingCount.current);
+      const tableNo = newOrders[0]?.table_no;
+      playAlert(tableNo);
+    }
     prevPendingCount.current = newPending;
     setOrders(filtered);
   };
@@ -1133,6 +1155,9 @@ function KitchenScreen({ goHome }) {
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={toggleSound} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"7px 12px", fontSize:12 })}>
             {soundOn ? "🔔 Sound On" : "🔕 Sound Off"}
+          </button>
+          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#5aaaaaa":C.border}`, color:voiceOn?"#aaddff":C.muted, padding:"7px 12px", fontSize:12 })}>
+            {voiceOn ? "🔊 Voice On" : "🔇 Voice Off"}
           </button>
           {cancelled.length>0 && <button onClick={clearFinished} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 12px", fontSize:12 })}>Clear Cancelled</button>}
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 10px", fontSize:12 })}>✕</button>
@@ -1407,7 +1432,21 @@ function CashierScreen({ goHome }) {
   const prevDrinkCount = useRef(0);
   const prevWaiterCount = useRef(0);
 
-  const playAlert = () => {
+  const [voiceOn, setVoiceOn] = useState(false);
+  const voiceOnRef = useRef(false);
+  const toggleVoice = () => { setVoiceOn(v => { voiceOnRef.current = !v; return !v; }); };
+
+  const speak = (text) => {
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "en-US"; u.rate = 0.95; u.pitch = 1.1; u.volume = 1;
+      window.speechSynthesis.speak(u);
+    } catch(e) {}
+  };
+
+  const playAlert = (tableNo) => {
+    if (voiceOnRef.current && tableNo) { speak(`New drink order, Table ${tableNo}`); return; }
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       [0,200,400].forEach(delay => {
@@ -1421,7 +1460,8 @@ function CashierScreen({ goHome }) {
     } catch(e) {}
   };
 
-  const playWaiterAlert = () => {
+  const playWaiterAlert = (tableNo) => {
+    if (voiceOnRef.current && tableNo) { speak(`Waiter requested, Table ${tableNo}`); return; }
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       [0,250,500,750].forEach((delay,i) => {
@@ -1443,8 +1483,14 @@ function CashierScreen({ goHome }) {
     setWaiterCalls(newWaiters);
     const drinkPending = newOrders.filter(o => o.status==="pending")
       .reduce((s,o) => s + o.items.filter(i => DRINK_CATEGORIES.includes(i.category)).length, 0);
-    if (soundOn && drinkPending > prevDrinkCount.current) playAlert();
-    if (soundOn && newWaiters.length > prevWaiterCount.current) playWaiterAlert();
+    if (soundOn && drinkPending > prevDrinkCount.current) {
+      const newDrinkOrder = newOrders.filter(o => o.status==="pending").find(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
+      playAlert(newDrinkOrder?.table_no);
+    }
+    if (soundOn && newWaiters.length > prevWaiterCount.current) {
+      const newWaiter = newWaiters[newWaiters.length-1];
+      playWaiterAlert(newWaiter?.table_no);
+    }
     prevDrinkCount.current = drinkPending;
     prevWaiterCount.current = newWaiters.length;
     setOrders(newOrders);
@@ -1508,6 +1554,9 @@ function CashierScreen({ goHome }) {
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={() => setSoundOn(s => !s)} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"7px 12px", fontSize:12 })}>
             {soundOn ? "🔔 Sound On" : "🔕 Sound Off"}
+          </button>
+          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#5aaaaa":C.border}`, color:voiceOn?"#aaddff":C.muted, padding:"7px 12px", fontSize:12 })}>
+            {voiceOn ? "🔊 Voice On" : "🔇 Voice Off"}
           </button>
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
         </div>
