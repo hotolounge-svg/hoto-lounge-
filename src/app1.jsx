@@ -1470,10 +1470,10 @@ function CashierScreen({ goHome }) {
     const bLatest = Math.max(...[...b[1].pending,...b[1].done].map(o => new Date(o.created_at||0).getTime()));
     return bLatest - aLatest;
   });
-  const pendingTables = activeTables.filter(([,t]) => t.pending.length > 0);
-  const doneTables = activeTables.filter(([,t]) => t.pending.length === 0);
+  const pendingTables = activeTables.filter(([,tbl]) => tbl.pending.length > 0);
+  const doneTables = activeTables.filter(([,tbl]) => tbl.pending.length === 0);
   const tabFiltered = filterTab==="pending" ? pendingTables : filterTab==="done" ? doneTables : activeTables;
-  const displayTables = selectedTable ? tabFiltered.filter(([t]) => String(t)===String(selectedTable)) : tabFiltered;
+  const displayTables = selectedTable ? tabFiltered.filter(([tno]) => String(tno)===String(selectedTable)) : tabFiltered;
 
   const markPaid = async (tableNo) => {
     setPaying(tableNo);
@@ -1577,7 +1577,7 @@ function CashierScreen({ goHome }) {
                   <div style={{ fontSize:11, color:C.muted }}>Active Tables</div>
                 </div>
                 <div style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:10, padding:12, textAlign:"center" }}>
-                  <div style={{ fontSize:22, color:C.goldLight, fontWeight:"bold" }}>RM {activeTables.reduce((s,[,t]) => s+t.total,0).toFixed(2)}</div>
+                  <div style={{ fontSize:22, color:C.goldLight, fontWeight:"bold" }}>RM {activeTables.reduce((s,[,tbl]) => s+tbl.total,0).toFixed(2)}</div>
                   <div style={{ fontSize:11, color:C.muted }}>Total Outstanding</div>
                 </div>
               </div>
