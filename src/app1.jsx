@@ -1060,11 +1060,11 @@ function QRScreen({ goHome }) {
       <div style={{ padding:20 }}>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:16 }}>
           {TABLES.map(tnum => (
-            <div key={tno} style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:14, padding:20, display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
-              <div style={{ fontSize:16, fontWeight:"bold", color:C.goldLight }}>TABLE {t}</div>
-              <QRCode url={`${baseUrl}?table=${t}`} size={140} />
-              <div style={{ fontSize:10, color:C.muted, textAlign:"center", fontFamily:"monospace", wordBreak:"break-all" }}>{baseUrl}?table={t}</div>
-              <button onClick={() => printOne(t)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"7px 20px", fontSize:13, fontWeight:"bold", width:"100%" })}>🖨️ Print</button>
+            <div key={tnum} style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:14, padding:20, display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
+              <div style={{ fontSize:16, fontWeight:"bold", color:C.goldLight }}>TABLE {tnum}</div>
+              <QRCode url={`${baseUrl}?table=${tnum}`} size={140} />
+              <div style={{ fontSize:10, color:C.muted, textAlign:"center", fontFamily:"monospace", wordBreak:"break-all" }}>{baseUrl}?table={tnum}</div>
+              <button onClick={() => printOne(tnum)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"7px 20px", fontSize:13, fontWeight:"bold", width:"100%" })}>🖨️ Print</button>
             </div>
           ))}
         </div>
