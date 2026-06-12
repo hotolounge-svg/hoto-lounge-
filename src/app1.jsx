@@ -1156,7 +1156,7 @@ function KitchenScreen({ goHome }) {
           <button onClick={toggleSound} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"7px 12px", fontSize:12 })}>
             {soundOn ? "🔔 Sound On" : "🔕 Sound Off"}
           </button>
-          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#5aaaaaa":C.border}`, color:voiceOn?"#aaddff":C.muted, padding:"7px 12px", fontSize:12 })}>
+          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#5aaa5a":C.border}`, color:voiceOn?"#aaddff":C.muted, padding:"7px 12px", fontSize:12 })}>
             {voiceOn ? "🔊 Voice On" : "🔇 Voice Off"}
           </button>
           {cancelled.length>0 && <button onClick={clearFinished} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 12px", fontSize:12 })}>Clear Cancelled</button>}
@@ -1555,7 +1555,7 @@ function CashierScreen({ goHome }) {
           <button onClick={() => setSoundOn(s => !s)} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"7px 12px", fontSize:12 })}>
             {soundOn ? "🔔 Sound On" : "🔕 Sound Off"}
           </button>
-          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#5aaaaa":C.border}`, color:voiceOn?"#aaddff":C.muted, padding:"7px 12px", fontSize:12 })}>
+          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#5aaa5a":C.border}`, color:voiceOn?"#aaddff":C.muted, padding:"7px 12px", fontSize:12 })}>
             {voiceOn ? "🔊 Voice On" : "🔇 Voice Off"}
           </button>
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
