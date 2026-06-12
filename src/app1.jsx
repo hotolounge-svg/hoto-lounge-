@@ -1123,7 +1123,7 @@ function KitchenScreen({ goHome }) {
       items: order.items.filter(item => FOOD_CATEGORIES.includes(item.category))
     })).filter(order => order.items.length > 0);
     const newPending = filtered.filter(x => x.status==="pending").length;
-    if (soundOnRef.current && newPending > prevPendingCount.current) {
+    if ((soundOnRef.current || voiceOnRef.current) && newPending > prevPendingCount.current) {
       const newOrders = filtered.filter(x => x.status==="pending").slice(prevPendingCount.current);
       const tableNo = newOrders[0]?.table_no;
       playAlert(tableNo);
