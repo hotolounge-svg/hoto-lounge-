@@ -707,8 +707,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             {lang==="en" ? "中文" : "EN"}
           </button>
           <button onClick={callWaiter} style={{ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:10, background:waiterCalled?"#2e7d32":"#fff", border:"none", color:waiterCalled?"#fff":T.brown, padding:"10px 14px", fontSize:14, fontWeight:"bold" }}>
-          {waiterCalled ? t.coming : `🔔 ${t.callWaiter}`}
-        </button>
+            {waiterCalled ? t.coming : `🔔 ${t.callWaiter}`}
+          </button>
         </div>
       </div>
 
@@ -777,7 +777,6 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
               })}
               <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", marginTop:10, background:"#fff", border:`2px solid ${T.brown}`, color:T.brown, padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:12 }}>{t.addMoreItems}</button>
             </>
-          )}
           )}
         </div>
       )}
