@@ -629,11 +629,6 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       const drinkReq = drinkRequest.trim() || null;
       const foodReq = foodRequest.trim() || null;
       const time = new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"});
-      // Get today's order count for sequence number
-      const today = new Date().toISOString().split("T")[0];
-      const { count } = await supabase.from("orders").select("*", { count:"exact", head:true })
-        .gte("created_at", today + "T00:00:00").lt("created_at", today + "T23:59:59");
-      const seq = String((count || 0) + 1).padStart(3, "0");
 
       // Clean cart items for storage (remove internal keys)
       const cleanItems = (items) => items.map(i => { const {cartKey, basePrice, ...rest} = i; return rest; });
@@ -647,7 +642,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         ordersToInsert.push({
           table_no:tableNo, items:drinkItems, subtotal:drinkTotal, tax:0,
           total:drinkTotal, status:"pending",
-          special_request:drinkReq, time, order_seq:seq
+          special_request:drinkReq, time
         });
       }
 
@@ -656,7 +651,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         ordersToInsert.push({
           table_no:tableNo, items:foodItems, subtotal:foodTotal, tax:0,
           total:foodTotal, status:"pending",
-          special_request:foodReq, time, order_seq:seq
+          special_request:foodReq, time
         });
       }
 
@@ -707,8 +702,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             {lang==="en" ? "中文" : "EN"}
           </button>
           <button onClick={callWaiter} style={{ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:10, background:waiterCalled?"#2e7d32":"#fff", border:"none", color:waiterCalled?"#fff":T.brown, padding:"10px 14px", fontSize:14, fontWeight:"bold" }}>
-            {waiterCalled ? t.coming : `🔔 ${t.callWaiter}`}
-          </button>
+          {waiterCalled ? t.coming : `🔔 ${t.callWaiter}`}
+        </button>
         </div>
       </div>
 
@@ -748,7 +743,6 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                   <div key={order.id} style={{ background:bgColor, border:`2px solid ${borderColor}`, borderRadius:14, padding:16, marginBottom:12, boxShadow:T.shadow }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        {order.order_seq && <span style={{ background:T.brown, color:"#fff", borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:"bold" }}>#{order.order_seq}</span>}
                         <span style={{ fontSize:14, fontWeight:"bold", color:T.brown }}>{label}</span>
                         <span style={{ fontSize:13, color:T.muted }}>{order.time}</span>
                       </div>
@@ -777,6 +771,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
               })}
               <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", marginTop:10, background:"#fff", border:`2px solid ${T.brown}`, color:T.brown, padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:12 }}>{t.addMoreItems}</button>
             </>
+          )}
           )}
         </div>
       )}
@@ -1060,7 +1055,7 @@ function QRScreen({ goHome }) {
       <div style={{ padding:20 }}>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:16 }}>
           {TABLES.map(t => (
-            <div key={tno} style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:14, padding:20, display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
+            <div key={t} style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:14, padding:20, display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
               <div style={{ fontSize:16, fontWeight:"bold", color:C.goldLight }}>TABLE {t}</div>
               <QRCode url={`${baseUrl}?table=${t}`} size={140} />
               <div style={{ fontSize:10, color:C.muted, textAlign:"center", fontFamily:"monospace", wordBreak:"break-all" }}>{baseUrl}?table={t}</div>
@@ -1145,10 +1140,7 @@ function KitchenScreen({ goHome }) {
           {pending.map(order => (
             <div key={order.id} style={{ background:C.panel, border:`1.5px solid ${C.gold}`, borderRadius:14, padding:16, display:"flex", flexDirection:"column" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  {order.order_seq && <span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"2px 8px", fontSize:13, fontWeight:"bold" }}>#{order.order_seq}</span>}
-                  <div style={{ fontSize:20, fontWeight:"bold", color:C.goldLight }}>Table {order.table_no}</div>
-                </div>
+                <div style={{ fontSize:20, fontWeight:"bold", color:C.goldLight }}>Table {order.table_no}</div>
                 <div style={{ fontSize:11, color:C.muted }}>{order.time}</div>
               </div>
               <div style={{ flex:1 }}>
@@ -1263,9 +1255,9 @@ function SalesScreen({ goHome }) {
             </div>
             <div style={{ fontSize:13, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>🪑 Sales by Table</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(130px,1fr))", gap:10, marginBottom:24 }}>
-              {Object.entries(byTable).sort((a,b) => parseInt(a[0])-parseInt(b[0])).map(([tno,data]) => (
-                <div key={tno} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:10, padding:12, textAlign:"center" }}>
-                  <div style={{ fontSize:14, color:C.goldLight, fontWeight:"bold", marginBottom:4 }}>Table {tno}</div>
+              {Object.entries(byTable).sort((a,b) => parseInt(a[0])-parseInt(b[0])).map(([t,data]) => (
+                <div key={t} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:10, padding:12, textAlign:"center" }}>
+                  <div style={{ fontSize:14, color:C.goldLight, fontWeight:"bold", marginBottom:4 }}>Table {t}</div>
                   <div style={{ fontSize:13, color:C.gold, fontWeight:"bold" }}>RM {data.total.toFixed(2)}</div>
                   <div style={{ fontSize:11, color:C.muted }}>{data.count} order{data.count>1?"s":""}</div>
                 </div>
@@ -1320,7 +1312,6 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                 const isPending = order.status==="pending";
                 return (
                   <div key={oi} style={{ marginBottom:12, paddingBottom:12, borderBottom: oi < drinkOrders.length-1 ? `1px solid #3a2a10` : "none" }}>
-                    {order.order_seq && <div style={{ marginBottom:6 }}><span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:"bold" }}>#{order.order_seq}</span></div>}
                     {drinkItems.map((item, ii) => (
                       <div key={ii} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderTop: ii>0 ? `1px solid #2a1a08` : "none" }}>
                         <span style={{ color:isPending?"#eee":"#5aaa5a", fontSize:15 }}>
@@ -1469,10 +1460,10 @@ function CashierScreen({ goHome }) {
     const bLatest = Math.max(...[...b[1].pending,...b[1].done].map(o => new Date(o.created_at||0).getTime()));
     return bLatest - aLatest;
   });
-  const pendingTables = activeTables.filter(([,tbl]) => tbl.pending.length > 0);
-  const doneTables = activeTables.filter(([,tbl]) => tbl.pending.length === 0);
+  const pendingTables = activeTables.filter(([,t]) => t.pending.length > 0);
+  const doneTables = activeTables.filter(([,t]) => t.pending.length === 0);
   const tabFiltered = filterTab==="pending" ? pendingTables : filterTab==="done" ? doneTables : activeTables;
-  const displayTables = selectedTable ? tabFiltered.filter(([tno]) => String(tno)===String(selectedTable)) : tabFiltered;
+  const displayTables = selectedTable ? tabFiltered.filter(([t]) => String(t)===String(selectedTable)) : tabFiltered;
 
   const markPaid = async (tableNo) => {
     setPaying(tableNo);
@@ -1530,11 +1521,11 @@ function CashierScreen({ goHome }) {
               color:selectedTable===null?C.goldLight:C.muted, padding:"10px 18px", fontSize:14, fontWeight:selectedTable===null?"bold":"normal", minHeight:44 })}>
             All
           </button>
-          {tabFiltered.map(([tno, data]) => {
+          {tabFiltered.map(([t, data]) => {
             const hasPend = data.pending.length > 0;
-            const isSelected = String(selectedTable)===String(tno);
+            const isSelected = String(selectedTable)===String(t);
             return (
-              <button key={tno} onClick={() => setSelectedTable(isSelected ? null : tno)}
+              <button key={t} onClick={() => setSelectedTable(isSelected ? null : t)}
                 style={btn({ background:isSelected?(hasPend?"#3d2a00":"#1a3a1a"):"transparent",
                   border:`2px solid ${isSelected?(hasPend?C.gold:"#5aaa5a"):(hasPend?"#5a4a20":"#2a4a2a")}`,
                   color:isSelected?(hasPend?C.goldLight:"#aaffaa"):(hasPend?C.muted:"#5aaa5a"),
@@ -1576,7 +1567,7 @@ function CashierScreen({ goHome }) {
                   <div style={{ fontSize:11, color:C.muted }}>Active Tables</div>
                 </div>
                 <div style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:10, padding:12, textAlign:"center" }}>
-                  <div style={{ fontSize:22, color:C.goldLight, fontWeight:"bold" }}>RM {activeTables.reduce((s,[,tbl]) => s+tbl.total,0).toFixed(2)}</div>
+                  <div style={{ fontSize:22, color:C.goldLight, fontWeight:"bold" }}>RM {activeTables.reduce((s,[,t]) => s+t.total,0).toFixed(2)}</div>
                   <div style={{ fontSize:11, color:C.muted }}>Total Outstanding</div>
                 </div>
               </div>
