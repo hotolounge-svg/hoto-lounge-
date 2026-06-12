@@ -1061,7 +1061,7 @@ function QRScreen({ goHome }) {
       <div style={{ padding:20 }}>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:16 }}>
           {TABLES.map(t => (
-            <div key={t} style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:14, padding:20, display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
+            <div key={tno} style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:14, padding:20, display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
               <div style={{ fontSize:16, fontWeight:"bold", color:C.goldLight }}>TABLE {t}</div>
               <QRCode url={`${baseUrl}?table=${t}`} size={140} />
               <div style={{ fontSize:10, color:C.muted, textAlign:"center", fontFamily:"monospace", wordBreak:"break-all" }}>{baseUrl}?table={t}</div>
@@ -1264,9 +1264,9 @@ function SalesScreen({ goHome }) {
             </div>
             <div style={{ fontSize:13, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>🪑 Sales by Table</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(130px,1fr))", gap:10, marginBottom:24 }}>
-              {Object.entries(byTable).sort((a,b) => parseInt(a[0])-parseInt(b[0])).map(([t,data]) => (
-                <div key={t} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:10, padding:12, textAlign:"center" }}>
-                  <div style={{ fontSize:14, color:C.goldLight, fontWeight:"bold", marginBottom:4 }}>Table {t}</div>
+              {Object.entries(byTable).sort((a,b) => parseInt(a[0])-parseInt(b[0])).map(([tno,data]) => (
+                <div key={tno} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:10, padding:12, textAlign:"center" }}>
+                  <div style={{ fontSize:14, color:C.goldLight, fontWeight:"bold", marginBottom:4 }}>Table {tno}</div>
                   <div style={{ fontSize:13, color:C.gold, fontWeight:"bold" }}>RM {data.total.toFixed(2)}</div>
                   <div style={{ fontSize:11, color:C.muted }}>{data.count} order{data.count>1?"s":""}</div>
                 </div>
@@ -1531,11 +1531,11 @@ function CashierScreen({ goHome }) {
               color:selectedTable===null?C.goldLight:C.muted, padding:"10px 18px", fontSize:14, fontWeight:selectedTable===null?"bold":"normal", minHeight:44 })}>
             All
           </button>
-          {tabFiltered.map(([t, data]) => {
+          {tabFiltered.map(([tno, data]) => {
             const hasPend = data.pending.length > 0;
-            const isSelected = String(selectedTable)===String(t);
+            const isSelected = String(selectedTable)===String(tno);
             return (
-              <button key={t} onClick={() => setSelectedTable(isSelected ? null : t)}
+              <button key={tno} onClick={() => setSelectedTable(isSelected ? null : tno)}
                 style={btn({ background:isSelected?(hasPend?"#3d2a00":"#1a3a1a"):"transparent",
                   border:`2px solid ${isSelected?(hasPend?C.gold:"#5aaa5a"):(hasPend?"#5a4a20":"#2a4a2a")}`,
                   color:isSelected?(hasPend?C.goldLight:"#aaffaa"):(hasPend?C.muted:"#5aaa5a"),
