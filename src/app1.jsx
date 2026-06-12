@@ -629,6 +629,11 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       const drinkReq = drinkRequest.trim() || null;
       const foodReq = foodRequest.trim() || null;
       const time = new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"});
+      // Get today's order count for sequence number
+      const today = new Date().toISOString().split("T")[0];
+      const { count } = await supabase.from("orders").select("*", { count:"exact", head:true })
+        .gte("created_at", today + "T00:00:00").lt("created_at", today + "T23:59:59");
+      const seq = String((count || 0) + 1).padStart(3, "0");
 
       // Clean cart items for storage (remove internal keys)
       const cleanItems = (items) => items.map(i => { const {cartKey, basePrice, ...rest} = i; return rest; });
@@ -642,7 +647,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         ordersToInsert.push({
           table_no:tableNo, items:drinkItems, subtotal:drinkTotal, tax:0,
           total:drinkTotal, status:"pending",
-          special_request:drinkReq, time
+          special_request:drinkReq, time, order_seq:seq
         });
       }
 
@@ -651,7 +656,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         ordersToInsert.push({
           table_no:tableNo, items:foodItems, subtotal:foodTotal, tax:0,
           total:foodTotal, status:"pending",
-          special_request:foodReq, time
+          special_request:foodReq, time, order_seq:seq
         });
       }
 
@@ -743,6 +748,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                   <div key={order.id} style={{ background:bgColor, border:`2px solid ${borderColor}`, borderRadius:14, padding:16, marginBottom:12, boxShadow:T.shadow }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        {order.order_seq && <span style={{ background:T.brown, color:"#fff", borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:"bold" }}>#{order.order_seq}</span>}
                         <span style={{ fontSize:14, fontWeight:"bold", color:T.brown }}>{label}</span>
                         <span style={{ fontSize:13, color:T.muted }}>{order.time}</span>
                       </div>
@@ -1140,7 +1146,10 @@ function KitchenScreen({ goHome }) {
           {pending.map(order => (
             <div key={order.id} style={{ background:C.panel, border:`1.5px solid ${C.gold}`, borderRadius:14, padding:16, display:"flex", flexDirection:"column" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                <div style={{ fontSize:20, fontWeight:"bold", color:C.goldLight }}>Table {order.table_no}</div>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  {order.order_seq && <span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"2px 8px", fontSize:13, fontWeight:"bold" }}>#{order.order_seq}</span>}
+                  <div style={{ fontSize:20, fontWeight:"bold", color:C.goldLight }}>Table {order.table_no}</div>
+                </div>
                 <div style={{ fontSize:11, color:C.muted }}>{order.time}</div>
               </div>
               <div style={{ flex:1 }}>
@@ -1312,6 +1321,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                 const isPending = order.status==="pending";
                 return (
                   <div key={oi} style={{ marginBottom:12, paddingBottom:12, borderBottom: oi < drinkOrders.length-1 ? `1px solid #3a2a10` : "none" }}>
+                    {order.order_seq && <div style={{ marginBottom:6 }}><span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:"bold" }}>#{order.order_seq}</span></div>}
                     {drinkItems.map((item, ii) => (
                       <div key={ii} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderTop: ii>0 ? `1px solid #2a1a08` : "none" }}>
                         <span style={{ color:isPending?"#eee":"#5aaa5a", fontSize:15 }}>
