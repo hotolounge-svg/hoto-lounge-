@@ -115,10 +115,10 @@ function HomeScreen({ setScreen, setTableNo }) {
       <div style={{ width:"100%", maxWidth:420 }}>
         <div style={{ fontSize:11, color:C.muted, letterSpacing:3, textTransform:"uppercase", marginBottom:10, textAlign:"center" }}>— Customer Tablet —</div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10 }}>
-          {TABLES.map(t => (
-            <button key={t} onClick={() => { setTableNo(t); setScreen("tablet"); }}
+          {TABLES.map(tnum => (
+            <button key={tnum} onClick={() => { setTableNo(tnum); setScreen("tablet"); }}
               style={btn({ background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:"14px 0", fontSize:15, fontWeight:"bold" })}>
-              T{t}
+              T{tnum}
             </button>
           ))}
         </div>
@@ -412,8 +412,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     const msUntilNextMinute = 60000 - (Date.now() % 60000);
     let interval;
     const timeout = setTimeout(() => {
-      setTick(t => t + 1);
-      interval = setInterval(() => setTick(t => t + 1), 60000);
+      setTick(n => n + 1);
+      interval = setInterval(() => setTick(n => n + 1), 60000);
     }, msUntilNextMinute);
     return () => { clearTimeout(timeout); clearInterval(interval); };
   }, []);
@@ -1059,7 +1059,7 @@ function QRScreen({ goHome }) {
       </div>
       <div style={{ padding:20 }}>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:16 }}>
-          {TABLES.map(t => (
+          {TABLES.map(tnum => (
             <div key={tno} style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:14, padding:20, display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
               <div style={{ fontSize:16, fontWeight:"bold", color:C.goldLight }}>TABLE {t}</div>
               <QRCode url={`${baseUrl}?table=${t}`} size={140} />
@@ -1539,7 +1539,7 @@ function CashierScreen({ goHome }) {
                   border:`2px solid ${isSelected?(hasPend?C.gold:"#5aaa5a"):(hasPend?"#5a4a20":"#2a4a2a")}`,
                   color:isSelected?(hasPend?C.goldLight:"#aaffaa"):(hasPend?C.muted:"#5aaa5a"),
                   padding:"10px 18px", fontSize:14, fontWeight:isSelected?"bold":"normal", minHeight:44 })}>
-                T{t} {hasPend?"⏳":"✅"}
+                T{tno} {hasPend?"⏳":"✅"}
               </button>
             );
           })}
