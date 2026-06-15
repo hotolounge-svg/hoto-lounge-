@@ -1653,52 +1653,74 @@ function CashierScreen({ goHome }) {
         const cash = parseFloat(payModal.cashReceived)||0;
         const change = +(cash - rounded).toFixed(2);
         const icon = payModal.method==="Cash"?"💵":payModal.method==="QR DuitNow"?"📱":"💳";
+        const canConfirm = payModal.method!=="Cash" || (!!payModal.cashReceived && cash >= rounded);
         return (
           <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-            <div style={{ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:16, padding:24, width:"100%", maxWidth:380 }}>
-              <div style={{ fontSize:17, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>{icon} Payment — Table {payModal.tableNo}</div>
-              <div style={{ background:"#1a1208", borderRadius:10, padding:16, marginBottom:16 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:C.muted, marginBottom:6 }}>
-                  <span>Subtotal</span><span>RM {subtotal.toFixed(2)}</span>
+            <div style={{ background:"#fff", borderRadius:16, padding:24, width:"100%", maxWidth:360, color:"#1a1a1a" }}>
+              {/* Header */}
+              <div style={{ fontSize:15, fontWeight:"bold", color:"#555", marginBottom:4 }}>
+                {icon} {payModal.method} — Table {payModal.tableNo}
+              </div>
+              <div style={{ fontSize:11, color:"#999", marginBottom:16 }}>Order type: Dine In</div>
+
+              {/* Items */}
+              {[...(payModal.data.pending||[]),...(payModal.data.done||[])].flatMap(o=>o.items).map((item,i)=>(
+                <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:14, marginBottom:6 }}>
+                  <span style={{ color:"#333" }}>{item.name} ×{item.qty}</span>
+                  <span style={{ color:"#333", fontWeight:"bold" }}>{(item.price*item.qty).toFixed(2)}</span>
                 </div>
-                {charge>0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:C.muted, marginBottom:6 }}>
-                  <span>Service Charge {charge}%</span><span>RM {chargeAmt.toFixed(2)}</span>
+              ))}
+
+              {/* Totals */}
+              <div style={{ borderTop:"1px solid #eee", marginTop:12, paddingTop:12 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", fontSize:14, color:"#666", marginBottom:6 }}>
+                  <span>Subtotal</span><span>{subtotal.toFixed(2)}</span>
+                </div>
+                {charge>0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:14, color:"#666", marginBottom:6 }}>
+                  <span>Tax and charges ({charge}%)</span><span>{chargeAmt.toFixed(2)}</span>
                 </div>}
-                <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:C.muted, marginBottom:6, paddingTop:6, borderTop:`1px solid ${C.border}` }}>
-                  <span>Before Rounding</span><span>RM {grandTotal.toFixed(2)}</span>
+                <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#aaa", marginBottom:4 }}>
+                  <span>Before rounding</span><span>{grandTotal.toFixed(2)}</span>
                 </div>
-                {roundingDiff!==0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:C.muted, marginBottom:6 }}>
+                {roundingDiff!==0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#aaa", marginBottom:4 }}>
                   <span>Rounding</span><span>{roundingDiff>0?"+":""}{roundingDiff.toFixed(2)}</span>
                 </div>}
-                <div style={{ display:"flex", justifyContent:"space-between", fontSize:22, color:C.goldLight, fontWeight:"bold", marginTop:8, paddingTop:8, borderTop:`1px solid ${C.border}` }}>
-                  <span>Total</span><span>RM {rounded}</span>
-                </div>
               </div>
+              <div style={{ display:"flex", justifyContent:"space-between", fontSize:20, fontWeight:"bold", color:"#1a1a1a", marginTop:10, paddingTop:10, borderTop:"2px solid #eee" }}>
+                <span>Total</span><span>RM {rounded}</span>
+              </div>
+
+              {/* Cash input */}
               {payModal.method==="Cash" && (
-                <div style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:12, color:C.muted, marginBottom:6 }}>Cash Received (RM)</div>
+                <div style={{ marginTop:14 }}>
+                  <div style={{ fontSize:12, color:"#888", marginBottom:6 }}>Cash Received (RM)</div>
                   <input type="number" step="0.05" min="0" autoFocus value={payModal.cashReceived}
                     onChange={e => setPayModal(m=>({...m, cashReceived:e.target.value}))}
                     placeholder={`e.g. ${Math.ceil(rounded/5)*5}.00`}
-                    style={{ width:"100%", background:C.bg, border:`2px solid ${C.gold}`, color:C.text, padding:"12px 16px", borderRadius:10, fontSize:22, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"right" }} />
+                    style={{ width:"100%", border:"2px solid #1976d2", borderRadius:8, padding:"10px 14px", fontSize:22, textAlign:"right", boxSizing:"border-box", color:"#1a1a1a" }} />
                   {cash >= rounded && (
-                    <div style={{ marginTop:10, background:"#1a3a1a", borderRadius:8, padding:"10px 14px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                      <span style={{ color:"#aaffaa", fontSize:14 }}>Change</span>
-                      <span style={{ color:"#aaffaa", fontSize:24, fontWeight:"bold" }}>RM {change.toFixed(2)}</span>
+                    <div style={{ marginTop:8, background:"#e8f5e9", borderRadius:8, padding:"10px 14px", display:"flex", justifyContent:"space-between" }}>
+                      <span style={{ color:"#2e7d32", fontSize:14, fontWeight:"bold" }}>Change</span>
+                      <span style={{ color:"#2e7d32", fontSize:22, fontWeight:"bold" }}>RM {change.toFixed(2)}</span>
                     </div>
                   )}
                 </div>
               )}
-              <div style={{ display:"flex", gap:10 }}>
+
+              {/* Buttons */}
+              <div style={{ display:"flex", gap:10, marginTop:16 }}>
                 <button onClick={() => setPayModal(null)}
-                  style={btn({ flex:1, background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"12px 0", fontSize:14 })}>Cancel</button>
+                  style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"12px 0", fontSize:14, borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif" }}>Cancel</button>
+                <button onClick={() => { printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null); }}
+                  style={{ flex:1, background:"#1976d2", border:"none", color:"#fff", padding:"12px 0", fontSize:14, borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
+                  🖨️ Preview Receipt
+                </button>
                 <button onClick={() => {
-                  printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null);
                   markPaid(payModal.tableNo, payModal.method);
                   setPayModal(null);
-                }} disabled={payModal.method==="Cash" && (!payModal.cashReceived || cash < rounded)}
-                  style={btn({ flex:2, background:(payModal.method==="Cash"&&(!payModal.cashReceived||cash<rounded))?"#555":`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"12px 0", fontSize:15, fontWeight:"bold", cursor:(payModal.method==="Cash"&&(!payModal.cashReceived||cash<rounded))?"not-allowed":"pointer" })}>
-                  {payModal.method==="Cash"&&(!payModal.cashReceived||cash<rounded)?"Enter Amount":"✅ Confirm & Print"}
+                }} disabled={!canConfirm}
+                  style={{ flex:1, background:canConfirm?"#1976d2":"#ccc", border:"none", color:"#fff", padding:"12px 0", fontSize:14, borderRadius:8, cursor:canConfirm?"pointer":"not-allowed", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
+                  {payModal.method==="Cash"&&!canConfirm?"Enter Amount":`✅ CHARGE RM ${rounded}`}
                 </button>
               </div>
             </div>
