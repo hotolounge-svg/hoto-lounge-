@@ -6,6 +6,10 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ADMIN_PASSWORD = localStorage.getItem("admin_pw") || "hotolounge2026";
+const CAFE_ADDRESS1 = "20, Jalan Ambong Kiri 1, Kepong";
+const CAFE_ADDRESS2 = "Baru 52100 Kuala Lumpur";
+const CAFE_TIN = "C60634413060";
+const CAFE_PHONE = "+60182868126";
 const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 const CAFE_NAME = "HOTO LOUNGE";
 const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts", "Add-ons"];
@@ -146,6 +150,8 @@ function AdminScreen({ goHome }) {
   const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[] });
   const [uploading, setUploading] = useState(false);
   const [showPwForm, setShowPwForm] = useState(false);
+  const [showChargeForm, setShowChargeForm] = useState(false);
+  const [chargeVal, setChargeVal] = useState(parseFloat(localStorage.getItem("service_charge")||"10"));
   const [newStaffPin, setNewStaffPin] = useState("");
   const [newAdminPw, setNewAdminPw] = useState("");
   const fileRef = useRef();
@@ -214,6 +220,7 @@ function AdminScreen({ goHome }) {
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={openAdd} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>+ Add Item</button>
           <button onClick={() => setShowPwForm(s=>!s)} style={btn({ background:showPwForm?"#2d6a2d":"transparent", border:`1px solid ${showPwForm?"#5aaa5a":C.border}`, color:showPwForm?"#aaffaa":C.muted, padding:"8px 12px", fontSize:13 })}>🔑 Passwords</button>
+          <button onClick={() => setShowChargeForm(s=>!s)} style={btn({ background:showChargeForm?"#4a3010":"transparent", border:`1px solid ${showChargeForm?C.gold:C.border}`, color:showChargeForm?C.goldLight:C.muted, padding:"8px 12px", fontSize:13 })}>💰 Charges</button>
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"8px 12px", fontSize:13 })}>← Back</button>
         </div>
       </div>
@@ -335,6 +342,22 @@ function AdminScreen({ goHome }) {
         </div>
       )}
       <div style={{ flex:1, padding:16, overflowY:"auto" }}>
+        {showChargeForm && (
+          <div style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:12, padding:20, marginBottom:20 }}>
+            <div style={{ fontSize:15, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>💰 Service Charge Settings</div>
+            <div style={{ display:"flex", gap:16, alignItems:"flex-end", flexWrap:"wrap" }}>
+              <div>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:6 }}>Service Charge (%)</div>
+                <input type="number" step="0.5" min="0" max="20" value={chargeVal}
+                  onChange={e => setChargeVal(e.target.value)}
+                  style={{ width:100, background:C.bg, border:`1px solid ${C.gold}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:16, fontFamily:"Georgia,serif" }} />
+              </div>
+              <button onClick={() => { localStorage.setItem("service_charge", chargeVal); alert(`Service charge set to ${chargeVal}%. Applies on next print.`); }}
+                style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 24px", fontSize:13, fontWeight:"bold" })}>Save</button>
+            </div>
+            <div style={{ fontSize:11, color:C.muted, marginTop:10 }}>💡 Set to 0 for no service charge. Current: {parseFloat(localStorage.getItem("service_charge")||"10")}%</div>
+          </div>
+        )}
         {showPwForm && (
           <div style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:12, padding:20, marginBottom:20 }}>
             <div style={{ fontSize:15, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>🔑 Change Passwords</div>
@@ -1303,7 +1326,7 @@ function SalesScreen({ goHome }) {
   );
 }
 
-function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder, cardTab, setCardTab }) {
+function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder, cardTab, setCardTab, printReceipt }) {
   const hasPending = data.pending.length>0;
   const allOrders = [...data.done, ...data.pending];
   const drinkOrders = allOrders.filter(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
@@ -1410,10 +1433,20 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
           <span>TOTAL</span><span>RM {data.total.toFixed(2)}</span>
         </div>
-        <button onClick={() => { if(confirm(`Table ${tableNo} paid RM ${data.total.toFixed(2)}? This will clear the table.`)) markPaid(tableNo); }}
-          disabled={paying===tableNo}
-          style={btn({ width:"100%", background:"linear-gradient(135deg,#2d6a2d,#1a4a1a)", border:"1px solid #5aaa5a", color:"#aaffaa", padding:"16px 0", fontSize:16, fontWeight:"bold", cursor:"pointer", minHeight:54 })}>
-          {paying===tableNo ? "Processing..." : "✅ Mark as Paid & Clear Table"}
+        <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+          {[["💵","Cash"],["📱","QR DuitNow"],["💳","Credit Card"]].map(([icon,method]) => (
+            <button key={method} onClick={() => markPaid(tableNo, method)} disabled={paying===tableNo}
+              style={btn({ flex:1, background:method==="Cash"?"#1a3a1a":method==="QR DuitNow"?"#1a2a4a":"#3a1a2a",
+                border:`1px solid ${method==="Cash"?"#5aaa5a":method==="QR DuitNow"?"#5a7aaa":"#aa5a7a"}`,
+                color:method==="Cash"?"#aaffaa":method==="QR DuitNow"?"#aaccff":"#ffaacc",
+                padding:"10px 4px", fontSize:11, fontWeight:"bold", cursor:"pointer", minHeight:52, lineHeight:1.4 })}>
+              {icon}<br/>{method}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => printReceipt(tableNo, data)}
+          style={btn({ width:"100%", background:"#3a2a10", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"10px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" })}>
+          🖨️ Print Bill
         </button>
       </div>
     </div>
@@ -1520,13 +1553,70 @@ function CashierScreen({ goHome }) {
   const tabFiltered = filterTab==="pending" ? pendingTables : filterTab==="done" ? doneTables : activeTables;
   const displayTables = selectedTable ? tabFiltered.filter(([tno]) => String(tno)===String(selectedTable)) : tabFiltered;
 
-  const markPaid = async (tableNo) => {
+  const markPaid = async (tableNo, paymentMethod="Cash") => {
+    if (!confirm(`Table ${tableNo} paid via ${paymentMethod}?\nThis will clear the table.`)) return;
     setPaying(tableNo);
     await supabase.from("orders").update({status:"paid"}).eq("table_no",tableNo).in("status",["pending","done"]);
-    // Mark session as paid — triggers realtime on customer screen immediately
-    // "paid_" prefix tells the system this table needs a fresh QR scan
     await supabase.from("table_sessions").upsert({table_no:parseInt(tableNo), session_id:"paid_"+Date.now(), updated_at:new Date().toISOString()});
     setPaying(null); fetchAll();
+  };
+
+  const printReceipt = (tableNo, data) => {
+    const charge = parseFloat(localStorage.getItem("service_charge")||"10");
+    const subtotal = data.total;
+    const chargeAmt = +(subtotal * charge / 100).toFixed(2);
+    const grandTotal = +(subtotal + chargeAmt).toFixed(2);
+    const allOrders = [...(data.pending||[]), ...(data.done||[])];
+    const allItems = allOrders.flatMap(o => o.items);
+    const now = new Date();
+    const dateStr = now.toLocaleString("en-MY",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:true});
+    const receiptNo = "#"+now.getFullYear().toString().slice(-2)+String(now.getMonth()+1).padStart(2,"0")+Date.now().toString().slice(-5);
+    const itemRows = allItems.map(i=>`
+      <div class="item-name">${i.name}</div>
+      <div class="row"><span>${parseFloat(i.price).toFixed(2)}</span><span>${i.qty}</span><span>${(i.price*i.qty).toFixed(2)}</span></div>
+      <div class="divider"></div>`).join("");
+    const win = window.open("","_blank","width=380,height=750");
+    win.document.write(`<!DOCTYPE html><html><head><title>Receipt</title><style>
+      *{margin:0;padding:0;box-sizing:border-box;}
+      body{font-family:"Courier New",monospace;font-size:12px;width:290px;margin:0 auto;padding:12px 8px;}
+      .center{text-align:center;}.bold{font-weight:bold;font-size:13px;}
+      .logo{font-size:17px;font-weight:bold;letter-spacing:2px;}
+      .divider{border-top:1px dashed #000;margin:5px 0;}
+      .row{display:flex;justify-content:space-between;margin:2px 0;}
+      .grand{font-size:14px;font-weight:bold;}
+      .item-name{font-weight:bold;margin-top:4px;}
+      @media print{.no-print{display:none;}body{width:100%;}}
+    </style></head><body>
+    <div class="center">
+      <div class="logo">HOTO LOUNGE</div>
+      <div style="font-size:10px;">CAFE · BAR · LOUNGE</div>
+      <div>20, Jalan Ambong Kiri 1, Kepong</div>
+      <div>Baru 52100 Kuala Lumpur</div>
+      <div>TIN: C60634413060</div>
+      <div>+60182868126</div>
+    </div>
+    <div class="divider"></div>
+    <div>Receipt: ${receiptNo}</div>
+    <div>Service area: Table ${tableNo}</div>
+    <div>Order type: Dine In</div>
+    <div>Date: ${dateStr}</div>
+    <div class="divider"></div>
+    <div class="row bold"><span>Item &amp; Price</span><span>Qty</span><span>Total(MYR)</span></div>
+    <div class="divider"></div>
+    ${itemRows}
+    <div class="row bold"><span>Subtotal</span><span></span><span>${subtotal.toFixed(2)}</span></div>
+    <div class="divider"></div>
+    ${charge>0?`<div class="row"><span>+Service Charge, ${charge}%</span><span></span><span>${chargeAmt.toFixed(2)}</span></div><div class="divider"></div>`:""}
+    <div class="row grand"><span>Grand total</span><span></span><span>${grandTotal.toFixed(2)}</span></div>
+    <div class="divider"></div>
+    <div class="center">
+      <div>Goods Sold Are Not Returnable</div>
+      <div>Thank You and Come Again!</div>
+    </div>
+    <br/>
+    <button class="no-print" onclick="window.print()" style="width:100%;padding:12px;font-size:15px;cursor:pointer;font-family:monospace;">🖨️ Print Receipt</button>
+    </body></html>`);
+    win.document.close();
   };
 
   const cancelOrder = async (orderId) => {
@@ -1631,7 +1721,7 @@ function CashierScreen({ goHome }) {
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(340px,1fr))", gap:14 }}>
                 {displayTables.map(([tableNo, data]) => (
-                  <TableCard key={tableNo} tableNo={tableNo} data={data} paying={paying} markPaid={markPaid} markOrderDone={markOrderDone} cancelOrder={cancelOrder} cardTab={cardTabs[tableNo]||"drinks"} setCardTab={(tab) => setCardTabs(prev => ({...prev, [tableNo]:tab}))} />
+                  <TableCard key={tableNo} tableNo={tableNo} data={data} paying={paying} markPaid={markPaid} markOrderDone={markOrderDone} cancelOrder={cancelOrder} cardTab={cardTabs[tableNo]||"drinks"} setCardTab={(tab) => setCardTabs(prev => ({...prev, [tableNo]:tab}))} printReceipt={printReceipt} />
                 ))}
               </div>
             </>
