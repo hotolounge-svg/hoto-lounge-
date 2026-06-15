@@ -1326,7 +1326,7 @@ function SalesScreen({ goHome }) {
   );
 }
 
-function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder, cardTab, setCardTab, printReceipt }) {
+function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder, cardTab, setCardTab, printReceipt, setPayModal }) {
   const hasPending = data.pending.length>0;
   const allOrders = [...data.done, ...data.pending];
   const drinkOrders = allOrders.filter(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
@@ -1708,19 +1708,22 @@ function CashierScreen({ goHome }) {
               )}
 
               {/* Buttons */}
-              <div style={{ display:"flex", gap:10, marginTop:16 }}>
-                <button onClick={() => setPayModal(null)}
-                  style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"12px 0", fontSize:14, borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif" }}>Cancel</button>
-                <button onClick={() => { printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null); }}
-                  style={{ flex:1, background:"#1976d2", border:"none", color:"#fff", padding:"12px 0", fontSize:14, borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
-                  🖨️ Preview Receipt
-                </button>
+              <div style={{ display:"flex", gap:8, marginTop:16, flexDirection:"column" }}>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={() => setPayModal(null)}
+                    style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"12px 0", fontSize:13, borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif" }}>Cancel</button>
+                  <button onClick={() => { printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null); }}
+                    style={{ flex:2, background:"#555", border:"none", color:"#fff", padding:"12px 0", fontSize:13, borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
+                    🖨️ Preview Receipt
+                  </button>
+                </div>
                 <button onClick={() => {
+                  printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null);
                   markPaid(payModal.tableNo, payModal.method);
                   setPayModal(null);
                 }} disabled={!canConfirm}
-                  style={{ flex:1, background:canConfirm?"#1976d2":"#ccc", border:"none", color:"#fff", padding:"12px 0", fontSize:14, borderRadius:8, cursor:canConfirm?"pointer":"not-allowed", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
-                  {payModal.method==="Cash"&&!canConfirm?"Enter Amount":`✅ CHARGE RM ${rounded}`}
+                  style={{ width:"100%", background:canConfirm?"#1976d2":"#ccc", border:"none", color:"#fff", padding:"14px 0", fontSize:16, borderRadius:8, cursor:canConfirm?"pointer":"not-allowed", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
+                  {payModal.method==="Cash"&&!canConfirm?"Enter Amount Above ↑":`✅ Print & Clear Table — RM ${rounded}`}
                 </button>
               </div>
             </div>
@@ -1812,7 +1815,7 @@ function CashierScreen({ goHome }) {
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(340px,1fr))", gap:14 }}>
                 {displayTables.map(([tableNo, data]) => (
-                  <TableCard key={tableNo} tableNo={tableNo} data={data} paying={paying} markPaid={markPaid} markOrderDone={markOrderDone} cancelOrder={cancelOrder} cardTab={cardTabs[tableNo]||"drinks"} setCardTab={(tab) => setCardTabs(prev => ({...prev, [tableNo]:tab}))} printReceipt={printReceipt} />
+                  <TableCard key={tableNo} tableNo={tableNo} data={data} paying={paying} markPaid={markPaid} markOrderDone={markOrderDone} cancelOrder={cancelOrder} cardTab={cardTabs[tableNo]||"drinks"} setCardTab={(tab) => setCardTabs(prev => ({...prev, [tableNo]:tab}))} printReceipt={printReceipt} setPayModal={setPayModal} />
                 ))}
               </div>
             </>
