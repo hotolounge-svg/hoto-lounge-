@@ -1602,6 +1602,7 @@ function CashierScreen({ goHome }) {
     <div>Service area: Table ${tableNo}</div>
     <div>Order type: Dine In</div>
     <div>Date: ${dateStr}</div>
+    ${paymentMethod ? `<div>Payment type: ${paymentMethod}</div>` : ""}
     <div class="divider"></div>
     <div class="row bold"><span>Item &amp; Price</span><span>Qty</span><span>Total(MYR)</span></div>
     <div class="divider"></div>
@@ -1609,10 +1610,10 @@ function CashierScreen({ goHome }) {
     <div class="row bold"><span>Subtotal</span><span></span><span>${subtotal.toFixed(2)}</span></div>
     <div class="divider"></div>
     ${charge>0?`<div class="row"><span>+Service Charge, ${charge}%</span><span></span><span>${chargeAmt.toFixed(2)}</span></div><div class="divider"></div>`:""}
-    <div class="row grand"><span>Grand total</span><span></span><span>${rounded}</span></div>
+    <div class="row grand"><span>Grand total</span><span></span><span>${parseFloat(rounded).toFixed(2)}</span></div>
     <div class="divider"></div>
     ${paymentMethod ? `
-      <div class="row"><span>${paymentMethod}</span><span></span><span>${cashReceived ? parseFloat(cashReceived).toFixed(2) : rounded}</span></div>
+      <div class="row"><span>${paymentMethod}</span><span></span><span>${cashReceived ? parseFloat(cashReceived).toFixed(2) : parseFloat(rounded).toFixed(2)}</span></div>
       ${changeAmt !== null && changeAmt >= 0 ? `<div class="row bold"><span>Change</span><span></span><span>${parseFloat(changeAmt).toFixed(2)}</span></div>` : ""}
       <div class="divider"></div>
     ` : ""}
