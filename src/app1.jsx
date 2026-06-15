@@ -1435,7 +1435,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
         </div>
         <div style={{ display:"flex", gap:8, marginBottom:8 }}>
           {[["💵","Cash"],["📱","QR DuitNow"],["💳","Credit Card"]].map(([icon,method]) => (
-            <button key={method} onClick={() => markPaid(tableNo, method)} disabled={paying===tableNo}
+            <button key={method} onClick={() => setPayModal({tableNo, data, method, cashReceived:""})} disabled={paying===tableNo}
               style={btn({ flex:1, background:method==="Cash"?"#1a3a1a":method==="QR DuitNow"?"#1a2a4a":"#3a1a2a",
                 border:`1px solid ${method==="Cash"?"#5aaa5a":method==="QR DuitNow"?"#5a7aaa":"#aa5a7a"}`,
                 color:method==="Cash"?"#aaffaa":method==="QR DuitNow"?"#aaccff":"#ffaacc",
@@ -1444,9 +1444,9 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
             </button>
           ))}
         </div>
-        <button onClick={() => printReceipt(tableNo, data)}
+        <button onClick={() => printReceipt(tableNo, data, null, null, null)}
           style={btn({ width:"100%", background:"#3a2a10", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"10px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" })}>
-          🖨️ Print Bill
+          🖨️ Print Bill (Preview)
         </button>
       </div>
     </div>
@@ -1458,6 +1458,7 @@ function CashierScreen({ goHome }) {
   const [waiterCalls, setWaiterCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(null);
+  const [payModal, setPayModal] = useState(null);
   const [soundOn, setSoundOn] = useState(true);
   const [filterTab, setFilterTab] = useState("all");
   const [selectedTable, setSelectedTable] = useState(null);
@@ -1554,18 +1555,19 @@ function CashierScreen({ goHome }) {
   const displayTables = selectedTable ? tabFiltered.filter(([tno]) => String(tno)===String(selectedTable)) : tabFiltered;
 
   const markPaid = async (tableNo, paymentMethod="Cash") => {
-    if (!confirm(`Table ${tableNo} paid via ${paymentMethod}?\nThis will clear the table.`)) return;
     setPaying(tableNo);
     await supabase.from("orders").update({status:"paid"}).eq("table_no",tableNo).in("status",["pending","done"]);
     await supabase.from("table_sessions").upsert({table_no:parseInt(tableNo), session_id:"paid_"+Date.now(), updated_at:new Date().toISOString()});
     setPaying(null); fetchAll();
   };
 
-  const printReceipt = (tableNo, data) => {
+  const printReceipt = (tableNo, data, paymentMethod=null, cashReceived=null, changeAmt=null) => {
     const charge = parseFloat(localStorage.getItem("service_charge")||"10");
     const subtotal = data.total;
     const chargeAmt = +(subtotal * charge / 100).toFixed(2);
     const grandTotal = +(subtotal + chargeAmt).toFixed(2);
+    // Malaysian rounding to nearest 0.05
+    const rounded = +(Math.round(grandTotal * 20) / 20).toFixed(2);
     const allOrders = [...(data.pending||[]), ...(data.done||[])];
     const allItems = allOrders.flatMap(o => o.items);
     const now = new Date();
@@ -1607,8 +1609,13 @@ function CashierScreen({ goHome }) {
     <div class="row bold"><span>Subtotal</span><span></span><span>${subtotal.toFixed(2)}</span></div>
     <div class="divider"></div>
     ${charge>0?`<div class="row"><span>+Service Charge, ${charge}%</span><span></span><span>${chargeAmt.toFixed(2)}</span></div><div class="divider"></div>`:""}
-    <div class="row grand"><span>Grand total</span><span></span><span>${grandTotal.toFixed(2)}</span></div>
+    <div class="row grand"><span>Grand total</span><span></span><span>${rounded}</span></div>
     <div class="divider"></div>
+    ${paymentMethod ? `
+      <div class="row"><span>${paymentMethod}</span><span></span><span>${cashReceived ? parseFloat(cashReceived).toFixed(2) : rounded}</span></div>
+      ${changeAmt !== null && changeAmt >= 0 ? `<div class="row bold"><span>Change</span><span></span><span>${parseFloat(changeAmt).toFixed(2)}</span></div>` : ""}
+      <div class="divider"></div>
+    ` : ""}
     <div class="center">
       <div>Goods Sold Are Not Returnable</div>
       <div>Thank You and Come Again!</div>
@@ -1636,6 +1643,68 @@ function CashierScreen({ goHome }) {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
+      {payModal && (() => {
+        const charge = parseFloat(localStorage.getItem("service_charge")||"10");
+        const subtotal = payModal.data.total;
+        const chargeAmt = +(subtotal * charge / 100).toFixed(2);
+        const grandTotal = +(subtotal + chargeAmt).toFixed(2);
+        const rounded = +(Math.round(grandTotal * 20) / 20).toFixed(2);
+        const roundingDiff = +(rounded - grandTotal).toFixed(2);
+        const cash = parseFloat(payModal.cashReceived)||0;
+        const change = +(cash - rounded).toFixed(2);
+        const icon = payModal.method==="Cash"?"💵":payModal.method==="QR DuitNow"?"📱":"💳";
+        return (
+          <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+            <div style={{ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:16, padding:24, width:"100%", maxWidth:380 }}>
+              <div style={{ fontSize:17, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>{icon} Payment — Table {payModal.tableNo}</div>
+              <div style={{ background:"#1a1208", borderRadius:10, padding:16, marginBottom:16 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:C.muted, marginBottom:6 }}>
+                  <span>Subtotal</span><span>RM {subtotal.toFixed(2)}</span>
+                </div>
+                {charge>0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:C.muted, marginBottom:6 }}>
+                  <span>Service Charge {charge}%</span><span>RM {chargeAmt.toFixed(2)}</span>
+                </div>}
+                <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:C.muted, marginBottom:6, paddingTop:6, borderTop:`1px solid ${C.border}` }}>
+                  <span>Before Rounding</span><span>RM {grandTotal.toFixed(2)}</span>
+                </div>
+                {roundingDiff!==0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:C.muted, marginBottom:6 }}>
+                  <span>Rounding</span><span>{roundingDiff>0?"+":""}{roundingDiff.toFixed(2)}</span>
+                </div>}
+                <div style={{ display:"flex", justifyContent:"space-between", fontSize:22, color:C.goldLight, fontWeight:"bold", marginTop:8, paddingTop:8, borderTop:`1px solid ${C.border}` }}>
+                  <span>Total</span><span>RM {rounded}</span>
+                </div>
+              </div>
+              {payModal.method==="Cash" && (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:12, color:C.muted, marginBottom:6 }}>Cash Received (RM)</div>
+                  <input type="number" step="0.05" min="0" autoFocus value={payModal.cashReceived}
+                    onChange={e => setPayModal(m=>({...m, cashReceived:e.target.value}))}
+                    placeholder={`e.g. ${Math.ceil(rounded/5)*5}.00`}
+                    style={{ width:"100%", background:C.bg, border:`2px solid ${C.gold}`, color:C.text, padding:"12px 16px", borderRadius:10, fontSize:22, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"right" }} />
+                  {cash >= rounded && (
+                    <div style={{ marginTop:10, background:"#1a3a1a", borderRadius:8, padding:"10px 14px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <span style={{ color:"#aaffaa", fontSize:14 }}>Change</span>
+                      <span style={{ color:"#aaffaa", fontSize:24, fontWeight:"bold" }}>RM {change.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={() => setPayModal(null)}
+                  style={btn({ flex:1, background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"12px 0", fontSize:14 })}>Cancel</button>
+                <button onClick={() => {
+                  printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null);
+                  markPaid(payModal.tableNo, payModal.method);
+                  setPayModal(null);
+                }} disabled={payModal.method==="Cash" && (!payModal.cashReceived || cash < rounded)}
+                  style={btn({ flex:2, background:(payModal.method==="Cash"&&(!payModal.cashReceived||cash<rounded))?"#555":`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"12px 0", fontSize:15, fontWeight:"bold", cursor:(payModal.method==="Cash"&&(!payModal.cashReceived||cash<rounded))?"not-allowed":"pointer" })}>
+                  {payModal.method==="Cash"&&(!payModal.cashReceived||cash<rounded)?"Enter Amount":"✅ Confirm & Print"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       <div style={{ background:C.panel, borderBottom:`2px solid #5aaa5a`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div>
           <div style={{ fontSize:18, color:"#aaffaa", fontWeight:"bold" }}>💳 Cashier — Drinks & Payment</div>
