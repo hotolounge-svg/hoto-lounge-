@@ -1894,6 +1894,9 @@ function CashierScreen({ goHome }) {
                   </button>
                 </div>
                 <button onClick={() => {
+                  const tableLabel = isTakeaway(payModal.tableNo) ? takeawayLabel(payModal.tableNo) : `Table ${payModal.tableNo}`;
+                  const confirmed = window.confirm(`⚠️ Confirm Payment\n\nMark ${tableLabel} as PAID and clear all orders?\n\nTotal: RM ${rounded}\nPayment: ${payModal.method}\n\n⚠️ This cannot be undone!`);
+                  if (!confirmed) return;
                   printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null);
                   markPaid(payModal.tableNo, payModal.method);
                   setPayModal(null);
