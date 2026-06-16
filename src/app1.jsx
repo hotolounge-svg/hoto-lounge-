@@ -1149,32 +1149,60 @@ function QRScreen({ goHome }) {
 
 function KitchenScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
-  const [soundOn, setSoundOn] = useState(true);
-  const [voiceOn, setVoiceOn] = useState(false);
+  const [soundOn, setSoundOn] = useState(() => localStorage.getItem("k_sound") !== "off");
+  const [voiceOn, setVoiceOn] = useState(() => localStorage.getItem("k_voice") === "on");
+  const [voiceLang, setVoiceLang] = useState(() => localStorage.getItem("k_voice_lang") || "en");
   const prevPendingCount = useRef(0);
-  const soundOnRef = useRef(true);
-  const voiceOnRef = useRef(false);
+  const soundOnRef = useRef(localStorage.getItem("k_sound") !== "off");
+  const voiceOnRef = useRef(localStorage.getItem("k_voice") === "on");
+  const voiceLangRef = useRef(localStorage.getItem("k_voice_lang") || "en");
 
   const toggleSound = () => {
-    setSoundOn(s => { soundOnRef.current = !s; return !s; });
+    setSoundOn(s => {
+      const next = !s;
+      soundOnRef.current = next;
+      localStorage.setItem("k_sound", next ? "on" : "off");
+      return next;
+    });
   };
   const toggleVoice = () => {
-    setVoiceOn(v => { voiceOnRef.current = !v; return !v; });
+    setVoiceOn(v => {
+      const next = !v;
+      voiceOnRef.current = next;
+      localStorage.setItem("k_voice", next ? "on" : "off");
+      return next;
+    });
+  };
+  const toggleVoiceLang = () => {
+    setVoiceLang(l => {
+      const next = l === "en" ? "zh" : "en";
+      voiceLangRef.current = next;
+      localStorage.setItem("k_voice_lang", next);
+      return next;
+    });
   };
 
-  const speak = (text) => {
+  const speak = (tableNo) => {
     try {
       window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = "en-US"; u.rate = 0.95; u.pitch = 1.1; u.volume = 1;
+      const u = new SpeechSynthesisUtterance();
+      const isTW = isTakeaway(tableNo);
+      if (voiceLangRef.current === "zh") {
+        u.lang = "zh-TW";
+        u.text = isTW ? `新订单，${tableNo}` : `新订单，${tableNo}号桌`;
+      } else {
+        u.lang = "en-US";
+        const label = isTW ? takeawayLabel(tableNo) : `Table ${tableNo}`;
+        u.text = `New order, ${label}`;
+      }
+      u.rate = 0.95; u.pitch = 1.1; u.volume = 1;
       window.speechSynthesis.speak(u);
     } catch(e) {}
   };
 
   const playAlert = (tableNo) => {
     if (voiceOnRef.current && tableNo) {
-      const label = isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`;
-      speak(`New order, ${label}`);
+      speak(tableNo);
       return;
     }
     try {
@@ -1234,6 +1262,11 @@ function KitchenScreen({ goHome }) {
           <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#5aaa5a":C.border}`, color:voiceOn?"#aaddff":C.muted, padding:"7px 12px", fontSize:12 })}>
             {voiceOn ? "🔊 Voice On" : "🔇 Voice Off"}
           </button>
+          {voiceOn && (
+            <button onClick={toggleVoiceLang} style={btn({ background:"#3a2a00", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
+              {voiceLang === "en" ? "🇬🇧 EN" : "🇨🇳 中文"}
+            </button>
+          )}
           {cancelled.length>0 && <button onClick={clearFinished} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 12px", fontSize:12 })}>Clear Cancelled</button>}
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 10px", fontSize:12 })}>✕</button>
         </div>
@@ -1511,28 +1544,57 @@ function CashierScreen({ goHome }) {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(null);
   const [payModal, setPayModal] = useState(null);
-  const [soundOn, setSoundOn] = useState(true);
+  const [soundOn, setSoundOn] = useState(() => localStorage.getItem("c_sound") !== "off");
   const [filterTab, setFilterTab] = useState("all");
   const [selectedTable, setSelectedTable] = useState(null);
   const [cardTabs, setCardTabs] = useState({});
   const prevDrinkCount = useRef(0);
   const prevWaiterCount = useRef(0);
+  const soundOnRef = useRef(localStorage.getItem("c_sound") !== "off");
 
-  const [voiceOn, setVoiceOn] = useState(false);
-  const voiceOnRef = useRef(false);
-  const toggleVoice = () => { setVoiceOn(v => { voiceOnRef.current = !v; return !v; }); };
+  const [voiceOn, setVoiceOn] = useState(() => localStorage.getItem("c_voice") === "on");
+  const [voiceLang, setVoiceLang] = useState(() => localStorage.getItem("c_voice_lang") || "en");
+  const voiceOnRef = useRef(localStorage.getItem("c_voice") === "on");
+  const voiceLangRef = useRef(localStorage.getItem("c_voice_lang") || "en");
 
-  const speak = (text) => {
+  const toggleVoice = () => {
+    setVoiceOn(v => {
+      const next = !v;
+      voiceOnRef.current = next;
+      localStorage.setItem("c_voice", next ? "on" : "off");
+      return next;
+    });
+  };
+  const toggleVoiceLang = () => {
+    setVoiceLang(l => {
+      const next = l === "en" ? "zh" : "en";
+      voiceLangRef.current = next;
+      localStorage.setItem("c_voice_lang", next);
+      return next;
+    });
+  };
+
+  const speak = (tableNo, type = "drink") => {
     try {
       window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = "en-US"; u.rate = 0.95; u.pitch = 1.1; u.volume = 1;
+      const u = new SpeechSynthesisUtterance();
+      const isTW = isTakeaway(tableNo);
+      if (voiceLangRef.current === "zh") {
+        u.lang = "zh-TW";
+        const loc = isTW ? tableNo : `${tableNo}号桌`;
+        u.text = type === "waiter" ? `${loc}，需要服务员` : `新饮料订单，${loc}`;
+      } else {
+        u.lang = "en-US";
+        const loc = isTW ? takeawayLabel(tableNo) : `Table ${tableNo}`;
+        u.text = type === "waiter" ? `Waiter requested, ${loc}` : `New drink order, ${loc}`;
+      }
+      u.rate = 0.95; u.pitch = 1.1; u.volume = 1;
       window.speechSynthesis.speak(u);
     } catch(e) {}
   };
 
   const playAlert = (tableNo) => {
-    if (voiceOnRef.current && tableNo) { speak(`New drink order, Table ${tableNo}`); return; }
+    if (voiceOnRef.current && tableNo) { speak(tableNo, "drink"); return; }
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       [0,200,400].forEach(delay => {
@@ -1547,7 +1609,7 @@ function CashierScreen({ goHome }) {
   };
 
   const playWaiterAlert = (tableNo) => {
-    if (voiceOnRef.current && tableNo) { speak(`Waiter requested, Table ${tableNo}`); return; }
+    if (voiceOnRef.current && tableNo) { speak(tableNo, "waiter"); return; }
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       [0,250,500,750].forEach((delay,i) => {
@@ -1569,11 +1631,11 @@ function CashierScreen({ goHome }) {
     setWaiterCalls(newWaiters);
     const drinkPending = newOrders.filter(o => o.status==="pending")
       .reduce((s,o) => s + o.items.filter(i => DRINK_CATEGORIES.includes(i.category)).length, 0);
-    if (soundOn && drinkPending > prevDrinkCount.current) {
+    if (soundOnRef.current && drinkPending > prevDrinkCount.current) {
       const newDrinkOrder = newOrders.filter(o => o.status==="pending").find(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
       playAlert(newDrinkOrder?.table_no);
     }
-    if (soundOn && newWaiters.length > prevWaiterCount.current) {
+    if (soundOnRef.current && newWaiters.length > prevWaiterCount.current) {
       const newWaiter = newWaiters[newWaiters.length-1];
       playWaiterAlert(newWaiter?.table_no);
     }
@@ -1800,12 +1862,22 @@ function CashierScreen({ goHome }) {
           <div style={{ fontSize:11, color:"#5aaa5a" }}>🔴 Live — updates instantly</div>
         </div>
         <div style={{ display:"flex", gap:10 }}>
-          <button onClick={() => setSoundOn(s => !s)} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"7px 12px", fontSize:12 })}>
+          <button onClick={() => setSoundOn(s => {
+            const next = !s;
+            soundOnRef.current = next;
+            localStorage.setItem("c_sound", next ? "on" : "off");
+            return next;
+          })} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"7px 12px", fontSize:12 })}>
             {soundOn ? "🔔 Sound On" : "🔕 Sound Off"}
           </button>
           <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#5aaa5a":C.border}`, color:voiceOn?"#aaddff":C.muted, padding:"7px 12px", fontSize:12 })}>
             {voiceOn ? "🔊 Voice On" : "🔇 Voice Off"}
           </button>
+          {voiceOn && (
+            <button onClick={toggleVoiceLang} style={btn({ background:"#3a2a00", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
+              {voiceLang === "en" ? "🇬🇧 EN" : "🇨🇳 中文"}
+            </button>
+          )}
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
         </div>
       </div>
