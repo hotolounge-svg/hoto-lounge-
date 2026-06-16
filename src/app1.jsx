@@ -190,7 +190,7 @@ function TakeawayScreen({ setScreen, setTableNo, goHome }) {
   );
 }
 
-
+function AdminScreen({ goHome }) {
   const [authed, setAuthed] = useState(false);
   const [pw, setPw] = useState("");
   const [pwError, setPwError] = useState(false);
