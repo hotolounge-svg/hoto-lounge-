@@ -1217,22 +1217,21 @@ function KitchenScreen({ goHome }) {
   };
 
   const playAlert = (tableNo) => {
-    if (!soundOnRef.current) return;
-    try {
-      const ctx = getAudioCtx();
-      [0, 200, 400].forEach(delay => {
-        const osc = ctx.createOscillator(); const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = 880; osc.type = "sine";
-        gain.gain.setValueAtTime(1.0, ctx.currentTime + delay / 1000);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay / 1000 + 0.5);
-        osc.start(ctx.currentTime + delay / 1000);
-        osc.stop(ctx.currentTime + delay / 1000 + 0.5);
-      });
-    } catch(e) {}
-    if (voiceOnRef.current && tableNo) {
-      setTimeout(() => speak(tableNo), 700);
+    if (soundOnRef.current) {
+      try {
+        const ctx = getAudioCtx();
+        [0, 200, 400].forEach(delay => {
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.frequency.value = 880; osc.type = "sine";
+          gain.gain.setValueAtTime(1.0, ctx.currentTime + delay / 1000);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay / 1000 + 0.5);
+          osc.start(ctx.currentTime + delay / 1000);
+          osc.stop(ctx.currentTime + delay / 1000 + 0.5);
+        });
+      } catch(e) {}
     }
+    if (voiceOnRef.current && tableNo) speak(tableNo);
   };
 
   const fetchAll = async () => {
@@ -1645,19 +1644,13 @@ function CashierScreen({ goHome }) {
   };
 
   const playAlert = (tableNo) => {
-    if (!soundOnRef.current) return;
-    playBeep([660], [0, 200, 400]);
-    if (voiceOnRef.current && tableNo) {
-      setTimeout(() => speak(tableNo, "drink"), 700);
-    }
+    if (soundOnRef.current) playBeep([660], [0, 200, 400]);
+    if (voiceOnRef.current && tableNo) speak(tableNo, "drink");
   };
 
   const playWaiterAlert = (tableNo) => {
-    if (!soundOnRef.current) return;
-    playBeep([880, 550], [0, 250, 500, 750]);
-    if (voiceOnRef.current && tableNo) {
-      setTimeout(() => speak(tableNo, "waiter"), 1100);
-    }
+    if (soundOnRef.current) playBeep([880, 550], [0, 250, 500, 750]);
+    if (voiceOnRef.current && tableNo) speak(tableNo, "waiter");
   };
 
   const fetchAll = async () => {
