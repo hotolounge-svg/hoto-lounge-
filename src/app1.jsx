@@ -207,11 +207,14 @@ function AdminScreen({ goHome }) {
   const [newAdminPw, setNewAdminPw] = useState("");
   const fileRef = useRef();
 
+  const scrollRef = useRef(null);
   const fetchItems = async () => {
-    setLoading(true);
+    const scrollEl = scrollRef.current;
+    const scrollTop = scrollEl ? scrollEl.scrollTop : 0;
     const { data } = await supabase.from("menu_items").select("*").order("item_no", { ascending:true });
     setItems(data || []);
     setLoading(false);
+    requestAnimationFrame(() => { if (scrollEl) scrollEl.scrollTop = scrollTop; });
   };
   useEffect(() => { if (authed) fetchItems(); }, [authed]);
 
@@ -399,8 +402,7 @@ function AdminScreen({ goHome }) {
         </div>
         </div>
       )}
-      <div style={{ flex:1, padding:16, overflowY:"auto" }}>
-        {showChargeForm && (
+      <div ref={scrollRef} style={{ flex:1, padding:16, overflowY:"auto" }}>
           <div style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:12, padding:20, marginBottom:20 }}>
             <div style={{ fontSize:15, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>💰 Service Charge Settings</div>
             <div style={{ display:"flex", gap:16, alignItems:"flex-end", flexWrap:"wrap" }}>
