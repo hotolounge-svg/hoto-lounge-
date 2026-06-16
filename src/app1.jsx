@@ -403,6 +403,7 @@ function AdminScreen({ goHome }) {
         </div>
       )}
       <div ref={scrollRef} style={{ flex:1, padding:16, overflowY:"auto" }}>
+        {showChargeForm && (
           <div style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:12, padding:20, marginBottom:20 }}>
             <div style={{ fontSize:15, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>💰 Service Charge Settings</div>
             <div style={{ display:"flex", gap:16, alignItems:"flex-end", flexWrap:"wrap" }}>
