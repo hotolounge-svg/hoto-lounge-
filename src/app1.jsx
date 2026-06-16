@@ -192,6 +192,11 @@ function TakeawayScreen({ setScreen, setTableNo, goHome }) {
 
 function AdminScreen({ goHome }) {
   const [authed, setAuthed] = useState(false);
+  const [toast, setToast] = useState(null); // {msg, type: "success"|"error"}
+  const showToast = (msg, type="success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
   const [pw, setPw] = useState("");
   const [pwError, setPwError] = useState(false);
   const [items, setItems] = useState([]);
@@ -235,7 +240,7 @@ function AdminScreen({ goHome }) {
     setUploading(true);
     const path = `menu/${Date.now()}.${file.name.split(".").pop()}`;
     const { error } = await supabase.storage.from("menu-images").upload(path, file, { upsert:true });
-    if (error) { alert("Upload failed: " + error.message); setUploading(false); return; }
+    if (error) { showToast("Upload failed: " + error.message, "error"); setUploading(false); return; }
     const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
     setForm(f => ({ ...f, image_url:data.publicUrl }));
     setUploading(false);
@@ -269,6 +274,11 @@ function AdminScreen({ goHome }) {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
+      {toast && (
+        <div style={{ position:"fixed", top:24, left:"50%", transform:"translateX(-50%)", zIndex:99999, background:toast.type==="error"?"#c62828":"#2e7d32", color:"#fff", padding:"14px 28px", borderRadius:12, fontSize:14, fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:"0 4px 20px rgba(0,0,0,0.4)", display:"flex", alignItems:"center", gap:10, minWidth:280, textAlign:"center", justifyContent:"center" }}>
+          {toast.type==="error" ? "❌" : "✅"} {toast.msg}
+        </div>
+      )}
       <div style={{ background:C.panel, borderBottom:`2px solid ${C.gold}`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold" }}>⚙️ Menu Management</div>
         <div style={{ display:"flex", gap:10 }}>
@@ -413,8 +423,10 @@ function AdminScreen({ goHome }) {
                   onChange={e => setChargeVal(e.target.value)}
                   style={{ width:100, background:C.bg, border:`1px solid ${C.gold}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:16, fontFamily:"Georgia,serif" }} />
               </div>
-              <button onClick={() => { localStorage.setItem("service_charge", chargeVal); alert(`Service charge set to ${chargeVal}%. Applies on next print.`); }}
-                style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 24px", fontSize:13, fontWeight:"bold" })}>Save</button>
+              <button onClick={() => { localStorage.setItem("service_charge", chargeVal); setShowChargeForm(false); }}
+                style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 24px", fontSize:13, fontWeight:"bold" })}>Save ✓</button>
+              <button onClick={() => setShowChargeForm(false)}
+                style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"10px 20px", fontSize:13 })}>Cancel</button>
             </div>
             <div style={{ fontSize:11, color:C.muted, marginTop:10 }}>💡 Set to 0 for no service charge. Current: {parseFloat(localStorage.getItem("service_charge")||"10")}%</div>
           </div>
@@ -427,14 +439,14 @@ function AdminScreen({ goHome }) {
                 <div style={{ fontSize:13, color:C.muted, marginBottom:10, fontWeight:"bold" }}>🔐 Staff Home PIN</div>
                 <input type="password" placeholder="New PIN" value={newStaffPin} onChange={e=>setNewStaffPin(e.target.value)}
                   style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:8 }} />
-                <button onClick={() => { if(newStaffPin){ localStorage.setItem("staff_pin", newStaffPin); setNewStaffPin(""); alert("Staff PIN updated! Reload page to apply."); }}}
+                <button onClick={() => { if(newStaffPin){ localStorage.setItem("staff_pin", newStaffPin); setNewStaffPin(""); showToast("Staff PIN updated! Reload page to apply."); }}}
                   style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>Save PIN</button>
               </div>
               <div style={{ background:"#1a1208", borderRadius:10, padding:16 }}>
                 <div style={{ fontSize:13, color:C.muted, marginBottom:10, fontWeight:"bold" }}>⚙️ Admin Password</div>
                 <input type="password" placeholder="New Password" value={newAdminPw} onChange={e=>setNewAdminPw(e.target.value)}
                   style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:8 }} />
-                <button onClick={() => { if(newAdminPw){ localStorage.setItem("admin_pw", newAdminPw); setNewAdminPw(""); alert("Admin password updated! Reload page to apply."); }}}
+                <button onClick={() => { if(newAdminPw){ localStorage.setItem("admin_pw", newAdminPw); setNewAdminPw(""); showToast("Admin password updated! Reload page to apply."); }}}
                   style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>Save Password</button>
               </div>
             </div>
