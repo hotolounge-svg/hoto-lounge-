@@ -192,7 +192,8 @@ function TakeawayScreen({ setScreen, setTableNo, goHome }) {
 
 function AdminScreen({ goHome }) {
   const [authed, setAuthed] = useState(false);
-  const [toast, setToast] = useState(null); // {msg, type: "success"|"error"}
+  const [toast, setToast] = useState(null);
+  const [deleteModal, setDeleteModal] = useState(null); // {id, name}
   const showToast = (msg, type="success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
@@ -255,7 +256,16 @@ function AdminScreen({ goHome }) {
     else await supabase.from("menu_items").insert(p);
     setShowForm(false); fetchItems();
   };
-  const handleDelete = async (id) => { if (!confirm("Delete this item?")) return; await supabase.from("menu_items").delete().eq("id", id); fetchItems(); };
+  const handleDelete = async (id) => {
+    const item = items.find(i => i.id === id);
+    setDeleteModal({ id, name: item?.name || "this item" });
+  };
+  const confirmDelete = async () => {
+    await supabase.from("menu_items").delete().eq("id", deleteModal.id);
+    setDeleteModal(null);
+    showToast("Item deleted successfully.", "success");
+    fetchItems();
+  };
   const toggleAvailable = async (item) => { await supabase.from("menu_items").update({ is_available: item.is_available===false }).eq("id", item.id); fetchItems(); };
 
   if (!authed) return (
@@ -277,6 +287,37 @@ function AdminScreen({ goHome }) {
       {toast && (
         <div style={{ position:"fixed", top:24, left:"50%", transform:"translateX(-50%)", zIndex:99999, background:toast.type==="error"?"#c62828":"#2e7d32", color:"#fff", padding:"14px 28px", borderRadius:12, fontSize:14, fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:"0 4px 20px rgba(0,0,0,0.4)", display:"flex", alignItems:"center", gap:10, minWidth:280, textAlign:"center", justifyContent:"center" }}>
           {toast.type==="error" ? "❌" : "✅"} {toast.msg}
+        </div>
+      )}
+      {deleteModal && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.75)", zIndex:99998, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#fff", borderRadius:20, width:"100%", maxWidth:320, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,0.4)" }}>
+            <div style={{ background:"linear-gradient(135deg,#c62828,#8b0000)", padding:"20px 24px", textAlign:"center" }}>
+              <div style={{ fontSize:40, marginBottom:6 }}>🗑️</div>
+              <div style={{ fontSize:18, fontWeight:"bold", color:"#fff", fontFamily:"Georgia,serif" }}>Delete Item?</div>
+            </div>
+            <div style={{ padding:"20px 24px" }}>
+              <div style={{ fontSize:14, color:"#333", fontFamily:"Georgia,serif", textAlign:"center", marginBottom:6 }}>
+                Are you sure you want to delete:
+              </div>
+              <div style={{ fontSize:15, fontWeight:"bold", color:"#c62828", fontFamily:"Georgia,serif", textAlign:"center", marginBottom:16, padding:"10px 14px", background:"#fff3f3", borderRadius:10 }}>
+                {deleteModal.name}
+              </div>
+              <div style={{ fontSize:12, color:"#999", textAlign:"center", marginBottom:20, fontFamily:"Georgia,serif" }}>
+                ⚠️ This cannot be undone!
+              </div>
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={() => setDeleteModal(null)}
+                  style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"13px 0", fontSize:14, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
+                  Cancel
+                </button>
+                <button onClick={confirmDelete}
+                  style={{ flex:1, background:"linear-gradient(135deg,#c62828,#8b0000)", border:"none", color:"#fff", padding:"13px 0", fontSize:14, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:"0 4px 12px rgba(198,40,40,0.4)" }}>
+                  🗑️ Delete
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       <div style={{ background:C.panel, borderBottom:`2px solid ${C.gold}`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
