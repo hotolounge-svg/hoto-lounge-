@@ -1580,6 +1580,7 @@ function CashierScreen({ goHome }) {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(null);
   const [payModal, setPayModal] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null); // {tableNo, data, method, cashReceived, change, rounded}
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem("c_sound") !== "off");
   const [filterTab, setFilterTab] = useState("all");
   const [selectedTable, setSelectedTable] = useState(null);
@@ -1894,12 +1895,8 @@ function CashierScreen({ goHome }) {
                   </button>
                 </div>
                 <button onClick={() => {
-                  const tableLabel = isTakeaway(payModal.tableNo) ? takeawayLabel(payModal.tableNo) : `Table ${payModal.tableNo}`;
-                  const confirmed = window.confirm(`⚠️ Confirm Payment\n\nMark ${tableLabel} as PAID and clear all orders?\n\nTotal: RM ${rounded}\nPayment: ${payModal.method}\n\n⚠️ This cannot be undone!`);
-                  if (!confirmed) return;
-                  printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null);
-                  markPaid(payModal.tableNo, payModal.method);
-                  setPayModal(null);
+                  if (!canConfirm) return;
+                  setConfirmModal({ tableNo:payModal.tableNo, data:payModal.data, method:payModal.method, cashReceived:payModal.cashReceived||null, change:payModal.method==="Cash"&&change>=0?change:null, rounded });
                 }} disabled={!canConfirm}
                   style={{ width:"100%", background:canConfirm?"#1976d2":"#ccc", border:"none", color:"#fff", padding:"14px 0", fontSize:16, borderRadius:8, cursor:canConfirm?"pointer":"not-allowed", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
                   {payModal.method==="Cash"&&!canConfirm?"Enter Amount Above ↑":`✅ Print & Clear Table — RM ${rounded}`}
@@ -1909,6 +1906,66 @@ function CashierScreen({ goHome }) {
           </div>
         );
       })()}
+
+      {/* Custom Confirm Payment Modal */}
+      {confirmModal && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.75)", zIndex:10000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#fff", borderRadius:20, width:"100%", maxWidth:340, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,0.4)" }}>
+
+            {/* Header */}
+            <div style={{ background:"linear-gradient(135deg,#1976d2,#0d47a1)", padding:"20px 24px", textAlign:"center" }}>
+              <div style={{ fontSize:40, marginBottom:6 }}>🧾</div>
+              <div style={{ fontSize:18, fontWeight:"bold", color:"#fff", fontFamily:"Georgia,serif" }}>Confirm Payment</div>
+              <div style={{ fontSize:12, color:"rgba(255,255,255,0.75)", marginTop:4, fontFamily:"Georgia,serif" }}>
+                {isTakeaway(confirmModal.tableNo) ? takeawayLabel(confirmModal.tableNo) : `Table ${confirmModal.tableNo}`}
+              </div>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding:"20px 24px" }}>
+              {/* Payment method */}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, padding:"10px 14px", background:"#f5f5f5", borderRadius:10 }}>
+                <span style={{ fontSize:13, color:"#666", fontFamily:"Georgia,serif" }}>Payment Method</span>
+                <span style={{ fontSize:14, fontWeight:"bold", color:"#1a1a1a", fontFamily:"Georgia,serif" }}>
+                  {confirmModal.method==="Cash"?"💵":confirmModal.method==="QR DuitNow"?"📱":"💳"} {confirmModal.method}
+                </span>
+              </div>
+
+              {/* Amount */}
+              <div style={{ textAlign:"center", padding:"14px 0", borderTop:"1px solid #eee", borderBottom:"1px solid #eee", marginBottom:12 }}>
+                <div style={{ fontSize:12, color:"#999", fontFamily:"Georgia,serif", marginBottom:4 }}>Total Amount</div>
+                <div style={{ fontSize:32, fontWeight:"bold", color:"#1976d2", fontFamily:"Georgia,serif" }}>RM {confirmModal.rounded}</div>
+                {confirmModal.change !== null && confirmModal.change >= 0 && (
+                  <div style={{ marginTop:6, fontSize:13, color:"#2e7d32", fontWeight:"bold", fontFamily:"Georgia,serif" }}>Change: RM {parseFloat(confirmModal.change).toFixed(2)}</div>
+                )}
+              </div>
+
+              {/* Warning */}
+              <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"#fff3e0", borderRadius:10, marginBottom:16 }}>
+                <span style={{ fontSize:18 }}>⚠️</span>
+                <span style={{ fontSize:12, color:"#e65100", fontFamily:"Georgia,serif", lineHeight:1.4 }}>This will print the receipt and <strong>clear the table</strong>. Cannot be undone!</span>
+              </div>
+
+              {/* Buttons */}
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={() => setConfirmModal(null)}
+                  style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"13px 0", fontSize:14, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
+                  ✕ Cancel
+                </button>
+                <button onClick={() => {
+                  printReceipt(confirmModal.tableNo, confirmModal.data, confirmModal.method, confirmModal.cashReceived, confirmModal.change);
+                  markPaid(confirmModal.tableNo, confirmModal.method);
+                  setConfirmModal(null);
+                  setPayModal(null);
+                }}
+                  style={{ flex:2, background:"linear-gradient(135deg,#1976d2,#0d47a1)", border:"none", color:"#fff", padding:"13px 0", fontSize:14, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:"0 4px 12px rgba(25,118,210,0.4)" }}>
+                  ✅ Confirm & Print
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ background:C.panel, borderBottom:`2px solid #5aaa5a`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div>
           <div style={{ fontSize:18, color:"#aaffaa", fontWeight:"bold" }}>💳 Cashier — Drinks & Payment</div>
