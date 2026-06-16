@@ -11,6 +11,10 @@ const CAFE_ADDRESS2 = "Baru 52100 Kuala Lumpur";
 const CAFE_TIN = "C60634413060";
 const CAFE_PHONE = "+60182868126";
 const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+const TW_SLOTS = Array.from({length:20},(_,i)=>`TW-${String(i+1).padStart(2,"0")}`); // 🥡 Go Takeaway
+const ST_SLOTS = Array.from({length:10},(_,i)=>`ST-${String(i+1).padStart(2,"0")}`); // 🪑 Eat Here Takeaway
+const isTakeaway = (t) => String(t).startsWith("TW-") || String(t).startsWith("ST-");
+const takeawayLabel = (t) => String(t).startsWith("TW-") ? `🥡 Takeaway ${t}` : `🪑 Eat Here ${t}`;
 const CAFE_NAME = "HOTO LOUNGE";
 const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts", "Add-ons"];
 const DRINK_CATEGORIES = ["Beverage", "Desserts"];
@@ -99,6 +103,7 @@ export default function App() {
       )}
       {screen === "home"    && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} />}
       {screen === "tablet"  && <TabletScreen  tableNo={tableNo} isStaff={tableNo !== null && !window.location.search.includes("table=")} goHome={() => setScreen("home")} />}
+      {screen === "takeaway" && <TakeawayScreen setScreen={setScreen} setTableNo={setTableNo} goHome={() => setScreen("home")} />}
       {screen === "kitchen" && <KitchenScreen goHome={() => setScreen("home")} />}
       {screen === "qrcodes" && <QRScreen      goHome={() => setScreen("home")} />}
       {screen === "admin"   && <AdminScreen   goHome={() => setScreen("home")} />}
@@ -126,6 +131,12 @@ function HomeScreen({ setScreen, setTableNo }) {
             </button>
           ))}
         </div>
+        <div style={{ marginTop:12, display:"flex", gap:10 }}>
+          <button onClick={() => setScreen("takeaway")}
+            style={btn({ flex:1, background:"linear-gradient(135deg,#1a3a4a,#0d2030)", border:`1px solid #5a9aaa`, color:"#aaddff", padding:"14px 0", fontSize:15, fontWeight:"bold" })}>
+            🥡 Takeaway Orders
+          </button>
+        </div>
       </div>
       <div style={{ width:"100%", maxWidth:420, display:"flex", flexDirection:"column", gap:10 }}>
         <div style={{ fontSize:11, color:C.muted, letterSpacing:3, textTransform:"uppercase", marginBottom:2, textAlign:"center" }}>— Staff —</div>
@@ -139,7 +150,47 @@ function HomeScreen({ setScreen, setTableNo }) {
   );
 }
 
-function AdminScreen({ goHome }) {
+function TakeawayScreen({ setScreen, setTableNo, goHome }) {
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:28, padding:24 }}>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontSize:48 }}>🥡</div>
+        <div style={{ fontSize:24, color:C.goldLight, fontWeight:"bold", letterSpacing:2 }}>Takeaway Orders</div>
+        <div style={{ fontSize:12, color:C.muted, letterSpacing:3, textTransform:"uppercase", marginTop:4 }}>Select order type & slot</div>
+      </div>
+
+      {/* Eat Here / Sitting Takeaway */}
+      <div style={{ width:"100%", maxWidth:460 }}>
+        <div style={{ fontSize:12, color:"#aaddff", letterSpacing:3, textTransform:"uppercase", marginBottom:10, textAlign:"center" }}>🪑 Eat Here (Takeaway Box)</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8 }}>
+          {ST_SLOTS.map(slot => (
+            <button key={slot} onClick={() => { setTableNo(slot); setScreen("tablet"); }}
+              style={btn({ background:"#1a2a3a", border:`1px solid #5a7aaa`, color:"#aaccff", padding:"12px 0", fontSize:13, fontWeight:"bold" })}>
+              {slot.replace("ST-","")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Go Takeaway */}
+      <div style={{ width:"100%", maxWidth:460 }}>
+        <div style={{ fontSize:12, color:"#aaffcc", letterSpacing:3, textTransform:"uppercase", marginBottom:10, textAlign:"center" }}>🥡 Pack & Go (Takeaway)</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8 }}>
+          {TW_SLOTS.map(slot => (
+            <button key={slot} onClick={() => { setTableNo(slot); setScreen("tablet"); }}
+              style={btn({ background:"#1a3a2a", border:`1px solid #5aaa7a`, color:"#aaffcc", padding:"12px 0", fontSize:13, fontWeight:"bold" })}>
+              {slot.replace("TW-","")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"10px 28px", fontSize:13 })}>← Back</button>
+    </div>
+  );
+}
+
+
   const [authed, setAuthed] = useState(false);
   const [pw, setPw] = useState("");
   const [pwError, setPwError] = useState(false);
@@ -722,7 +773,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           {isStaff && <button onClick={goHome} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.4)", color:"#fff", borderRadius:8, padding:"6px 12px", fontSize:13 }}>← Back</button>}
           <div>
             <div style={{ fontSize:18, fontWeight:"bold", color:"#fff" }}>☕ {CAFE_NAME}</div>
-            <div style={{ fontSize:13, color:"#ffe099" }}>TABLE {tableNo}</div>
+            <div style={{ fontSize:13, color:"#ffe099" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo).toUpperCase() : `TABLE ${tableNo}`}</div>
           </div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -1122,7 +1173,8 @@ function KitchenScreen({ goHome }) {
 
   const playAlert = (tableNo) => {
     if (voiceOnRef.current && tableNo) {
-      speak(`New order, Table ${tableNo}`);
+      const label = isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`;
+      speak(`New order, ${label}`);
       return;
     }
     try {
@@ -1337,7 +1389,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
 
       {/* Header */}
       <div style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ fontSize:22, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>Table {tableNo}</div>
+        <div style={{ fontSize:22, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
         <div style={{ display:"flex", gap:6 }}>
           {data.pending.length>0 && <span style={{ background:"#3d2a00", color:C.gold, borderRadius:6, padding:"3px 10px", fontSize:12 }}>⏳ {data.pending.length} pending</span>}
           {data.done.length>0 && <span style={{ background:"#1a3a1a", color:"#5aaa5a", borderRadius:6, padding:"3px 10px", fontSize:12 }}>✅ {data.done.length} done</span>}
@@ -1573,6 +1625,10 @@ function CashierScreen({ goHome }) {
     const now = new Date();
     const dateStr = now.toLocaleString("en-MY",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:true});
     const receiptNo = "#"+now.getFullYear().toString().slice(-2)+String(now.getMonth()+1).padStart(2,"0")+Date.now().toString().slice(-5);
+    const isTW = String(tableNo).startsWith("TW-");
+    const isST = String(tableNo).startsWith("ST-");
+    const orderType = isTW ? "Takeaway (Pack & Go)" : isST ? "Takeaway (Eat Here)" : "Dine In";
+    const serviceArea = isTW ? `Takeaway #${tableNo}` : isST ? `Eat Here #${tableNo}` : `Table ${tableNo}`;
     const itemRows = allItems.map(i=>`
       <div class="item-name">${i.name}</div>
       <div class="row"><span>${parseFloat(i.price).toFixed(2)}</span><span>${i.qty}</span><span>${(i.price*i.qty).toFixed(2)}</span></div>
@@ -1587,8 +1643,12 @@ function CashierScreen({ goHome }) {
       .row{display:flex;justify-content:space-between;margin:2px 0;}
       .grand{font-size:14px;font-weight:bold;}
       .item-name{font-weight:bold;margin-top:4px;}
-      @media print{.no-print{display:none;}body{width:100%;}}
+      .close-btn{position:fixed;top:12px;right:12px;background:#c0392b;color:#fff;border:none;border-radius:50%;width:44px;height:44px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);z-index:999;}
+      .btn-row{display:flex;gap:8px;margin-top:12px;}
+      .btn-row button{flex:1;padding:12px;font-size:15px;cursor:pointer;font-family:monospace;border:none;border-radius:6px;}
+      @media print{.no-print{display:none;}body{width:100%;}.close-btn{display:none;}}
     </style></head><body>
+    <button class="close-btn no-print" onclick="window.close()">✕</button>
     <div class="center">
       <div class="logo">HOTO LOUNGE</div>
       <div style="font-size:10px;">CAFE · BAR · LOUNGE</div>
@@ -1599,8 +1659,8 @@ function CashierScreen({ goHome }) {
     </div>
     <div class="divider"></div>
     <div>Receipt: ${receiptNo}</div>
-    <div>Service area: Table ${tableNo}</div>
-    <div>Order type: Dine In</div>
+    <div>Service area: ${serviceArea}</div>
+    <div>Order type: ${orderType}</div>
     <div>Date: ${dateStr}</div>
     ${paymentMethod ? `<div>Payment type: ${paymentMethod}</div>` : ""}
     <div class="divider"></div>
@@ -1622,7 +1682,10 @@ function CashierScreen({ goHome }) {
       <div>Thank You and Come Again!</div>
     </div>
     <br/>
-    <button class="no-print" onclick="window.print()" style="width:100%;padding:12px;font-size:15px;cursor:pointer;font-family:monospace;">🖨️ Print Receipt</button>
+    <div class="btn-row no-print">
+      <button onclick="window.close()" style="background:#eee;color:#333;">✕ Close</button>
+      <button onclick="window.print()" style="background:#333;color:#fff;">🖨️ Print</button>
+    </div>
     </body></html>`);
     win.document.close();
   };
@@ -1660,9 +1723,9 @@ function CashierScreen({ goHome }) {
             <div style={{ background:"#fff", borderRadius:16, padding:24, width:"100%", maxWidth:360, color:"#1a1a1a" }}>
               {/* Header */}
               <div style={{ fontSize:15, fontWeight:"bold", color:"#555", marginBottom:4 }}>
-                {icon} {payModal.method} — Table {payModal.tableNo}
+                {icon} {payModal.method} — {isTakeaway(payModal.tableNo) ? takeawayLabel(payModal.tableNo) : `Table ${payModal.tableNo}`}
               </div>
-              <div style={{ fontSize:11, color:"#999", marginBottom:16 }}>Order type: Dine In</div>
+              <div style={{ fontSize:11, color:"#999", marginBottom:16 }}>Order type: {String(payModal.tableNo).startsWith("TW-") ? "Takeaway (Pack & Go)" : String(payModal.tableNo).startsWith("ST-") ? "Takeaway (Eat Here)" : "Dine In"}</div>
 
               {/* Items */}
               {[...(payModal.data.pending||[]),...(payModal.data.done||[])].flatMap(o=>o.items).map((item,i)=>(
