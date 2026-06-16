@@ -1182,6 +1182,22 @@ function KitchenScreen({ goHome }) {
     });
   };
 
+  const audioCtxRef = useRef(null);
+  const getAudioCtx = () => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtxRef.current.state === "suspended") audioCtxRef.current.resume();
+    return audioCtxRef.current;
+  };
+
+  useEffect(() => {
+    const unlock = () => { try { getAudioCtx(); } catch(e) {} };
+    window.addEventListener("click", unlock, { once: true });
+    window.addEventListener("touchstart", unlock, { once: true });
+    return () => { window.removeEventListener("click", unlock); window.removeEventListener("touchstart", unlock); };
+  }, []);
+
   const speak = (tableNo) => {
     try {
       window.speechSynthesis.cancel();
@@ -1201,21 +1217,22 @@ function KitchenScreen({ goHome }) {
   };
 
   const playAlert = (tableNo) => {
-    if (voiceOnRef.current && tableNo) {
-      speak(tableNo);
-      return;
-    }
+    if (!soundOnRef.current) return;
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0,200,400].forEach(delay => {
+      const ctx = getAudioCtx();
+      [0, 200, 400].forEach(delay => {
         const osc = ctx.createOscillator(); const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.frequency.value = 880; osc.type = "sine";
-        gain.gain.setValueAtTime(1.0, ctx.currentTime+delay/1000);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.5);
-        osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.5);
+        gain.gain.setValueAtTime(1.0, ctx.currentTime + delay / 1000);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay / 1000 + 0.5);
+        osc.start(ctx.currentTime + delay / 1000);
+        osc.stop(ctx.currentTime + delay / 1000 + 0.5);
       });
     } catch(e) {}
+    if (voiceOnRef.current && tableNo) {
+      setTimeout(() => speak(tableNo), 700);
+    }
   };
 
   const fetchAll = async () => {
@@ -1574,6 +1591,25 @@ function CashierScreen({ goHome }) {
     });
   };
 
+  const audioCtxRef = useRef(null);
+  const getAudioCtx = () => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtxRef.current.state === "suspended") {
+      audioCtxRef.current.resume();
+    }
+    return audioCtxRef.current;
+  };
+
+  // Unlock AudioContext on first user interaction
+  useEffect(() => {
+    const unlock = () => { try { getAudioCtx(); } catch(e) {} };
+    window.addEventListener("click", unlock, { once: true });
+    window.addEventListener("touchstart", unlock, { once: true });
+    return () => { window.removeEventListener("click", unlock); window.removeEventListener("touchstart", unlock); };
+  }, []);
+
   const speak = (tableNo, type = "drink") => {
     try {
       window.speechSynthesis.cancel();
@@ -1593,34 +1629,35 @@ function CashierScreen({ goHome }) {
     } catch(e) {}
   };
 
-  const playAlert = (tableNo) => {
-    if (voiceOnRef.current && tableNo) { speak(tableNo, "drink"); return; }
+  const playBeep = (freqs, delays) => {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0,200,400].forEach(delay => {
+      const ctx = getAudioCtx();
+      delays.forEach((delay, i) => {
         const osc = ctx.createOscillator(); const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = 660; osc.type = "sine";
-        gain.gain.setValueAtTime(1.0, ctx.currentTime+delay/1000);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.5);
-        osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.5);
+        osc.frequency.value = freqs[i % freqs.length]; osc.type = "sine";
+        gain.gain.setValueAtTime(1.0, ctx.currentTime + delay / 1000);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay / 1000 + 0.5);
+        osc.start(ctx.currentTime + delay / 1000);
+        osc.stop(ctx.currentTime + delay / 1000 + 0.5);
       });
     } catch(e) {}
   };
 
+  const playAlert = (tableNo) => {
+    if (!soundOnRef.current) return;
+    playBeep([660], [0, 200, 400]);
+    if (voiceOnRef.current && tableNo) {
+      setTimeout(() => speak(tableNo, "drink"), 700);
+    }
+  };
+
   const playWaiterAlert = (tableNo) => {
-    if (voiceOnRef.current && tableNo) { speak(tableNo, "waiter"); return; }
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0,250,500,750].forEach((delay,i) => {
-        const osc = ctx.createOscillator(); const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = i%2===0?880:550; osc.type = "sine";
-        gain.gain.setValueAtTime(1.0, ctx.currentTime+delay/1000);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.5);
-        osc.start(ctx.currentTime+delay/1000); osc.stop(ctx.currentTime+delay/1000+0.5);
-      });
-    } catch(e) {}
+    if (!soundOnRef.current) return;
+    playBeep([880, 550], [0, 250, 500, 750]);
+    if (voiceOnRef.current && tableNo) {
+      setTimeout(() => speak(tableNo, "waiter"), 1100);
+    }
   };
 
   const fetchAll = async () => {
