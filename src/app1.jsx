@@ -220,11 +220,11 @@ function AdminScreen({ goHome }) {
     else setPwError(true);
   };
   const openAdd = () => {
-    setForm({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[] });
+    setForm({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, is_best_seller:false, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[] });
     setEditItem(null); setShowForm(true);
   };
   const openEdit = (item) => {
-    setForm({ item_no:item.item_no, name:item.name, category:item.category, price:item.price, description:item.description||"", emoji:item.emoji||"🍽️", image_url:item.image_url||"", is_available:item.is_available!==false, addons:item.addons||[], addon_required:item.addon_required||false, promo_start:item.promo_start||"", promo_end:item.promo_end||"", promo_price:item.promo_price||"", promo_drinks:item.promo_drinks||[] });
+    setForm({ item_no:item.item_no, name:item.name, category:item.category, price:item.price, description:item.description||"", emoji:item.emoji||"🍽️", image_url:item.image_url||"", is_available:item.is_available!==false, is_best_seller:item.is_best_seller||false, addons:item.addons||[], addon_required:item.addon_required||false, promo_start:item.promo_start||"", promo_end:item.promo_end||"", promo_price:item.promo_price||"", promo_drinks:item.promo_drinks||[] });
     setEditItem(item); setShowForm(true);
   };
   const handleUpload = async (e) => {
@@ -242,7 +242,7 @@ function AdminScreen({ goHome }) {
     const toMins = (t) => { if (!t) return null; const [h,m] = t.split(":").map(Number); return h*60+m; };
     const s = toMins(form.promo_start); const e = toMins(form.promo_end);
     const promo_active = s !== null && e !== null && nowMins >= s && nowMins < e;
-    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, addons:form.addons||[], addon_required:form.addon_required||false, promo_start:form.promo_start||null, promo_end:form.promo_end||null, promo_price:form.promo_price?parseFloat(form.promo_price):null, promo_drinks:form.promo_drinks||[], promo_active };
+    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, is_best_seller:form.is_best_seller||false, addons:form.addons||[], addon_required:form.addon_required||false, promo_start:form.promo_start||null, promo_end:form.promo_end||null, promo_price:form.promo_price?parseFloat(form.promo_price):null, promo_drinks:form.promo_drinks||[], promo_active };
     if (editItem) await supabase.from("menu_items").update(p).eq("id", editItem.id);
     else await supabase.from("menu_items").insert(p);
     setShowForm(false); fetchItems();
@@ -300,6 +300,13 @@ function AdminScreen({ goHome }) {
               <button onClick={() => setForm(f => ({ ...f, is_available:!f.is_available }))}
                 style={btn({ background:form.is_available?"#2d6a2d":"#6a2d2d", border:`1px solid ${form.is_available?"#5aaa5a":"#cc4444"}`, color:form.is_available?"#aaffaa":"#ff7777", padding:"6px 16px", fontSize:13, fontWeight:"bold" })}>
                 {form.is_available ? "✅ Available" : "❌ Sold Out"}
+              </button>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ fontSize:11, color:C.muted }}>Best Seller</div>
+              <button onClick={() => setForm(f => ({ ...f, is_best_seller:!f.is_best_seller }))}
+                style={btn({ background:form.is_best_seller?"#8a0008":"transparent", border:`1px solid ${form.is_best_seller?"#e8000d":C.border}`, color:form.is_best_seller?"#fff":C.muted, padding:"6px 16px", fontSize:13, fontWeight:"bold" })}>
+                {form.is_best_seller ? "👍 BEST SELLER ON" : "⬜ Best Seller OFF"}
               </button>
             </div>
           </div>
@@ -457,6 +464,10 @@ function AdminScreen({ goHome }) {
                       <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
                         <button onClick={() => toggleAvailable(item)} style={btn({ background:item.is_available!==false?"#2d6a2d":"#6a2d2d", border:`1px solid ${item.is_available!==false?"#5aaa5a":"#cc4444"}`, color:item.is_available!==false?"#aaffaa":"#ff7777", padding:"5px 10px", fontSize:11, fontWeight:"bold" })}>
                           {item.is_available!==false ? "✅ Available" : "❌ Sold Out"}
+                        </button>
+                        <button onClick={() => supabase.from("menu_items").update({ is_best_seller:!item.is_best_seller }).eq("id", item.id).then(fetchItems)}
+                          style={btn({ background:item.is_best_seller?"#8a0008":"transparent", border:`1px solid ${item.is_best_seller?"#e8000d":C.border}`, color:item.is_best_seller?"#fff":C.muted, padding:"5px 10px", fontSize:11, fontWeight:"bold" })}>
+                          {item.is_best_seller ? "👍 Best Seller" : "⬜ Best Seller"}
                         </button>
                         <button onClick={() => openEdit(item)} style={btn({ background:"transparent", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"6px 12px", fontSize:12 })}>✏️ Edit</button>
                         <button onClick={() => handleDelete(item.id)} style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"6px 12px", fontSize:12 })}>🗑️</button>
@@ -909,6 +920,13 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                           })() : `RM ${parseFloat(item.price).toFixed(2)}`}
                         </div>
                         {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>{t.soldOutBadge}</div>}
+                        {!soldOut && item.is_best_seller && (
+                          <div style={{ position:"absolute", top:0, left:0, zIndex:2 }}>
+                            <div style={{ background:"#e8000d", color:"#fff", fontWeight:"bold", fontSize:9, padding:"5px 7px", borderRadius:"0 0 8px 0", letterSpacing:0.5, textAlign:"center", lineHeight:1.3, boxShadow:"2px 2px 6px rgba(0,0,0,0.35)" }}>
+                              👍<br/>BEST<br/>SELLER
+                            </div>
+                          </div>
+                        )}
                         {item.image_url
                           ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:80, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
                           : <div style={{ height:80, display:"flex", alignItems:"center", justifyContent:"center", fontSize:40, background:"#f9f9f9" }}>{item.emoji}</div>
