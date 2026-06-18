@@ -1350,7 +1350,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             <textarea
               value={cartEditModal.note}
               onChange={e => setCartEditModal(m => ({...m, note:e.target.value}))}
-              placeholder="e.g. change to cold, no sugar, less ice..."
+              placeholder="e.g. no sugar, less ice, extra shot, less spicy..."
               rows={3} autoFocus
               style={{ width:"100%", border:`1.5px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, resize:"none", boxSizing:"border-box", outline:"none", marginBottom:16 }}
             />
