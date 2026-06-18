@@ -612,6 +612,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [addonModal, setAddonModal] = useState(null); // {item, selectedAddons:[]}
   const [itemModal, setItemModal] = useState(null); // {item, qty, note, selectedAddons, freeDrink}
   const [editRequestModal, setEditRequestModal] = useState(null); // {orderId, request}
+  const [cartEditModal, setCartEditModal] = useState(null); // {cartKey, note, name}
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
@@ -1265,6 +1266,38 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             </div>
           )}
 
+          {/* Cart Item Note Edit Modal */}
+          {cartEditModal && (
+            <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:2000, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+              <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:24, width:"100%", maxWidth:500 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                  <div style={{ fontSize:17, fontWeight:"bold", color:T.brown }}>📝 Note for this item</div>
+                  <button onClick={() => setCartEditModal(null)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", fontSize:24, color:T.muted }}>×</button>
+                </div>
+                <div style={{ fontSize:13, color:T.muted, marginBottom:12 }}>{cartEditModal.name}</div>
+                <textarea
+                  value={cartEditModal.note}
+                  onChange={e => setCartEditModal(m => ({...m, note:e.target.value}))}
+                  placeholder="e.g. change to cold, no sugar, less ice..."
+                  rows={3} autoFocus
+                  style={{ width:"100%", border:`1.5px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, resize:"none", boxSizing:"border-box", outline:"none", marginBottom:16 }}
+                />
+                <div style={{ display:"flex", gap:10 }}>
+                  <button onClick={() => setCartEditModal(null)}
+                    style={{ flex:1, background:"#f5f5f5", border:`1px solid ${T.border}`, color:T.muted, padding:"14px 0", fontSize:15, borderRadius:12, cursor:"pointer", fontFamily:"Georgia,serif" }}>Cancel</button>
+                  <button onClick={() => {
+                    const key = cartEditModal.cartKey;
+                    setCart(p => ({ ...p, [key]: { ...p[key], note: cartEditModal.note.trim() } }));
+                    setCartEditModal(null);
+                  }}
+                    style={{ flex:2, background:T.brown, border:"none", color:"#fff", padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:12, cursor:"pointer", fontFamily:"Georgia,serif" }}>
+                    ✓ Save Note
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Edit Request Modal */}
           {editRequestModal && (
             <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:2000, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
@@ -1336,11 +1369,16 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             {/* Cart items */}
             {cartItems.map(item => (
               <div key={item.cartKey||item.id} style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, boxShadow:T.shadow }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:item.note?6:0 }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
                   <div style={{ flex:1, paddingRight:10 }}>
                     <div style={{ fontSize:16, fontWeight:"bold", color:T.text }}>{item.name}</div>
                     <div style={{ fontSize:14, color:T.brown, fontWeight:"bold", marginTop:2 }}>RM {(item.price*item.qty).toFixed(2)}</div>
-                    {item.note && <div style={{ fontSize:13, color:T.orange, marginTop:4 }}>📝 {item.note}</div>}
+                    {item.note
+                      ? <div onClick={() => setCartEditModal({ cartKey:item.cartKey||item.id, note:item.note, name:item.name })}
+                          style={{ fontSize:13, color:T.orange, marginTop:4, cursor:"pointer" }}>📝 {item.note} <span style={{ fontSize:11, color:T.brown }}>✏️ edit</span></div>
+                      : <div onClick={() => setCartEditModal({ cartKey:item.cartKey||item.id, note:"", name:item.name })}
+                          style={{ fontSize:12, color:T.muted, marginTop:4, cursor:"pointer" }}>✏️ Add note</div>
+                    }
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:0, border:`2px solid ${T.border}`, borderRadius:50, overflow:"hidden" }}>
                     <button onClick={() => removeFromCart(item.cartKey||item.id)}
