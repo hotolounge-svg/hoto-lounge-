@@ -2029,21 +2029,25 @@ function CashierScreen({ goHome }) {
   const [reprintModal, setReprintModal] = useState(false);
 
   const fetchReprintList = async () => {
-    const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase.from("orders").select("*").eq("status","paid")
-      .gte("updated_at", today + "T00:00:00").order("updated_at", { ascending:false });
+      .order("updated_at", { ascending:false }).limit(30);
     if (!data || data.length === 0) { setReprintList([]); return; }
-    // Group into sessions by table_no + updated within 2 mins of each other
+    // Group into sessions by table_no + updated within 3 mins of each other
     const sessions = [];
     const used = new Set();
     data.forEach(order => {
       if (used.has(order.id)) return;
-      const group = data.filter(o => !used.has(o.id) && String(o.table_no) === String(order.table_no) && Math.abs(new Date(o.updated_at) - new Date(order.updated_at)) < 120000);
+      const group = data.filter(o => !used.has(o.id) && String(o.table_no) === String(order.table_no) && Math.abs(new Date(o.updated_at) - new Date(order.updated_at)) < 180000);
       group.forEach(o => used.add(o.id));
       const total = group.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
-      sessions.push({ tableNo: order.table_no, orders: group, total, time: new Date(order.updated_at).toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"}) });
+      const paidAt = new Date(order.updated_at);
+      const timeStr = paidAt.toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true});
+      sessions.push({ tableNo: order.table_no, orders: group, total, time: timeStr });
     });
-    setReprintList(sessions);
+    // Only show today's sessions (last 24h)
+    const oneDayAgo = Date.now() - 24*60*60*1000;
+    const todaySessions = sessions.filter(s => new Date(s.orders[0].updated_at) > oneDayAgo);
+    setReprintList(todaySessions.slice(0, 10));
   };
 
   useEffect(() => { fetchReprintList(); }, []);
