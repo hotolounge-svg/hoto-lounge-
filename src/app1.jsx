@@ -2033,22 +2033,31 @@ function CashierScreen({ goHome }) {
     // Only fetch paid orders from the last 24 hours
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data } = await supabase.from("orders").select("*").eq("status","paid")
-      .gte("created_at", since)
-      .order("created_at", { ascending:false }).limit(50);
+      .gte("updated_at", since)
+      .order("updated_at", { ascending:false }).limit(50);
     if (!data || data.length === 0) { setReprintList([]); return; }
     const charge = parseFloat(localStorage.getItem("service_charge")||"10");
     const sessions = [];
     const used = new Set();
-    data.forEach(order => {
+    // Sort by updated_at desc (when they were paid) for grouping
+    const sorted = [...data].sort((a,b) => new Date(b.updated_at||b.created_at) - new Date(a.updated_at||a.created_at));
+    sorted.forEach(order => {
       if (used.has(order.id)) return;
-      // Skip orders the user explicitly cleared
       if (reprintHiddenIds.current.has(order.id)) return;
+      const paidAt = new Date(order.updated_at || order.created_at);
+      // Group: same table, paid within 60 seconds of each other (same payment event)
       const usedSnapshot = new Set(used);
-      const group = data.filter(o => !usedSnapshot.has(o.id) && !reprintHiddenIds.current.has(o.id) && String(o.table_no) === String(order.table_no) && Math.abs(new Date(o.created_at) - new Date(order.created_at)) < 300000);
+      const group = sorted.filter(o =>
+        !usedSnapshot.has(o.id) &&
+        !reprintHiddenIds.current.has(o.id) &&
+        String(o.table_no) === String(order.table_no) &&
+        Math.abs(new Date(o.updated_at||o.created_at) - paidAt) < 60000
+      );
       group.forEach(o => used.add(o.id));
       const subtotal = group.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
       const grandTotal = +(Math.round((subtotal * (1 + charge/100)) * 20) / 20).toFixed(2);
-      const timeStr = new Date(order.created_at).toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
+      // Show when payment was collected (updated_at = when marked paid), in MYT
+      const timeStr = paidAt.toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
       sessions.push({ tableNo: order.table_no, orders: group, total: subtotal, grandTotal, time: timeStr });
     });
     setReprintList(sessions.slice(0, 15));
@@ -2211,7 +2220,7 @@ function CashierScreen({ goHome }) {
     const allOrders = [...(data.pending||[]), ...(data.done||[])];
     const allItems = allOrders.flatMap(o => o.items);
     const now = new Date();
-    const dateStr = now.toLocaleString("en-MY",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:true});
+    const dateStr = now.toLocaleString("en-MY",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
     const receiptNo = "#"+now.getFullYear().toString().slice(-2)+String(now.getMonth()+1).padStart(2,"0")+Date.now().toString().slice(-5);
     const isTW = String(tableNo).startsWith("TW-");
     const isST = String(tableNo).startsWith("ST-");
