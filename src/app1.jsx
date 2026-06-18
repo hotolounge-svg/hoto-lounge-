@@ -765,6 +765,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
   const placeOrder = async () => {
     if (submittingRef.current) return;
+    if (cartItems.length === 0) return;
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
@@ -960,22 +961,13 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
               : (
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(160px, 45%), 1fr))", gap:10 }}>
                   {currentMenuItems.map(item => {
-                    const qty = cart[item.id]?.qty || 0;
+                    const qty = Object.values(cart).filter(c => c.id === item.id).reduce((s,c) => s+c.qty, 0);
                     const soldOut = item.is_available===false;
                     return (
-                      <div key={item.id} style={{ background:"#fff", border:qty>0?`2px solid ${T.brown}`:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden", position:"relative", opacity:soldOut?0.5:1, boxShadow:T.shadow, display:"flex", flexDirection:"column" }}>
-                        {/* Price badge top right */}
-                        <div style={{ position:"absolute", top:8, right:8, background:isPromoNow(item)&&item.addons&&item.addons.some(a=>a.promo_price&&parseFloat(a.promo_price)>0)?"#e65100":"rgba(0,0,0,0.7)", color:"#fff", borderRadius:6, padding:"3px 8px", fontSize:13, fontWeight:"bold", zIndex:1 }}>
-                          {item.addon_required && item.addons && item.addons.length > 0 ? (() => {
-                            const hasPromo = isPromoNow(item) && item.addons.some(a=>a.promo_price&&parseFloat(a.promo_price)>0);
-                            const prices = item.addons.map(a => hasPromo && a.promo_price && parseFloat(a.promo_price)>0 ? parseFloat(a.promo_price) : parseFloat(a.price||0));
-                            const normalMin = Math.min(...item.addons.map(a=>parseFloat(a.price||0)));
-                            const min = Math.min(...prices);
-                            return hasPromo ? <span><span style={{textDecoration:"line-through",opacity:0.6,fontSize:11,marginRight:3}}>RM {normalMin.toFixed(2)}</span>RM {min.toFixed(2)}<span style={{fontSize:10,display:"block",textAlign:"center"}}>🍺 Happy Hour</span></span>
-                              : <span>RM {min.toFixed(2)}</span>;
-                          })() : `RM ${parseFloat(item.price).toFixed(2)}`}
-                        </div>
-                        {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:1 }}>{t.soldOutBadge}</div>}
+                      <div key={item.id} onClick={() => !soldOut && handleAddItem(item)}
+                        style={{ background:"#fff", border:qty>0?`2px solid ${T.brown}`:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden", position:"relative", opacity:soldOut?0.5:1, boxShadow:T.shadow, display:"flex", flexDirection:"column", cursor:soldOut?"default":"pointer" }}>
+
+                        {/* Best seller badge - bottom left of image */}
                         {!soldOut && item.is_best_seller && (
                           <div style={{ position:"absolute", top:0, left:0, zIndex:2 }}>
                             <div style={{ background:"#e8000d", color:"#fff", fontWeight:"bold", fontSize:9, padding:"5px 7px", borderRadius:"0 0 8px 0", letterSpacing:0.5, textAlign:"center", lineHeight:1.3, boxShadow:"2px 2px 6px rgba(0,0,0,0.35)" }}>
@@ -983,32 +975,50 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                             </div>
                           </div>
                         )}
+                        {soldOut && <div style={{ position:"absolute", top:8, left:8, background:T.red, color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:11, fontWeight:"bold", zIndex:3 }}>{t.soldOutBadge}</div>}
+
                         {item.image_url
-                          ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:80, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
-                          : <div style={{ height:80, display:"flex", alignItems:"center", justifyContent:"center", fontSize:40, background:"#f9f9f9" }}>{item.emoji}</div>
+                          ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:100, objectFit:"cover", filter:soldOut?"grayscale(80%)":"none" }} />
+                          : <div style={{ height:100, display:"flex", alignItems:"center", justifyContent:"center", fontSize:44, background:"#f9f9f9" }}>{item.emoji}</div>
                         }
-                        <div style={{ padding:"10px 10px 12px", flex:1, display:"flex", flexDirection:"column" }}>
-                          <div style={{ fontWeight:"bold", fontSize:14, marginBottom:8, color:T.text, lineHeight:1.3, flex:1 }}>
-                            {item.item_no && <span style={{ color:T.brown, marginRight:6 }}>{item.item_no}</span>}{item.name}
+
+                        <div style={{ padding:"8px 10px 10px", flex:1, display:"flex", flexDirection:"column" }}>
+                          {/* Name */}
+                          <div style={{ fontWeight:"bold", fontSize:13, marginBottom:6, color:T.text, lineHeight:1.3, flex:1 }}>
+                            {item.item_no && <span style={{ color:T.brown, marginRight:4, fontSize:12 }}>{item.item_no}</span>}{item.name}
                           </div>
-                          {soldOut ? (
-                            <div style={{ textAlign:"center", color:T.red, fontSize:13, fontWeight:"bold", padding:"8px 0", background:"#fff0f0", borderRadius:8 }}>{t.soldOut}</div>
-                          ) : qty===0 ? (
-                            <div>
-                              {isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0 && (
-                                <div style={{ textAlign:"center", fontSize:11, color:T.green, fontWeight:"bold", marginBottom:4 }}>{t.withFreeDrinks}</div>
-                              )}
-                              {isPromoNow(item) && item.addons && item.addons.some(a => a.promo_price && parseFloat(a.promo_price) > 0) && (
-                                <div style={{ textAlign:"center", fontSize:11, color:"#e65100", fontWeight:"bold", marginBottom:4 }}>{t.happyHour}</div>
-                              )}
-                              <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:T.brown, border:"none", color:"#fff", padding:"10px 0", fontSize:15, fontWeight:"bold", borderRadius:8 }}>{t.add}</button>
+
+                          {/* Price + button row */}
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:"auto" }}>
+                            {/* Price */}
+                            <div style={{ fontSize:13, fontWeight:"bold", color:T.brown, flexShrink:0 }}>
+                              {item.addon_required && item.addons && item.addons.length > 0
+                                ? `RM ${Math.min(...item.addons.map(a=>parseFloat(a.price||0))).toFixed(2)}+`
+                                : `RM ${parseFloat(item.price).toFixed(2)}`}
                             </div>
-                          ) : (
-                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                              <button onClick={() => removeFromCart(item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:`2px solid ${T.brown}`, color:T.brown, width:40, height:40, fontSize:24, fontWeight:"bold", borderRadius:8 }}>−</button>
-                              <span style={{ color:T.brown, fontWeight:"bold", fontSize:22 }}>{qty}</span>
-                              <button onClick={() => handleAddItem(item)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", width:40, height:40, fontSize:24, fontWeight:"bold", borderRadius:8 }}>+</button>
-                            </div>
+
+                            {soldOut ? null : qty === 0 ? (
+                              /* + button */
+                              <button onClick={e => { e.stopPropagation(); handleAddItem(item); }}
+                                style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", width:34, height:34, fontSize:22, fontWeight:"bold", borderRadius:50, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 2px 6px rgba(138,90,0,0.3)" }}>+</button>
+                            ) : (
+                              /* qty controls */
+                              <div style={{ display:"flex", alignItems:"center", gap:4 }} onClick={e => e.stopPropagation()}>
+                                <button onClick={() => removeFromCart(Object.values(cart).find(c=>c.id===item.id)?.cartKey||item.id)}
+                                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:`2px solid ${T.brown}`, color:T.brown, width:30, height:30, fontSize:20, fontWeight:"bold", borderRadius:50 }}>−</button>
+                                <span style={{ color:T.brown, fontWeight:"bold", fontSize:16, minWidth:18, textAlign:"center" }}>{qty}</span>
+                                <button onClick={() => handleAddItem(item)}
+                                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", width:30, height:30, fontSize:20, fontWeight:"bold", borderRadius:50 }}>+</button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Promo badges */}
+                          {isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0 && (
+                            <div style={{ fontSize:10, color:T.green, fontWeight:"bold", marginTop:4 }}>{t.withFreeDrinks}</div>
+                          )}
+                          {isPromoNow(item) && item.addons && item.addons.some(a => a.promo_price && parseFloat(a.promo_price) > 0) && (
+                            <div style={{ fontSize:10, color:"#e65100", fontWeight:"bold", marginTop:4 }}>{t.happyHour}</div>
                           )}
                         </div>
                       </div>
@@ -1044,9 +1054,9 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     }
                     {/* Close button */}
                     <button onClick={() => setItemModal(null)} style={{ position:"absolute", top:14, left:14, background:"rgba(255,255,255,0.9)", border:"none", borderRadius:50, width:40, height:40, fontSize:20, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.2)", fontFamily:"Georgia,serif" }}>✕</button>
-                    {/* Best seller badge */}
+                    {/* Best seller badge - top RIGHT so it doesn't cover X */}
                     {item.is_best_seller && (
-                      <div style={{ position:"absolute", top:0, left:0, background:"#e8000d", color:"#fff", fontWeight:"bold", fontSize:10, padding:"6px 8px", borderRadius:"0 0 10px 0", textAlign:"center", lineHeight:1.3 }}>
+                      <div style={{ position:"absolute", top:0, right:0, background:"#e8000d", color:"#fff", fontWeight:"bold", fontSize:10, padding:"6px 8px", borderRadius:"0 0 0 10px", textAlign:"center", lineHeight:1.3 }}>
                         👍<br/>BEST<br/>SELLER
                       </div>
                     )}
