@@ -611,6 +611,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   }[lang];
   const [addonModal, setAddonModal] = useState(null); // {item, selectedAddons:[]}
   const [itemModal, setItemModal] = useState(null); // {item, qty, note, selectedAddons, freeDrink}
+  const [editRequestModal, setEditRequestModal] = useState(null); // {orderId, request}
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
@@ -911,8 +912,14 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     {order.special_request && (
                       <div style={{ fontSize:13, color:T.orange, marginTop:6 }}>📝 {order.special_request}</div>
                     )}
-                    <div style={{ borderTop:`1px solid ${isPending?T.border:T.green}`, marginTop:10, paddingTop:10 }}>
+                    <div style={{ borderTop:`1px solid ${isPending?T.border:T.green}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                       <span style={{ color:isPending?T.brown:T.green, fontWeight:"bold", fontSize:18 }}>RM {order.total.toFixed(2)}</span>
+                      {isPending && (
+                        <button onClick={() => setEditRequestModal({ orderId:order.id, request:order.special_request||"" })}
+                          style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff8f0", border:`1.5px solid ${T.brown}`, color:T.brown, padding:"8px 14px", fontSize:13, fontWeight:"bold", borderRadius:10 }}>
+                          📝 {order.special_request ? "Edit Request" : "+ Add Request"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1258,6 +1265,40 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             </div>
           )}
 
+          {/* Edit Request Modal */}
+          {editRequestModal && (
+            <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:2000, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+              <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:24, width:"100%", maxWidth:500 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                  <div style={{ fontSize:18, fontWeight:"bold", color:T.brown }}>📝 Special Request</div>
+                  <button onClick={() => setEditRequestModal(null)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", fontSize:24, color:T.muted }}>×</button>
+                </div>
+                <div style={{ fontSize:13, color:T.muted, marginBottom:12 }}>e.g. change cold to hot, less sugar, no ice, extra spicy...</div>
+                <textarea
+                  value={editRequestModal.request}
+                  onChange={e => setEditRequestModal(m => ({...m, request:e.target.value}))}
+                  placeholder="Type your request here..."
+                  rows={3}
+                  autoFocus
+                  style={{ width:"100%", border:`1.5px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, resize:"none", boxSizing:"border-box", outline:"none", marginBottom:16 }}
+                />
+                <div style={{ display:"flex", gap:10 }}>
+                  <button onClick={() => setEditRequestModal(null)}
+                    style={{ flex:1, background:"#f5f5f5", border:`1px solid ${T.border}`, color:T.muted, padding:"14px 0", fontSize:15, borderRadius:12, cursor:"pointer", fontFamily:"Georgia,serif" }}>
+                    Cancel
+                  </button>
+                  <button onClick={async () => {
+                    await supabase.from("orders").update({ special_request: editRequestModal.request.trim()||null }).eq("id", editRequestModal.orderId);
+                    setEditRequestModal(null);
+                  }}
+                    style={{ flex:2, background:T.brown, border:"none", color:"#fff", padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:12, cursor:"pointer", fontFamily:"Georgia,serif" }}>
+                    ✓ Save Request
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Floating Cart Button */}
           {cartItems.length > 0 && (
             <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:500, padding:"12px 16px 24px", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
@@ -1311,22 +1352,6 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                 </div>
               </div>
             ))}
-
-            {/* Special requests */}
-            {cartItems.some(i => DRINK_CATEGORIES.includes(i.category)) && (
-              <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, boxShadow:T.shadow }}>
-                <div style={{ fontSize:15, fontWeight:"bold", color:T.text, marginBottom:8 }}>☕ {t.drinksRequest}</div>
-                <input value={drinkRequest} onChange={e => setDrinkRequest(e.target.value)} placeholder={t.drinksPlaceholder}
-                  style={{ width:"100%", background:"#f9f9f9", border:`1.5px solid ${T.border}`, color:T.text, padding:"10px 12px", borderRadius:10, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box" }} />
-              </div>
-            )}
-            {cartItems.some(i => FOOD_CATEGORIES.includes(i.category)) && (
-              <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, boxShadow:T.shadow }}>
-                <div style={{ fontSize:15, fontWeight:"bold", color:T.text, marginBottom:8 }}>🍳 {t.foodRequest}</div>
-                <input value={foodRequest} onChange={e => setFoodRequest(e.target.value)} placeholder={t.foodPlaceholder}
-                  style={{ width:"100%", background:"#f9f9f9", border:`1.5px solid ${T.border}`, color:T.text, padding:"10px 12px", borderRadius:10, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box" }} />
-              </div>
-            )}
 
             {/* Total */}
             <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, boxShadow:T.shadow }}>
