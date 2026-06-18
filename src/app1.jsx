@@ -2024,61 +2024,79 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
   const [menuItems, setMenuItems] = useState([]);
   const [menuLoading, setMenuLoading] = useState(false);
   const [searchQ, setSearchQ] = useState("");
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState([]); // new items to add
   const [saving, setSaving] = useState(false);
-  const [activeOrders, setActiveOrders] = useState([]);
+  const [activeOrders, setActiveOrders] = useState([]); // existing orders on table
+  const [editTab, setEditTab] = useState("existing"); // "existing" | "add"
   const tableNo = pickedTable;
 
-  useEffect(() => {
-    if (step === "edit" && tableNo) {
-      setMenuLoading(true);
-      Promise.all([
-        supabase.from("menu_items").select("*").eq("available", true).order("category"),
-        supabase.from("orders").select("*").in("status",["pending","done"]).eq("table_no", String(tableNo))
-      ]).then(([{data:items},{data:orders}]) => {
-        setMenuItems(items||[]);
-        setActiveOrders(orders||[]);
-        setMenuLoading(false);
-      });
-    }
-  }, [step, tableNo]);
+  const loadData = () => {
+    if (!tableNo) return;
+    setMenuLoading(true);
+    Promise.all([
+      supabase.from("menu_items").select("*").order("item_no", { ascending:true }),
+      supabase.from("orders").select("*").in("status",["pending","done"]).eq("table_no", String(tableNo))
+    ]).then(([{data:items},{data:orders}]) => {
+      setMenuItems(items||[]);
+      setActiveOrders(orders||[]);
+      setMenuLoading(false);
+    });
+  };
+
+  useEffect(() => { if (step === "edit" && tableNo) loadData(); }, [step, tableNo]);
 
   const filtered = menuItems.filter(m => m.name.toLowerCase().includes(searchQ.toLowerCase()));
-  const grouped = CATEGORIES.reduce((acc, cat) => {
+  const cats = [...new Set(menuItems.map(m=>m.category))];
+  const grouped = cats.reduce((acc, cat) => {
     const items = filtered.filter(m => m.category === cat);
     if (items.length) acc[cat] = items;
     return acc;
   }, {});
 
-  const addToCart = (item) => {
-    setCart(prev => {
-      const existing = prev.find(c => c.name === item.name);
-      if (existing) return prev.map(c => c.name===item.name ? {...c, qty:c.qty+1} : c);
-      return [...prev, { name:item.name, price:parseFloat(item.price), qty:1, category:item.category }];
-    });
-  };
-  const removeFromCart = (name) => setCart(prev => prev.map(c => c.name===name ? {...c, qty:c.qty-1} : c).filter(c=>c.qty>0));
+  const addToCart = (item) => setCart(prev => {
+    const ex = prev.find(c=>c.name===item.name);
+    if (ex) return prev.map(c=>c.name===item.name?{...c,qty:c.qty+1}:c);
+    return [...prev,{name:item.name,price:parseFloat(item.price),qty:1,category:item.category||""}];
+  });
+  const removeFromCart = (name) => setCart(prev=>prev.map(c=>c.name===name?{...c,qty:c.qty-1}:c).filter(c=>c.qty>0));
   const cartTotal = cart.reduce((s,c)=>s+c.price*c.qty,0);
 
-  const saveOrder = async () => {
+  // Update qty of an item in an existing order
+  const updateExistingQty = async (order, itemIdx, delta) => {
+    const newItems = order.items.map((it,i) => i===itemIdx ? {...it,qty:Math.max(0,it.qty+delta)} : it).filter(it=>it.qty>0);
+    const newTotal = newItems.reduce((s,it)=>s+it.price*it.qty,0);
+    if (newItems.length===0) {
+      await supabase.from("orders").delete().eq("id",order.id);
+    } else {
+      await supabase.from("orders").update({items:newItems,total:newTotal}).eq("id",order.id);
+    }
+    loadData();
+    onSaved();
+  };
+
+  const cancelExistingOrder = async (orderId) => {
+    await supabase.from("orders").update({status:"cancelled"}).eq("id",orderId);
+    loadData();
+    onSaved();
+  };
+
+  const saveNewItems = async () => {
     if (!cart.length) return;
     setSaving(true);
     const maxSeq = activeOrders.reduce((m,o)=>Math.max(m,o.order_seq||0),0);
     const now = new Date();
     const timeStr = now.toLocaleString("en-MY",{hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
     await supabase.from("orders").insert({
-      table_no: tableNo,
-      items: cart,
-      total: cartTotal,
-      status: "pending",
-      order_seq: maxSeq + 1,
-      time: timeStr,
-      created_at: now.toISOString()
+      table_no: tableNo, items: cart, total: cartTotal,
+      status:"pending", order_seq:maxSeq+1, time:timeStr, created_at:now.toISOString()
     });
+    setCart([]);
     setSaving(false);
+    loadData();
     onSaved();
   };
 
+  // ── PICK TABLE ───────────────────────────────────────────────────────────
   if (step === "pick") {
     return (
       <div style={{ position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.9)",zIndex:10000,display:"flex",alignItems:"center",justifyContent:"center",padding:16 }}>
@@ -2090,8 +2108,8 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
           <div style={{ padding:20 }}>
             <div style={{ fontSize:12,color:C.muted,marginBottom:12,fontWeight:"bold" }}>DINE IN TABLES</div>
             <div style={{ display:"flex",flexWrap:"wrap",gap:10,marginBottom:20 }}>
-              {TABLES.map(t => (
-                <button key={t} onClick={() => { setPickedTable(t); setStep("edit"); }}
+              {TABLES.map(t=>(
+                <button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}}
                   style={btn({ background:"#2c1a0e",border:`2px solid ${C.gold}`,color:C.goldLight,padding:"14px 20px",fontSize:16,fontWeight:"bold",minWidth:60 })}>
                   {t}
                 </button>
@@ -2099,12 +2117,8 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
             </div>
             <div style={{ fontSize:12,color:C.muted,marginBottom:8,fontWeight:"bold" }}>TAKEAWAY</div>
             <div style={{ display:"flex",flexWrap:"wrap",gap:8 }}>
-              {TW_SLOTS.map(t=>(
-                <button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}} style={btn({ background:"#1a2c1a",border:`2px solid #5aaa5a`,color:"#aaffaa",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>{t}</button>
-              ))}
-              {ST_SLOTS.map(t=>(
-                <button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}} style={btn({ background:"#1a1a2c",border:`2px solid #5a5aff`,color:"#aaaaff",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>{t}</button>
-              ))}
+              {TW_SLOTS.map(t=>(<button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}} style={btn({ background:"#1a2c1a",border:`2px solid #5aaa5a`,color:"#aaffaa",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>{t}</button>))}
+              {ST_SLOTS.map(t=>(<button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}} style={btn({ background:"#1a1a2c",border:`2px solid #5a5aff`,color:"#aaaaff",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>{t}</button>))}
             </div>
           </div>
         </div>
@@ -2112,70 +2126,130 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
     );
   }
 
+  // ── EDIT TABLE ───────────────────────────────────────────────────────────
+  const tableLabel = isTakeaway(tableNo)?takeawayLabel(tableNo):`Table ${tableNo}`;
   return (
     <div style={{ position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.95)",zIndex:10000,display:"flex",flexDirection:"column" }}>
+      {/* Header */}
       <div style={{ background:"#2c1a0e",padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`2px solid ${C.gold}`,flexShrink:0 }}>
         <div>
-          <div style={{ fontSize:18,fontWeight:"bold",color:C.goldLight }}>✏️ Add Items — {isTakeaway(tableNo)?takeawayLabel(tableNo):`Table ${tableNo}`}</div>
-          <div style={{ fontSize:12,color:C.muted }}>Pick items to add to this table's bill</div>
+          <div style={{ fontSize:18,fontWeight:"bold",color:C.goldLight }}>✏️ {tableLabel}</div>
+          <div style={{ fontSize:12,color:C.muted }}>{activeOrders.length} order(s) on this table</div>
         </div>
         <button onClick={onClose} style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,width:40,height:40,fontSize:20,borderRadius:50 })}>✕</button>
       </div>
-      <div style={{ display:"flex",flex:1,overflow:"hidden" }}>
-        <div style={{ flex:1,overflowY:"auto",padding:12 }}>
-          <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Search menu..."
-            style={{ width:"100%",background:C.bg,border:`1px solid ${C.border}`,color:C.text,padding:"10px 14px",borderRadius:10,fontSize:14,fontFamily:"Georgia,serif",boxSizing:"border-box",marginBottom:12 }} />
-          {menuLoading ? <div style={{ color:C.muted,textAlign:"center",padding:40 }}>Loading menu…</div> : (
-            Object.entries(grouped).map(([cat, items]) => (
-              <div key={cat} style={{ marginBottom:16 }}>
-                <div style={{ fontSize:11,color:C.gold,fontWeight:"bold",letterSpacing:2,textTransform:"uppercase",marginBottom:8 }}>{cat}</div>
-                {items.map(item => {
-                  const inCart = cart.find(c=>c.name===item.name);
-                  return (
-                    <div key={item.id} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:inCart?"#2c1a0e":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:6,transition:"all 0.15s" }}>
-                      <div>
-                        <div style={{ color:C.text,fontSize:14,fontWeight:inCart?"bold":"normal" }}>{item.name}</div>
-                        <div style={{ color:C.gold,fontSize:13 }}>RM {parseFloat(item.price).toFixed(2)}</div>
-                      </div>
-                      <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                        {inCart && <button onClick={()=>removeFromCart(item.name)} style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:34,height:34,fontSize:20,borderRadius:8 })}>−</button>}
-                        {inCart && <span style={{ color:C.goldLight,fontWeight:"bold",minWidth:22,textAlign:"center",fontSize:15 }}>{inCart.qty}</span>}
-                        <button onClick={()=>addToCart(item)} style={btn({ background:C.gold,border:"none",color:C.dark,width:34,height:34,fontSize:20,borderRadius:8,fontWeight:"bold" })}>+</button>
-                      </div>
+
+      {/* Tabs */}
+      <div style={{ display:"flex",background:"#160e04",borderBottom:`2px solid ${C.border}`,flexShrink:0 }}>
+        {[["existing","📋 Current Orders"],["add","➕ Add Items"]].map(([key,label])=>(
+          <button key={key} onClick={()=>setEditTab(key)}
+            style={btn({ flex:1,background:"transparent",border:"none",borderBottom:editTab===key?`3px solid ${C.gold}`:"3px solid transparent",
+              color:editTab===key?C.goldLight:C.muted,padding:"12px 8px",fontSize:14,fontWeight:editTab===key?"bold":"normal",borderRadius:0 })}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {menuLoading ? (
+        <div style={{ color:C.muted,textAlign:"center",padding:60,fontSize:16 }}>Loading…</div>
+      ) : editTab==="existing" ? (
+        /* ── EXISTING ORDERS TAB ── */
+        <div style={{ flex:1,overflowY:"auto",padding:14 }}>
+          {activeOrders.length===0
+            ? <div style={{ color:C.muted,textAlign:"center",padding:40 }}>No current orders on this table</div>
+            : activeOrders.map(order=>(
+              <div key={order.id} style={{ background:order.status==="pending"?"#2c1a0e":"#1a2c1a",border:`2px solid ${order.status==="pending"?C.gold:"#5aaa5a"}`,borderRadius:14,padding:14,marginBottom:12 }}>
+                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
+                  <span style={{ background:order.status==="pending"?"#c8973a":"#2d6a2d",color:"#fff",borderRadius:8,padding:"3px 10px",fontSize:12,fontWeight:"bold" }}>
+                    {order.status==="pending"?"⏳ Pending":"✅ Served"}
+                  </span>
+                  <button onClick={()=>cancelExistingOrder(order.id)}
+                    style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",padding:"6px 12px",fontSize:12,fontWeight:"bold",borderRadius:8 })}>
+                    🗑️ Remove Order
+                  </button>
+                </div>
+                {order.items.map((item,ii)=>(
+                  <div key={ii} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}` }}>
+                    <div style={{ flex:1 }}>
+                      <div style={{ color:C.text,fontSize:14,fontWeight:"bold" }}>{item.name}</div>
+                      <div style={{ color:C.gold,fontSize:13 }}>RM {parseFloat(item.price).toFixed(2)} each</div>
                     </div>
-                  );
-                })}
+                    <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                      <button onClick={()=>updateExistingQty(order,ii,-1)}
+                        style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:34,height:34,fontSize:20,borderRadius:8,fontWeight:"bold" })}>−</button>
+                      <span style={{ color:C.goldLight,fontWeight:"bold",fontSize:16,minWidth:24,textAlign:"center" }}>{item.qty}</span>
+                      <button onClick={()=>updateExistingQty(order,ii,+1)}
+                        style={btn({ background:"#1a4a1a",border:"none",color:"#aaffaa",width:34,height:34,fontSize:20,borderRadius:8,fontWeight:"bold" })}>+</button>
+                      <span style={{ color:"#aaffaa",fontWeight:"bold",fontSize:13,minWidth:60,textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ textAlign:"right",marginTop:8,color:C.goldLight,fontWeight:"bold",fontSize:14 }}>
+                  Order Total: RM {order.items.reduce((s,i)=>s+i.price*i.qty,0).toFixed(2)}
+                </div>
               </div>
             ))
-          )}
+          }
         </div>
-        <div style={{ width:210,background:"#0f0a04",borderLeft:`2px solid ${C.border}`,display:"flex",flexDirection:"column",flexShrink:0 }}>
-          <div style={{ padding:"12px 14px",borderBottom:`1px solid ${C.border}`,fontSize:13,color:C.goldLight,fontWeight:"bold" }}>🛒 To Add</div>
-          <div style={{ flex:1,overflowY:"auto",padding:"8px 14px" }}>
-            {cart.length===0
-              ? <div style={{ color:C.muted,fontSize:12,textAlign:"center",padding:20 }}>No items selected</div>
-              : cart.map((item,i)=>(
-                <div key={i} style={{ marginBottom:10,paddingBottom:10,borderBottom:`1px solid ${C.border}` }}>
-                  <div style={{ color:C.text,fontSize:13 }}>{item.name}</div>
-                  <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4 }}>
-                    <span style={{ color:C.gold,fontSize:12 }}>×{item.qty} · RM {(item.price*item.qty).toFixed(2)}</span>
-                    <button onClick={()=>removeFromCart(item.name)} style={btn({ background:"transparent",border:"none",color:"#ff7777",fontSize:16,padding:"0 4px",cursor:"pointer" })}>✕</button>
-                  </div>
+      ) : (
+        /* ── ADD ITEMS TAB ── */
+        <div style={{ display:"flex",flex:1,overflow:"hidden" }}>
+          <div style={{ flex:1,overflowY:"auto",padding:12 }}>
+            <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Search menu..."
+              style={{ width:"100%",background:C.bg,border:`1px solid ${C.border}`,color:C.text,padding:"10px 14px",borderRadius:10,fontSize:14,fontFamily:"Georgia,serif",boxSizing:"border-box",marginBottom:12 }} />
+            {Object.keys(grouped).length===0
+              ? <div style={{ color:C.muted,textAlign:"center",padding:40 }}>No menu items found</div>
+              : Object.entries(grouped).map(([cat,items])=>(
+                <div key={cat} style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:11,color:C.gold,fontWeight:"bold",letterSpacing:2,textTransform:"uppercase",marginBottom:8 }}>{cat}</div>
+                  {items.map(item=>{
+                    const inCart=cart.find(c=>c.name===item.name);
+                    return (
+                      <div key={item.id} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:inCart?"#2c1a0e":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:6 }}>
+                        <div>
+                          <div style={{ color:C.text,fontSize:14,fontWeight:inCart?"bold":"normal" }}>{item.name}</div>
+                          <div style={{ color:C.gold,fontSize:13 }}>RM {parseFloat(item.price).toFixed(2)}</div>
+                        </div>
+                        <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                          {inCart&&<button onClick={()=>removeFromCart(item.name)} style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:34,height:34,fontSize:20,borderRadius:8 })}>−</button>}
+                          {inCart&&<span style={{ color:C.goldLight,fontWeight:"bold",minWidth:22,textAlign:"center",fontSize:15 }}>{inCart.qty}</span>}
+                          <button onClick={()=>addToCart(item)} style={btn({ background:C.gold,border:"none",color:C.dark,width:34,height:34,fontSize:20,borderRadius:8,fontWeight:"bold" })}>+</button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ))
             }
           </div>
-          <div style={{ padding:"12px 14px",borderTop:`2px solid ${C.border}` }}>
-            <div style={{ display:"flex",justifyContent:"space-between",fontSize:14,color:C.goldLight,fontWeight:"bold",marginBottom:10 }}>
-              <span>Total</span><span>RM {cartTotal.toFixed(2)}</span>
+          <div style={{ width:210,background:"#0f0a04",borderLeft:`2px solid ${C.border}`,display:"flex",flexDirection:"column",flexShrink:0 }}>
+            <div style={{ padding:"12px 14px",borderBottom:`1px solid ${C.border}`,fontSize:13,color:C.goldLight,fontWeight:"bold" }}>🛒 To Add</div>
+            <div style={{ flex:1,overflowY:"auto",padding:"8px 14px" }}>
+              {cart.length===0
+                ? <div style={{ color:C.muted,fontSize:12,textAlign:"center",padding:20 }}>No items selected</div>
+                : cart.map((item,i)=>(
+                  <div key={i} style={{ marginBottom:10,paddingBottom:10,borderBottom:`1px solid ${C.border}` }}>
+                    <div style={{ color:C.text,fontSize:13 }}>{item.name}</div>
+                    <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4 }}>
+                      <span style={{ color:C.gold,fontSize:12 }}>×{item.qty} · RM {(item.price*item.qty).toFixed(2)}</span>
+                      <button onClick={()=>removeFromCart(item.name)} style={btn({ background:"transparent",border:"none",color:"#ff7777",fontSize:16,padding:"0 4px" })}>✕</button>
+                    </div>
+                  </div>
+                ))
+              }
             </div>
-            <button onClick={saveOrder} disabled={!cart.length||saving}
-              style={btn({ width:"100%",background:cart.length?`linear-gradient(135deg,${C.gold},#a07020)`:"#333",border:"none",color:cart.length?C.dark:"#666",padding:"14px 0",fontSize:14,fontWeight:"bold",borderRadius:10,cursor:cart.length?"pointer":"not-allowed" })}>
-              {saving?"Saving…":"✅ Add to Bill"}
-            </button>
+            <div style={{ padding:"12px 14px",borderTop:`2px solid ${C.border}` }}>
+              <div style={{ display:"flex",justifyContent:"space-between",fontSize:14,color:C.goldLight,fontWeight:"bold",marginBottom:10 }}>
+                <span>Total</span><span>RM {cartTotal.toFixed(2)}</span>
+              </div>
+              <button onClick={saveNewItems} disabled={!cart.length||saving}
+                style={btn({ width:"100%",background:cart.length?`linear-gradient(135deg,${C.gold},#a07020)`:"#333",border:"none",color:cart.length?C.dark:"#666",padding:"14px 0",fontSize:14,fontWeight:"bold",borderRadius:10,cursor:cart.length?"pointer":"not-allowed" })}>
+                {saving?"Saving…":"✅ Add to Bill"}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
