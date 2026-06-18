@@ -610,6 +610,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     }
   }[lang];
   const [addonModal, setAddonModal] = useState(null); // {item, selectedAddons:[]}
+  const [itemModal, setItemModal] = useState(null); // {item, qty, note, selectedAddons, freeDrink}
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
@@ -709,31 +710,31 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     return () => supabase.removeChannel(ch);
   }, [tableNo]);
 
-  const addToCart = (item, freeDrink=null, selectedAddons=[]) => {
+  const addToCart = (item, freeDrink=null, selectedAddons=[], note="", qty=1) => {
     const addonPrice = selectedAddons.reduce((s,a) => {
       const usePromo = isPromoNow(item) && a.promo_price && parseFloat(a.promo_price) > 0;
       return s + parseFloat(usePromo ? a.promo_price : (a.price||0));
     }, 0);
-    // addon_required: price comes fully from addon (e.g. beer brand), base = 0
     const basePrice = item.addon_required ? 0 : parseFloat(item.price);
     const addonNames = selectedAddons.length > 0 ? (item.addon_required ? " " : " +") + selectedAddons.map(a=>a.name).join(" +") : "";
-    const cartKey = item.id + (selectedAddons.length > 0 ? "_" + selectedAddons.map(a=>a.name).join("_") : "");
-    const itemToAdd = { ...item, price: basePrice + addonPrice, name: item.name + addonNames, cartKey };
-    setCart(p => ({ ...p, [cartKey]: { ...itemToAdd, qty:(p[cartKey]?.qty||0)+1 } }));
+    const cartKey = item.id + (selectedAddons.length > 0 ? "_" + selectedAddons.map(a=>a.name).join("_") : "") + (note ? "_note_"+note.slice(0,20) : "");
+    const itemToAdd = { ...item, price: basePrice + addonPrice, name: item.name + addonNames, cartKey, note: note||"" };
+    setCart(p => ({ ...p, [cartKey]: { ...itemToAdd, qty:(p[cartKey]?.qty||0)+qty } }));
     if (freeDrink) {
       const drinkKey = `free_${item.id}`;
-      const freeItem = { id:drinkKey, name:`${freeDrink} (Free)`, price:0, qty:1, category:"Beverage", emoji:"☕", item_no:"" };
+      const freeItem = { id:drinkKey, name:`${freeDrink} (Free)`, price:0, qty:1, category:"Beverage", emoji:"☕", item_no:"", note:"" };
       setCart(p => ({ ...p, [drinkKey]: { ...freeItem, qty:1 } }));
     }
   };
   const handleAddItem = (item) => {
-    if (item.addons && item.addons.length > 0) {
-      setAddonModal({ item, selectedAddons:[], freeDrink: isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0 ? "" : null });
-    } else if (isPromoNow(item)) {
-      setPromoModal({ item, selectedDrink:"" });
-    } else {
-      addToCart(item);
-    }
+    const hasPromo = isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0;
+    setItemModal({
+      item,
+      qty: 1,
+      note: "",
+      selectedAddons: [],
+      freeDrink: hasPromo ? "" : null,
+    });
   };
   const removeFromCart = (key) => setCart(p => {
     const u = {...p};
@@ -776,7 +777,6 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         .gte("created_at", today + "T00:00:00").lt("created_at", today + "T23:59:59");
       const seq = String((count || 0) + 1).padStart(3, "0");
 
-      // Clean cart items for storage (remove internal keys)
       const cleanItems = (items) => items.map(i => { const {cartKey, basePrice, ...rest} = i; return rest; });
       const drinkItems = cleanItems(cartItems.filter(i => DRINK_CATEGORIES.includes(i.category)));
       const foodItems = cleanItems(cartItems.filter(i => FOOD_CATEGORIES.includes(i.category)));
@@ -1018,6 +1018,137 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
               )}
           </div>
 
+          {/* GrabFood-style Item Modal */}
+          {itemModal && (() => {
+            const item = itemModal.item;
+            const soldOut = item.is_available === false;
+            const hasAddons = item.addons && item.addons.length > 0;
+            const hasPromo = isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0;
+            const addonPrice = itemModal.selectedAddons.reduce((s,a) => {
+              const usePromo = isPromoNow(item) && a.promo_price && parseFloat(a.promo_price) > 0;
+              return s + parseFloat(usePromo ? a.promo_price : (a.price||0));
+            }, 0);
+            const basePrice = item.addon_required ? 0 : parseFloat(item.price);
+            const unitPrice = basePrice + addonPrice;
+            const totalPrice = unitPrice * itemModal.qty;
+            const canAdd = !soldOut && (!item.addon_required || itemModal.selectedAddons.length > 0);
+            return (
+              <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.65)", zIndex:1000, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={() => setItemModal(null)}>
+                <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:520, maxHeight:"92vh", overflowY:"auto", display:"flex", flexDirection:"column" }}>
+
+                  {/* Big photo / emoji */}
+                  <div style={{ position:"relative", flexShrink:0 }}>
+                    {item.image_url
+                      ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:240, objectFit:"cover" }} />
+                      : <div style={{ height:200, display:"flex", alignItems:"center", justifyContent:"center", fontSize:80, background:"#f9f9f9" }}>{item.emoji}</div>
+                    }
+                    {/* Close button */}
+                    <button onClick={() => setItemModal(null)} style={{ position:"absolute", top:14, left:14, background:"rgba(255,255,255,0.9)", border:"none", borderRadius:50, width:40, height:40, fontSize:20, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.2)", fontFamily:"Georgia,serif" }}>✕</button>
+                    {/* Best seller badge */}
+                    {item.is_best_seller && (
+                      <div style={{ position:"absolute", top:0, left:0, background:"#e8000d", color:"#fff", fontWeight:"bold", fontSize:10, padding:"6px 8px", borderRadius:"0 0 10px 0", textAlign:"center", lineHeight:1.3 }}>
+                        👍<br/>BEST<br/>SELLER
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div style={{ padding:"20px 20px 0" }}>
+                    {/* Name + price */}
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
+                      <div style={{ fontSize:22, fontWeight:"bold", color:T.text, flex:1, lineHeight:1.3, paddingRight:12 }}>{item.name}</div>
+                      <div style={{ fontSize:22, fontWeight:"bold", color:T.brown, flexShrink:0 }}>
+                        RM {unitPrice.toFixed(2)}
+                      </div>
+                    </div>
+                    {item.description && <div style={{ fontSize:14, color:T.muted, marginBottom:16, lineHeight:1.5 }}>{item.description}</div>}
+
+                    {/* Promo badge */}
+                    {hasPromo && (
+                      <div style={{ background:"#fff8e1", borderRadius:10, padding:"10px 14px", marginBottom:16 }}>
+                        <div style={{ fontSize:14, fontWeight:"bold", color:"#e65100" }}>🎉 {t.breakfastPromo}</div>
+                        <div style={{ fontSize:13, color:"#5a3a00" }}>{t.chooseFree}</div>
+                        {item.promo_drinks.map((drink, di) => (
+                          <div key={di} onClick={() => setItemModal(m=>({...m, freeDrink:drink}))}
+                            style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", marginTop:8, borderRadius:10, border:`2px solid ${itemModal.freeDrink===drink?T.brown:T.border}`, background:itemModal.freeDrink===drink?"#fff8f0":"#fff", cursor:"pointer" }}>
+                            <span style={{ fontSize:14, color:T.text }}>☕ {drink}</span>
+                            <span style={{ fontSize:13, color:T.green, fontWeight:"bold" }}>{t.free}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Addons */}
+                    {hasAddons && (
+                      <div style={{ marginBottom:16 }}>
+                        <div style={{ fontSize:14, fontWeight:"bold", color:T.text, marginBottom:10 }}>
+                          {item.addon_required ? t.selectOne : t.addExtras}
+                          {item.addon_required && <span style={{ background:"#ffeeee", color:T.red, fontSize:11, borderRadius:6, padding:"2px 8px", marginLeft:8 }}>Required</span>}
+                        </div>
+                        {item.addons.map((addon, ai) => {
+                          const selected = itemModal.selectedAddons.some(a => a.name === addon.name);
+                          const isRequired = item.addon_required;
+                          return (
+                            <div key={ai} onClick={() => { if (addon.sold_out) return; setItemModal(m => ({
+                              ...m,
+                              selectedAddons: isRequired ? [addon] : selected
+                                ? m.selectedAddons.filter(a => a.name !== addon.name)
+                                : [...m.selectedAddons, addon]
+                            }));}}
+                              style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px", marginBottom:8, borderRadius:12, border:`2px solid ${addon.sold_out?"#eee":selected?T.brown:T.border}`, background:addon.sold_out?"#f9f9f9":selected?"#fff8f0":"#fff", cursor:addon.sold_out?"not-allowed":"pointer", opacity:addon.sold_out?0.5:1 }}>
+                              <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                                <div style={{ width:26, height:26, borderRadius:isRequired?13:6, border:`2px solid ${selected?T.brown:T.border}`, background:selected?T.brown:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                                  {selected && <span style={{ color:"#fff", fontSize:16, fontWeight:"bold" }}>✓</span>}
+                                </div>
+                                <span style={{ fontSize:16, color:addon.sold_out?T.muted:T.text }}>{addon.name}</span>
+                              </div>
+                              <span style={{ fontSize:14, color:T.brown, fontWeight:"bold" }}>
+                                {parseFloat(addon.price||0) > 0 ? `+RM ${parseFloat(addon.price||0).toFixed(2)}` : ""}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Note to restaurant */}
+                    <div style={{ marginBottom:16 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                        <div style={{ fontSize:16, fontWeight:"bold", color:T.text }}>📝 Note to restaurant</div>
+                        <span style={{ background:"#f0f0f0", color:T.muted, fontSize:12, borderRadius:6, padding:"2px 8px" }}>Optional</span>
+                      </div>
+                      <textarea value={itemModal.note} onChange={e => setItemModal(m=>({...m, note:e.target.value}))}
+                        placeholder="e.g. no sugar, less ice, extra spicy..."
+                        rows={2}
+                        style={{ width:"100%", border:`1.5px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontSize:15, fontFamily:"Georgia,serif", color:T.text, resize:"none", boxSizing:"border-box", outline:"none" }} />
+                    </div>
+                  </div>
+
+                  {/* Qty + Add button sticky bottom */}
+                  <div style={{ padding:"16px 20px 28px", borderTop:`1px solid ${T.border}`, background:"#fff", flexShrink:0, display:"flex", alignItems:"center", gap:16 }}>
+                    {/* Qty controls */}
+                    <div style={{ display:"flex", alignItems:"center", gap:0, border:`2px solid ${T.border}`, borderRadius:50, overflow:"hidden" }}>
+                      <button onClick={() => setItemModal(m=>({...m, qty:Math.max(1,m.qty-1)}))}
+                        style={{ background:itemModal.qty<=1?"#f5f5f5":"#fff", border:"none", color:itemModal.qty<=1?T.muted:T.brown, width:46, height:46, fontSize:26, fontWeight:"bold", cursor:itemModal.qty<=1?"not-allowed":"pointer", fontFamily:"Georgia,serif" }}>−</button>
+                      <span style={{ width:42, textAlign:"center", fontSize:20, fontWeight:"bold", color:T.text, fontFamily:"Georgia,serif" }}>{itemModal.qty}</span>
+                      <button onClick={() => setItemModal(m=>({...m, qty:m.qty+1}))}
+                        style={{ background:T.brown, border:"none", color:"#fff", width:46, height:46, fontSize:26, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>+</button>
+                    </div>
+                    {/* Add to order button */}
+                    <button onClick={() => {
+                      if (!canAdd) return;
+                      addToCart(item, itemModal.freeDrink||null, itemModal.selectedAddons, itemModal.note, itemModal.qty);
+                      setItemModal(null);
+                    }} disabled={!canAdd}
+                      style={{ flex:1, background:canAdd?T.green:"#ccc", border:"none", color:"#fff", padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:50, cursor:canAdd?"pointer":"not-allowed", fontFamily:"Georgia,serif", boxShadow:canAdd?"0 4px 12px rgba(46,125,50,0.35)":"none" }}>
+                      {!canAdd && item.addon_required ? t.pleaseSelect : `Add to Order — RM ${totalPrice.toFixed(2)}`}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Add-ons Modal */}
           {addonModal && (
             <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:1000, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
@@ -1117,52 +1248,83 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             </div>
           )}
 
-          {/* Cart bar */}
+          {/* Floating Cart Button */}
           {cartItems.length > 0 && (
-            <div style={{ background:"#fff", borderTop:`2px solid ${T.brown}`, flexShrink:0, boxShadow:"0 -2px 10px rgba(0,0,0,0.08)" }}>
-              <div style={{ maxHeight:130, overflowY:"auto", padding:"8px 14px" }}>
-                {cartItems.map(item => (
-                  <div key={item.cartKey||item.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-                    <div style={{ flex:1 }}>
-                      <span style={{ fontSize:15, color:T.text }}>{item.name}</span>
-                    </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <button onClick={() => removeFromCart(item.cartKey||item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#f5f5f5", border:`1px solid ${T.border}`, color:T.brown, width:28, height:28, fontSize:16, borderRadius:6 }}>−</button>
-                      <span style={{ fontSize:15, color:T.brown, fontWeight:"bold", minWidth:20, textAlign:"center" }}>{item.qty}</span>
-                      <button onClick={() => setCart(p => ({ ...p, [item.cartKey||item.id]: { ...p[item.cartKey||item.id], qty:p[item.cartKey||item.id].qty+1 } }))} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", width:28, height:28, fontSize:16, fontWeight:"bold", borderRadius:6 }}>+</button>
-                      <button onClick={() => clearItem(item.cartKey||item.id)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", color:T.red, fontSize:20, padding:"0 2px" }}>×</button>
-                      <span style={{ fontSize:14, color:T.brown, fontWeight:"bold", minWidth:55, textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ padding:"10px 14px", borderTop:`1px solid ${T.border}` }}>
-                {cartItems.some(i => DRINK_CATEGORIES.includes(i.category)) && (
-                  <div style={{ marginBottom:8 }}>
-                    <div style={{ fontSize:13, color:T.muted, marginBottom:4 }}>☕ Drinks Special Request</div>
-                    <input value={drinkRequest} onChange={e => setDrinkRequest(e.target.value)} placeholder={t.drinksPlaceholder}
-                      style={{ width:"100%", background:"#f9f9f9", border:`1px solid ${T.border}`, color:T.text, padding:"8px 12px", borderRadius:8, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box" }} />
-                  </div>
-                )}
-                {cartItems.some(i => FOOD_CATEGORIES.includes(i.category)) && (
-                  <div style={{ marginBottom:8 }}>
-                    <div style={{ fontSize:13, color:T.muted, marginBottom:4 }}>🍳 Food Special Request</div>
-                    <input value={foodRequest} onChange={e => setFoodRequest(e.target.value)} placeholder={t.foodPlaceholder}
-                      style={{ width:"100%", background:"#f9f9f9", border:`1px solid ${T.border}`, color:T.text, padding:"8px 12px", borderRadius:8, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box" }} />
-                  </div>
-                )}
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                  <div>
-                    <div style={{ fontSize:13, color:T.muted }}>{t.total}</div>
-                    <div style={{ fontSize:24, color:T.brown, fontWeight:"bold" }}>RM {total.toFixed(2)}</div>
-                  </div>
-                  <button onClick={placeOrder} disabled={isSubmitting} style={{ fontFamily:"Georgia,serif", cursor:isSubmitting?"not-allowed":"pointer", background:isSubmitting?"#a0836a":T.brown, border:"none", color:"#fff", padding:"14px 28px", fontSize:18, fontWeight:"bold", borderRadius:12, opacity:isSubmitting?0.7:1, transition:"all 0.2s" }}>
-                    {isSubmitting ? t.placing : t.placeOrder}
-                  </button>
-                </div>
-              </div>
+            <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:500, padding:"12px 16px 24px", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
+              <button onClick={() => setView("cart")}
+                style={{ width:"100%", maxWidth:500, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", background:T.green, border:"none", color:"#fff", padding:"16px 20px", fontSize:17, fontWeight:"bold", borderRadius:16, cursor:"pointer", fontFamily:"Georgia,serif", boxShadow:"0 4px 20px rgba(46,125,50,0.4)" }}>
+                <span style={{ background:"rgba(255,255,255,0.25)", borderRadius:8, padding:"2px 10px", fontSize:16 }}>{cartItems.reduce((s,i)=>s+i.qty,0)}</span>
+                <span>View Cart</span>
+                <span>RM {total.toFixed(2)}</span>
+              </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* CART VIEW */}
+      {view === "cart" && (
+        <div style={{ flex:1, overflowY:"auto", background:T.bg }}>
+          {/* Header */}
+          <div style={{ background:"#fff", padding:"16px 16px 12px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", gap:12 }}>
+            <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", fontSize:26, color:T.brown, padding:0 }}>←</button>
+            <div style={{ fontSize:20, fontWeight:"bold", color:T.text }}>Your Order</div>
+            <span style={{ background:T.green, color:"#fff", borderRadius:20, padding:"2px 10px", fontSize:14, fontWeight:"bold" }}>{cartItems.reduce((s,i)=>s+i.qty,0)} items</span>
+          </div>
+
+          <div style={{ padding:"16px 16px 140px" }}>
+            {/* Cart items */}
+            {cartItems.map(item => (
+              <div key={item.cartKey||item.id} style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, boxShadow:T.shadow }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:item.note?6:0 }}>
+                  <div style={{ flex:1, paddingRight:10 }}>
+                    <div style={{ fontSize:16, fontWeight:"bold", color:T.text }}>{item.name}</div>
+                    <div style={{ fontSize:14, color:T.brown, fontWeight:"bold", marginTop:2 }}>RM {(item.price*item.qty).toFixed(2)}</div>
+                    {item.note && <div style={{ fontSize:13, color:T.orange, marginTop:4 }}>📝 {item.note}</div>}
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:0, border:`2px solid ${T.border}`, borderRadius:50, overflow:"hidden" }}>
+                    <button onClick={() => removeFromCart(item.cartKey||item.id)}
+                      style={{ background:"#fff", border:"none", color:T.brown, width:38, height:38, fontSize:22, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>−</button>
+                    <span style={{ width:36, textAlign:"center", fontSize:17, fontWeight:"bold", color:T.text, fontFamily:"Georgia,serif" }}>{item.qty}</span>
+                    <button onClick={() => setCart(p => ({ ...p, [item.cartKey||item.id]: { ...p[item.cartKey||item.id], qty:p[item.cartKey||item.id].qty+1 } }))}
+                      style={{ background:T.brown, border:"none", color:"#fff", width:38, height:38, fontSize:22, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>+</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Special requests */}
+            {cartItems.some(i => DRINK_CATEGORIES.includes(i.category)) && (
+              <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, boxShadow:T.shadow }}>
+                <div style={{ fontSize:15, fontWeight:"bold", color:T.text, marginBottom:8 }}>☕ {t.drinksRequest}</div>
+                <input value={drinkRequest} onChange={e => setDrinkRequest(e.target.value)} placeholder={t.drinksPlaceholder}
+                  style={{ width:"100%", background:"#f9f9f9", border:`1.5px solid ${T.border}`, color:T.text, padding:"10px 12px", borderRadius:10, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box" }} />
+              </div>
+            )}
+            {cartItems.some(i => FOOD_CATEGORIES.includes(i.category)) && (
+              <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, boxShadow:T.shadow }}>
+                <div style={{ fontSize:15, fontWeight:"bold", color:T.text, marginBottom:8 }}>🍳 {t.foodRequest}</div>
+                <input value={foodRequest} onChange={e => setFoodRequest(e.target.value)} placeholder={t.foodPlaceholder}
+                  style={{ width:"100%", background:"#f9f9f9", border:`1.5px solid ${T.border}`, color:T.text, padding:"10px 12px", borderRadius:10, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box" }} />
+              </div>
+            )}
+
+            {/* Total */}
+            <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, boxShadow:T.shadow }}>
+              <div style={{ display:"flex", justifyContent:"space-between", fontSize:18, fontWeight:"bold", color:T.text }}>
+                <span>{t.total}</span>
+                <span style={{ color:T.brown }}>RM {total.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Sticky Place Order button */}
+          <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px 28px", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
+            <button onClick={placeOrder} disabled={isSubmitting}
+              style={{ width:"100%", maxWidth:500, display:"block", margin:"0 auto", background:isSubmitting?"#a0836a":T.green, border:"none", color:"#fff", padding:"18px 0", fontSize:19, fontWeight:"bold", borderRadius:16, cursor:isSubmitting?"not-allowed":"pointer", fontFamily:"Georgia,serif", boxShadow:"0 4px 20px rgba(46,125,50,0.4)" }}>
+              {isSubmitting ? t.placing : `✓ ${t.placeOrder} · RM ${total.toFixed(2)}`}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -1376,12 +1538,12 @@ function KitchenScreen({ goHome }) {
               </div>
               <div style={{ flex:1 }}>
                 {order.items.map((item,i) => (
-                  <div key={i} style={{ marginBottom:6 }}>
+                  <div key={i} style={{ marginBottom:8 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", fontSize:14 }}>
                       <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
                       <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                     </div>
-
+                    {item.note && <div style={{ fontSize:12, color:"#ffcc44", background:"#2a1a00", borderRadius:6, padding:"4px 8px", marginTop:3 }}>📝 {item.note}</div>}
                   </div>
                 ))}
                 {getFoodReq(order.special_request) && (
@@ -1545,12 +1707,15 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                   <div key={oi} style={{ marginBottom:12, paddingBottom:12, borderBottom: oi < drinkOrders.length-1 ? `1px solid #3a2a10` : "none" }}>
                     {order.order_seq && <div style={{ marginBottom:6 }}><span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:"bold" }}>#{order.order_seq}</span></div>}
                     {drinkItems.map((item, ii) => (
-                      <div key={ii} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderTop: ii>0 ? `1px solid #2a1a08` : "none" }}>
-                        <span style={{ color:isPending?"#eee":"#5aaa5a", fontSize:15 }}>
-                          {item.item_no && <span style={{ color:"#5aaa5a", fontWeight:"bold", marginRight:5 }}>{item.item_no}</span>}
-                          {item.name} <span style={{ color:C.gold, fontWeight:"bold", marginLeft:6 }}>×{item.qty}</span>
-                        </span>
-                        <span style={{ color:"#5aaa5a", fontWeight:"bold", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                      <div key={ii} style={{ padding:"8px 0", borderTop: ii>0 ? `1px solid #2a1a08` : "none" }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                          <span style={{ color:isPending?"#eee":"#5aaa5a", fontSize:15 }}>
+                            {item.item_no && <span style={{ color:"#5aaa5a", fontWeight:"bold", marginRight:5 }}>{item.item_no}</span>}
+                            {item.name} <span style={{ color:C.gold, fontWeight:"bold", marginLeft:6 }}>×{item.qty}</span>
+                          </span>
+                          <span style={{ color:"#5aaa5a", fontWeight:"bold", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                        </div>
+                        {item.note && <div style={{ fontSize:12, color:"#ffcc44", background:"#2a1a00", borderRadius:6, padding:"3px 8px", marginTop:3 }}>📝 {item.note}</div>}
                       </div>
                     ))}
                     {getDrinkReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getDrinkReq(order.special_request)}</div>}
