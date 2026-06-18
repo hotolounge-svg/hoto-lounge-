@@ -1260,38 +1260,6 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             </div>
           )}
 
-          {/* Cart Item Note Edit Modal */}
-          {cartEditModal && (
-            <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:2000, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-              <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:24, width:"100%", maxWidth:500 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                  <div style={{ fontSize:17, fontWeight:"bold", color:T.brown }}>📝 Note for this item</div>
-                  <button onClick={() => setCartEditModal(null)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", fontSize:24, color:T.muted }}>×</button>
-                </div>
-                <div style={{ fontSize:13, color:T.muted, marginBottom:12 }}>{cartEditModal.name}</div>
-                <textarea
-                  value={cartEditModal.note}
-                  onChange={e => setCartEditModal(m => ({...m, note:e.target.value}))}
-                  placeholder="e.g. change to cold, no sugar, less ice..."
-                  rows={3} autoFocus
-                  style={{ width:"100%", border:`1.5px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, resize:"none", boxSizing:"border-box", outline:"none", marginBottom:16 }}
-                />
-                <div style={{ display:"flex", gap:10 }}>
-                  <button onClick={() => setCartEditModal(null)}
-                    style={{ flex:1, background:"#f5f5f5", border:`1px solid ${T.border}`, color:T.muted, padding:"14px 0", fontSize:15, borderRadius:12, cursor:"pointer", fontFamily:"Georgia,serif" }}>Cancel</button>
-                  <button onClick={() => {
-                    const key = cartEditModal.cartKey;
-                    setCart(p => ({ ...p, [key]: { ...p[key], note: cartEditModal.note.trim() } }));
-                    setCartEditModal(null);
-                  }}
-                    style={{ flex:2, background:T.brown, border:"none", color:"#fff", padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:12, cursor:"pointer", fontFamily:"Georgia,serif" }}>
-                    ✓ Save Note
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Floating Cart Button */}
           {cartItems.length > 0 && (
             <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:500, padding:"12px 16px 24px", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
@@ -1370,7 +1338,39 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         </div>
       )}
 
-      {/* Edit Request Modal — global, works from any view */}
+      {/* Cart Item Note Edit Modal — global */}
+      {cartEditModal && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:3000, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+          <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:24, width:"100%", maxWidth:500 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+              <div style={{ fontSize:17, fontWeight:"bold", color:T.brown }}>📝 Note for this item</div>
+              <button onClick={() => setCartEditModal(null)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", fontSize:24, color:T.muted }}>×</button>
+            </div>
+            <div style={{ fontSize:13, color:T.muted, marginBottom:12 }}>{cartEditModal.name}</div>
+            <textarea
+              value={cartEditModal.note}
+              onChange={e => setCartEditModal(m => ({...m, note:e.target.value}))}
+              placeholder="e.g. change to cold, no sugar, less ice..."
+              rows={3} autoFocus
+              style={{ width:"100%", border:`1.5px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, resize:"none", boxSizing:"border-box", outline:"none", marginBottom:16 }}
+            />
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => setCartEditModal(null)}
+                style={{ flex:1, background:"#f5f5f5", border:`1px solid ${T.border}`, color:T.muted, padding:"14px 0", fontSize:15, borderRadius:12, cursor:"pointer", fontFamily:"Georgia,serif" }}>Cancel</button>
+              <button onClick={() => {
+                const key = cartEditModal.cartKey;
+                setCart(p => ({ ...p, [key]: { ...p[key], note: cartEditModal.note.trim() } }));
+                setCartEditModal(null);
+              }}
+                style={{ flex:2, background:T.brown, border:"none", color:"#fff", padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:12, cursor:"pointer", fontFamily:"Georgia,serif" }}>
+                ✓ Save Note
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Request Modal — global */}
       {editRequestModal && (
         <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:3000, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
           <div style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:24, width:"100%", maxWidth:500 }}>
