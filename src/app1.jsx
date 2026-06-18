@@ -1608,17 +1608,10 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
           <span>TOTAL</span><span>RM {data.total.toFixed(2)}</span>
         </div>
-        <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-          {[["💵","Cash"],["📱","QR DuitNow"],["💳","Credit Card"]].map(([icon,method]) => (
-            <button key={method} onClick={() => setPayModal({tableNo, data, method, cashReceived:""})} disabled={paying===tableNo}
-              style={btn({ flex:1, background:method==="Cash"?"#1a3a1a":method==="QR DuitNow"?"#1a2a4a":"#3a1a2a",
-                border:`1px solid ${method==="Cash"?"#5aaa5a":method==="QR DuitNow"?"#5a7aaa":"#aa5a7a"}`,
-                color:method==="Cash"?"#aaffaa":method==="QR DuitNow"?"#aaccff":"#ffaacc",
-                padding:"10px 4px", fontSize:11, fontWeight:"bold", cursor:"pointer", minHeight:52, lineHeight:1.4 })}>
-              {icon}<br/>{method}
-            </button>
-          ))}
-        </div>
+        <button onClick={() => setPayModal({tableNo, data, method:"QR DuitNow", cashReceived:""})} disabled={paying===tableNo}
+          style={btn({ width:"100%", background:"linear-gradient(135deg,#1976d2,#0d47a1)", border:"none", color:"#fff", padding:"16px 0", fontSize:17, fontWeight:"bold", cursor:"pointer", marginBottom:8, borderRadius:10, boxShadow:"0 4px 12px rgba(25,118,210,0.35)" })}>
+          💳 Collect Payment
+        </button>
         <button onClick={() => printReceipt(tableNo, data, null, null, null)}
           style={btn({ width:"100%", background:"#3a2a10", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"10px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" })}>
           🖨️ Print Bill (Preview)
@@ -1883,78 +1876,93 @@ function CashierScreen({ goHome }) {
         const roundingDiff = +(rounded - grandTotal).toFixed(2);
         const cash = parseFloat(payModal.cashReceived)||0;
         const change = +(cash - rounded).toFixed(2);
-        const icon = payModal.method==="Cash"?"💵":payModal.method==="QR DuitNow"?"📱":"💳";
         const canConfirm = payModal.method!=="Cash" || (!!payModal.cashReceived && cash >= rounded);
+        const tableLabel = isTakeaway(payModal.tableNo) ? takeawayLabel(payModal.tableNo) : `Table ${payModal.tableNo}`;
+        const orderType = String(payModal.tableNo).startsWith("TW-") ? "Takeaway (Pack & Go)" : String(payModal.tableNo).startsWith("ST-") ? "Takeaway (Eat Here)" : "Dine In";
         return (
-          <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-            <div style={{ background:"#fff", borderRadius:16, padding:24, width:"100%", maxWidth:360, color:"#1a1a1a" }}>
+          <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16, overflowY:"auto" }}>
+            <div style={{ background:"#fff", borderRadius:20, width:"100%", maxWidth:420, color:"#1a1a1a", overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,0.5)", margin:"auto" }}>
+
               {/* Header */}
-              <div style={{ fontSize:15, fontWeight:"bold", color:"#555", marginBottom:4 }}>
-                {icon} {payModal.method} — {isTakeaway(payModal.tableNo) ? takeawayLabel(payModal.tableNo) : `Table ${payModal.tableNo}`}
-              </div>
-              <div style={{ fontSize:11, color:"#999", marginBottom:16 }}>Order type: {String(payModal.tableNo).startsWith("TW-") ? "Takeaway (Pack & Go)" : String(payModal.tableNo).startsWith("ST-") ? "Takeaway (Eat Here)" : "Dine In"}</div>
-
-              {/* Items */}
-              {[...(payModal.data.pending||[]),...(payModal.data.done||[])].flatMap(o=>o.items).map((item,i)=>(
-                <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:14, marginBottom:6 }}>
-                  <span style={{ color:"#333" }}>{item.name} ×{item.qty}</span>
-                  <span style={{ color:"#333", fontWeight:"bold" }}>{(item.price*item.qty).toFixed(2)}</span>
-                </div>
-              ))}
-
-              {/* Totals */}
-              <div style={{ borderTop:"1px solid #eee", marginTop:12, paddingTop:12 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", fontSize:14, color:"#666", marginBottom:6 }}>
-                  <span>Subtotal</span><span>{subtotal.toFixed(2)}</span>
-                </div>
-                {charge>0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:14, color:"#666", marginBottom:6 }}>
-                  <span>Tax and charges ({charge}%)</span><span>{chargeAmt.toFixed(2)}</span>
-                </div>}
-                <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#aaa", marginBottom:4 }}>
-                  <span>Before rounding</span><span>{grandTotal.toFixed(2)}</span>
-                </div>
-                {roundingDiff!==0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#aaa", marginBottom:4 }}>
-                  <span>Rounding</span><span>{roundingDiff>0?"+":""}{roundingDiff.toFixed(2)}</span>
-                </div>}
-              </div>
-              <div style={{ display:"flex", justifyContent:"space-between", fontSize:20, fontWeight:"bold", color:"#1a1a1a", marginTop:10, paddingTop:10, borderTop:"2px solid #eee" }}>
-                <span>Total</span><span>RM {rounded}</span>
+              <div style={{ background:"linear-gradient(135deg,#1976d2,#0d47a1)", padding:"20px 24px" }}>
+                <div style={{ fontSize:13, color:"rgba(255,255,255,0.75)", fontFamily:"Georgia,serif" }}>{orderType}</div>
+                <div style={{ fontSize:22, fontWeight:"bold", color:"#fff", fontFamily:"Georgia,serif", marginTop:2 }}>💳 {tableLabel}</div>
+                <div style={{ fontSize:32, fontWeight:"bold", color:"#fff", marginTop:6, fontFamily:"Georgia,serif" }}>RM {rounded}</div>
               </div>
 
-              {/* Cash input */}
-              {payModal.method==="Cash" && (
-                <div style={{ marginTop:14 }}>
-                  <div style={{ fontSize:12, color:"#888", marginBottom:6 }}>Cash Received (RM)</div>
-                  <input type="number" step="0.05" min="0" autoFocus value={payModal.cashReceived}
-                    onChange={e => setPayModal(m=>({...m, cashReceived:e.target.value}))}
-                    placeholder={`e.g. ${Math.ceil(rounded/5)*5}.00`}
-                    style={{ width:"100%", border:"2px solid #1976d2", borderRadius:8, padding:"10px 14px", fontSize:22, textAlign:"right", boxSizing:"border-box", color:"#1a1a1a" }} />
-                  {cash >= rounded && (
-                    <div style={{ marginTop:8, background:"#e8f5e9", borderRadius:8, padding:"10px 14px", display:"flex", justifyContent:"space-between" }}>
-                      <span style={{ color:"#2e7d32", fontSize:14, fontWeight:"bold" }}>Change</span>
-                      <span style={{ color:"#2e7d32", fontSize:22, fontWeight:"bold" }}>RM {change.toFixed(2)}</span>
+              <div style={{ padding:"20px 24px" }}>
+                {/* Payment method selector */}
+                <div style={{ fontSize:11, color:"#888", marginBottom:10, fontFamily:"Georgia,serif", fontWeight:"bold", letterSpacing:1 }}>SELECT PAYMENT METHOD</div>
+                <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+                  {[["💵","Cash","#e8f5e9","#2e7d32"],["📱","QR DuitNow","#e3f2fd","#1565c0"],["💳","Credit Card","#fce4ec","#c62828"]].map(([icon,method,bg,color]) => (
+                    <button key={method} onClick={() => setPayModal(m=>({...m, method, cashReceived:""}))}
+                      style={{ flex:1, background:payModal.method===method?bg:"#f9f9f9", border:`2px solid ${payModal.method===method?color:"#eee"}`, color:payModal.method===method?color:"#aaa", padding:"12px 4px", fontSize:11, fontWeight:"bold", borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", lineHeight:1.6, transition:"all 0.15s" }}>
+                      <div style={{ fontSize:22 }}>{icon}</div>{method}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Items */}
+                <div style={{ background:"#f9f9f9", borderRadius:10, padding:"10px 14px", marginBottom:12, maxHeight:180, overflowY:"auto" }}>
+                  {[...(payModal.data.pending||[]),...(payModal.data.done||[])].flatMap(o=>o.items).map((item,i)=>(
+                    <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:5, fontFamily:"Georgia,serif" }}>
+                      <span style={{ color:"#333" }}>{item.name} ×{item.qty}</span>
+                      <span style={{ color:"#333", fontWeight:"bold" }}>{(item.price*item.qty).toFixed(2)}</span>
                     </div>
-                  )}
+                  ))}
                 </div>
-              )}
 
-              {/* Buttons */}
-              <div style={{ display:"flex", gap:8, marginTop:16, flexDirection:"column" }}>
-                <div style={{ display:"flex", gap:8 }}>
-                  <button onClick={() => setPayModal(null)}
-                    style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"12px 0", fontSize:13, borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif" }}>Cancel</button>
-                  <button onClick={() => { printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null); }}
-                    style={{ flex:2, background:"#555", border:"none", color:"#fff", padding:"12px 0", fontSize:13, borderRadius:8, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
-                    🖨️ Preview Receipt
+                {/* Totals */}
+                <div style={{ borderTop:"1px solid #eee", paddingTop:10, marginBottom:12 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#666", marginBottom:4, fontFamily:"Georgia,serif" }}>
+                    <span>Subtotal</span><span>{subtotal.toFixed(2)}</span>
+                  </div>
+                  {charge>0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#666", marginBottom:4, fontFamily:"Georgia,serif" }}>
+                    <span>Service Charge ({charge}%)</span><span>{chargeAmt.toFixed(2)}</span>
+                  </div>}
+                  {roundingDiff!==0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#aaa", marginBottom:4, fontFamily:"Georgia,serif" }}>
+                    <span>Rounding</span><span>{roundingDiff>0?"+":""}{roundingDiff.toFixed(2)}</span>
+                  </div>}
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:20, fontWeight:"bold", color:"#1976d2", marginTop:8, paddingTop:8, borderTop:"2px solid #eee", fontFamily:"Georgia,serif" }}>
+                    <span>TOTAL</span><span>RM {rounded}</span>
+                  </div>
+                </div>
+
+                {/* Cash input */}
+                {payModal.method==="Cash" && (
+                  <div style={{ marginBottom:12 }}>
+                    <div style={{ fontSize:12, color:"#888", marginBottom:6, fontFamily:"Georgia,serif" }}>Cash Received (RM)</div>
+                    <input type="number" step="0.05" min="0" autoFocus value={payModal.cashReceived}
+                      onChange={e => setPayModal(m=>({...m, cashReceived:e.target.value}))}
+                      placeholder={`e.g. ${Math.ceil(rounded/5)*5}.00`}
+                      style={{ width:"100%", border:"2px solid #1976d2", borderRadius:8, padding:"10px 14px", fontSize:22, textAlign:"right", boxSizing:"border-box", color:"#1a1a1a" }} />
+                    {cash >= rounded && (
+                      <div style={{ marginTop:8, background:"#e8f5e9", borderRadius:8, padding:"10px 14px", display:"flex", justifyContent:"space-between" }}>
+                        <span style={{ color:"#2e7d32", fontSize:14, fontWeight:"bold", fontFamily:"Georgia,serif" }}>Change</span>
+                        <span style={{ color:"#2e7d32", fontSize:22, fontWeight:"bold", fontFamily:"Georgia,serif" }}>RM {change.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Buttons */}
+                <div style={{ display:"flex", gap:8, flexDirection:"column" }}>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={() => setPayModal(null)}
+                      style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"12px 0", fontSize:13, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif" }}>✕ Cancel</button>
+                    <button onClick={() => { printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null); }}
+                      style={{ flex:2, background:"#555", border:"none", color:"#fff", padding:"12px 0", fontSize:13, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
+                      🖨️ Preview Receipt
+                    </button>
+                  </div>
+                  <button onClick={() => {
+                    if (!canConfirm) return;
+                    setConfirmModal({ tableNo:payModal.tableNo, data:payModal.data, method:payModal.method, cashReceived:payModal.cashReceived||null, change:payModal.method==="Cash"&&change>=0?change:null, rounded });
+                  }} disabled={!canConfirm}
+                    style={{ width:"100%", background:canConfirm?"linear-gradient(135deg,#1976d2,#0d47a1)":"#ccc", border:"none", color:"#fff", padding:"16px 0", fontSize:16, borderRadius:10, cursor:canConfirm?"pointer":"not-allowed", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:canConfirm?"0 4px 12px rgba(25,118,210,0.4)":"none" }}>
+                    {payModal.method==="Cash"&&!canConfirm?"Enter Cash Amount Above ↑":`✅ Print & Clear Table — RM ${rounded}`}
                   </button>
                 </div>
-                <button onClick={() => {
-                  if (!canConfirm) return;
-                  setConfirmModal({ tableNo:payModal.tableNo, data:payModal.data, method:payModal.method, cashReceived:payModal.cashReceived||null, change:payModal.method==="Cash"&&change>=0?change:null, rounded });
-                }} disabled={!canConfirm}
-                  style={{ width:"100%", background:canConfirm?"#1976d2":"#ccc", border:"none", color:"#fff", padding:"14px 0", fontSize:16, borderRadius:8, cursor:canConfirm?"pointer":"not-allowed", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
-                  {payModal.method==="Cash"&&!canConfirm?"Enter Amount Above ↑":`✅ Print & Clear Table — RM ${rounded}`}
-                </button>
               </div>
             </div>
           </div>
