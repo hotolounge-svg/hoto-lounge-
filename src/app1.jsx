@@ -913,14 +913,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     {order.special_request && (
                       <div style={{ fontSize:13, color:T.orange, marginTop:6 }}>📝 {order.special_request}</div>
                     )}
-                    <div style={{ borderTop:`1px solid ${isPending?T.border:T.green}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div style={{ borderTop:`1px solid ${isPending?T.border:T.green}`, marginTop:10, paddingTop:10 }}>
                       <span style={{ color:isPending?T.brown:T.green, fontWeight:"bold", fontSize:18 }}>RM {order.total.toFixed(2)}</span>
-                      {isPending && (
-                        <button onClick={() => setEditRequestModal({ orderId:order.id, request:order.special_request||"" })}
-                          style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff8f0", border:`1.5px solid ${T.brown}`, color:T.brown, padding:"8px 14px", fontSize:13, fontWeight:"bold", borderRadius:10 }}>
-                          📝 {order.special_request ? "Edit Request" : "+ Add Request"}
-                        </button>
-                      )}
                     </div>
                   </div>
                 );
