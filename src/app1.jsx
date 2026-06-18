@@ -2203,7 +2203,8 @@ function CashierScreen({ goHome }) {
     setPaying(tableNo);
     const sessionId = "paid_" + Date.now();
     const paidAt = new Date().toISOString();
-    await supabase.from("orders").update({status:"paid", paid_session_id: sessionId, paid_at: paidAt}).eq("table_no",tableNo).in("status",["pending","done"]);
+    // Only update status — paid_session_id/paid_at columns may not exist in DB
+    await supabase.from("orders").update({status:"paid"}).eq("table_no",tableNo).in("status",["pending","done"]);
     await supabase.from("table_sessions").upsert({table_no:parseInt(tableNo), session_id:sessionId, updated_at:paidAt});
     setPaying(null); fetchAll();
   };
@@ -2322,7 +2323,7 @@ function CashierScreen({ goHome }) {
               <div style={{ background:"linear-gradient(135deg,#1976d2,#0d47a1)", padding:"20px 24px" }}>
                 <div style={{ fontSize:13, color:"rgba(255,255,255,0.75)", fontFamily:"Georgia,serif" }}>{orderType}</div>
                 <div style={{ fontSize:22, fontWeight:"bold", color:"#fff", fontFamily:"Georgia,serif", marginTop:2 }}>💳 {tableLabel}</div>
-                <div style={{ fontSize:32, fontWeight:"bold", color:"#fff", marginTop:6, fontFamily:"Georgia,serif" }}>RM {rounded}</div>
+                <div style={{ fontSize:32, fontWeight:"bold", color:"#fff", marginTop:6, fontFamily:"Georgia,serif" }}>RM {parseFloat(rounded).toFixed(2)}</div>
               </div>
 
               <div style={{ padding:"20px 24px" }}>
@@ -2359,7 +2360,7 @@ function CashierScreen({ goHome }) {
                     <span>Rounding</span><span>{roundingDiff>0?"+":""}{roundingDiff.toFixed(2)}</span>
                   </div>}
                   <div style={{ display:"flex", justifyContent:"space-between", fontSize:20, fontWeight:"bold", color:"#1976d2", marginTop:8, paddingTop:8, borderTop:"2px solid #eee", fontFamily:"Georgia,serif" }}>
-                    <span>TOTAL</span><span>RM {rounded}</span>
+                    <span>TOTAL</span><span>RM {parseFloat(rounded).toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -2395,7 +2396,7 @@ function CashierScreen({ goHome }) {
                     setConfirmModal({ tableNo:payModal.tableNo, data:payModal.data, method:payModal.method, cashReceived:payModal.cashReceived||null, change:payModal.method==="Cash"&&change>=0?change:null, rounded });
                   }} disabled={!canConfirm}
                     style={{ width:"100%", background:canConfirm?"linear-gradient(135deg,#1976d2,#0d47a1)":"#ccc", border:"none", color:"#fff", padding:"16px 0", fontSize:16, borderRadius:10, cursor:canConfirm?"pointer":"not-allowed", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:canConfirm?"0 4px 12px rgba(25,118,210,0.4)":"none" }}>
-                    {payModal.method==="Cash"&&!canConfirm?"Enter Cash Amount Above ↑":`✅ Print & Clear Table — RM ${rounded}`}
+                    {payModal.method==="Cash"&&!canConfirm?"Enter Cash Amount Above ↑":`✅ Print & Clear Table — RM ${parseFloat(rounded).toFixed(2)}`}
                   </button>
                 </div>
               </div>
@@ -2494,7 +2495,7 @@ function CashierScreen({ goHome }) {
               {/* Amount */}
               <div style={{ textAlign:"center", padding:"14px 0", borderTop:"1px solid #eee", borderBottom:"1px solid #eee", marginBottom:12 }}>
                 <div style={{ fontSize:12, color:"#999", fontFamily:"Georgia,serif", marginBottom:4 }}>Total Amount</div>
-                <div style={{ fontSize:32, fontWeight:"bold", color:"#1976d2", fontFamily:"Georgia,serif" }}>RM {confirmModal.rounded}</div>
+                <div style={{ fontSize:32, fontWeight:"bold", color:"#1976d2", fontFamily:"Georgia,serif" }}>RM {parseFloat(confirmModal.rounded).toFixed(2)}</div>
                 {confirmModal.change !== null && confirmModal.change >= 0 && (
                   <div style={{ marginTop:6, fontSize:13, color:"#2e7d32", fontWeight:"bold", fontFamily:"Georgia,serif" }}>Change: RM {parseFloat(confirmModal.change).toFixed(2)}</div>
                 )}
