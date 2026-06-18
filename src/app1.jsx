@@ -2027,7 +2027,7 @@ function CashierScreen({ goHome }) {
   const [confirmModal, setConfirmModal] = useState(null);
   const [reprintList, setReprintList] = useState([]); // list of recent paid sessions
   const [reprintModal, setReprintModal] = useState(false);
-  const reprintClearedAt = useRef(null); // track when user last cleared the list
+  const reprintHiddenIds = useRef(new Set()); // IDs of orders hidden by Clear
 
   const fetchReprintList = async () => {
     // Only fetch paid orders from the last 24 hours
@@ -2041,14 +2041,13 @@ function CashierScreen({ goHome }) {
     const used = new Set();
     data.forEach(order => {
       if (used.has(order.id)) return;
-      // Skip orders paid before the user cleared the list
-      if (reprintClearedAt.current && new Date(order.created_at) <= reprintClearedAt.current) return;
+      // Skip orders the user explicitly cleared
+      if (reprintHiddenIds.current.has(order.id)) return;
       const usedSnapshot = new Set(used);
-      const group = data.filter(o => !usedSnapshot.has(o.id) && String(o.table_no) === String(order.table_no) && Math.abs(new Date(o.created_at) - new Date(order.created_at)) < 300000);
+      const group = data.filter(o => !usedSnapshot.has(o.id) && !reprintHiddenIds.current.has(o.id) && String(o.table_no) === String(order.table_no) && Math.abs(new Date(o.created_at) - new Date(order.created_at)) < 300000);
       group.forEach(o => used.add(o.id));
       const subtotal = group.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
       const grandTotal = +(Math.round((subtotal * (1 + charge/100)) * 20) / 20).toFixed(2);
-      // Display time in MYT — use timeZone directly, no manual offset
       const timeStr = new Date(order.created_at).toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
       sessions.push({ tableNo: order.table_no, orders: group, total: subtotal, grandTotal, time: timeStr });
     });
@@ -2431,7 +2430,11 @@ function CashierScreen({ goHome }) {
             <div style={{ padding:"8px 16px 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div style={{ fontSize:11, color:C.muted }}>Last 24 hours only</div>
               {reprintList.length > 0 && (
-                <button onClick={() => { reprintClearedAt.current = new Date(); setReprintList([]); }} style={btn({ background:"#3a1010", border:`1px solid #aa4444`, color:"#ff8888", padding:"5px 12px", fontSize:12, fontWeight:"bold" })}>
+                <button onClick={() => {
+                  // Remember all current order IDs so they stay hidden after re-fetch
+                  reprintList.forEach(s => s.orders.forEach(o => reprintHiddenIds.current.add(o.id)));
+                  setReprintList([]);
+                }} style={btn({ background:"#3a1010", border:`1px solid #aa4444`, color:"#ff8888", padding:"5px 12px", fontSize:12, fontWeight:"bold" })}>
                   🗑️ Clear List
                 </button>
               )}
