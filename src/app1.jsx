@@ -1439,6 +1439,10 @@ function QRScreen({ goHome }) {
         <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold" }}>📱 QR Codes for Tables</div>
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={() => window.print()} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>🖨️ Print All</button>
+          <button onClick={() => setEditTableModal("pick")}
+            style={btn({ background:"#1a2a3a", border:`1px solid #5aaaff`, color:"#99ccff", padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
+            ✏️ Edit Table
+          </button>
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
         </div>
       </div>
@@ -2018,6 +2022,168 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
   );
 }
 
+function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
+  const [step, setStep] = useState(initialTableNo === "pick" ? "pick" : "edit");
+  const [pickedTable, setPickedTable] = useState(initialTableNo === "pick" ? null : initialTableNo);
+  const [menuItems, setMenuItems] = useState([]);
+  const [menuLoading, setMenuLoading] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [cart, setCart] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [activeOrders, setActiveOrders] = useState([]);
+  const tableNo = pickedTable;
+
+  useEffect(() => {
+    if (step === "edit" && tableNo) {
+      setMenuLoading(true);
+      Promise.all([
+        supabase.from("menu_items").select("*").eq("available", true).order("category"),
+        supabase.from("orders").select("*").in("status",["pending","done"]).eq("table_no", String(tableNo))
+      ]).then(([{data:items},{data:orders}]) => {
+        setMenuItems(items||[]);
+        setActiveOrders(orders||[]);
+        setMenuLoading(false);
+      });
+    }
+  }, [step, tableNo]);
+
+  const filtered = menuItems.filter(m => m.name.toLowerCase().includes(searchQ.toLowerCase()));
+  const grouped = CATEGORIES.reduce((acc, cat) => {
+    const items = filtered.filter(m => m.category === cat);
+    if (items.length) acc[cat] = items;
+    return acc;
+  }, {});
+
+  const addToCart = (item) => {
+    setCart(prev => {
+      const existing = prev.find(c => c.name === item.name);
+      if (existing) return prev.map(c => c.name===item.name ? {...c, qty:c.qty+1} : c);
+      return [...prev, { name:item.name, price:parseFloat(item.price), qty:1, category:item.category }];
+    });
+  };
+  const removeFromCart = (name) => setCart(prev => prev.map(c => c.name===name ? {...c, qty:c.qty-1} : c).filter(c=>c.qty>0));
+  const cartTotal = cart.reduce((s,c)=>s+c.price*c.qty,0);
+
+  const saveOrder = async () => {
+    if (!cart.length) return;
+    setSaving(true);
+    const maxSeq = activeOrders.reduce((m,o)=>Math.max(m,o.order_seq||0),0);
+    const now = new Date();
+    const timeStr = now.toLocaleString("en-MY",{hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
+    await supabase.from("orders").insert({
+      table_no: tableNo,
+      items: cart,
+      total: cartTotal,
+      status: "pending",
+      order_seq: maxSeq + 1,
+      time: timeStr,
+      created_at: now.toISOString()
+    });
+    setSaving(false);
+    onSaved();
+  };
+
+  if (step === "pick") {
+    return (
+      <div style={{ position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.9)",zIndex:10000,display:"flex",alignItems:"center",justifyContent:"center",padding:16 }}>
+        <div style={{ background:C.panel,border:`1px solid ${C.gold}`,borderRadius:20,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto" }}>
+          <div style={{ background:"#2c1a0e",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:1 }}>
+            <div style={{ fontSize:18,fontWeight:"bold",color:C.goldLight }}>✏️ Edit Table — Pick Table</div>
+            <button onClick={onClose} style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,width:36,height:36,fontSize:18,borderRadius:50 })}>✕</button>
+          </div>
+          <div style={{ padding:20 }}>
+            <div style={{ fontSize:12,color:C.muted,marginBottom:12,fontWeight:"bold" }}>DINE IN TABLES</div>
+            <div style={{ display:"flex",flexWrap:"wrap",gap:10,marginBottom:20 }}>
+              {TABLES.map(t => (
+                <button key={t} onClick={() => { setPickedTable(t); setStep("edit"); }}
+                  style={btn({ background:"#2c1a0e",border:`2px solid ${C.gold}`,color:C.goldLight,padding:"14px 20px",fontSize:16,fontWeight:"bold",minWidth:60 })}>
+                  {t}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize:12,color:C.muted,marginBottom:8,fontWeight:"bold" }}>TAKEAWAY</div>
+            <div style={{ display:"flex",flexWrap:"wrap",gap:8 }}>
+              {TW_SLOTS.map(t=>(
+                <button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}} style={btn({ background:"#1a2c1a",border:`2px solid #5aaa5a`,color:"#aaffaa",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>{t}</button>
+              ))}
+              {ST_SLOTS.map(t=>(
+                <button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}} style={btn({ background:"#1a1a2c",border:`2px solid #5a5aff`,color:"#aaaaff",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>{t}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.95)",zIndex:10000,display:"flex",flexDirection:"column" }}>
+      <div style={{ background:"#2c1a0e",padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`2px solid ${C.gold}`,flexShrink:0 }}>
+        <div>
+          <div style={{ fontSize:18,fontWeight:"bold",color:C.goldLight }}>✏️ Add Items — {isTakeaway(tableNo)?takeawayLabel(tableNo):`Table ${tableNo}`}</div>
+          <div style={{ fontSize:12,color:C.muted }}>Pick items to add to this table's bill</div>
+        </div>
+        <button onClick={onClose} style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,width:40,height:40,fontSize:20,borderRadius:50 })}>✕</button>
+      </div>
+      <div style={{ display:"flex",flex:1,overflow:"hidden" }}>
+        <div style={{ flex:1,overflowY:"auto",padding:12 }}>
+          <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Search menu..."
+            style={{ width:"100%",background:C.bg,border:`1px solid ${C.border}`,color:C.text,padding:"10px 14px",borderRadius:10,fontSize:14,fontFamily:"Georgia,serif",boxSizing:"border-box",marginBottom:12 }} />
+          {menuLoading ? <div style={{ color:C.muted,textAlign:"center",padding:40 }}>Loading menu…</div> : (
+            Object.entries(grouped).map(([cat, items]) => (
+              <div key={cat} style={{ marginBottom:16 }}>
+                <div style={{ fontSize:11,color:C.gold,fontWeight:"bold",letterSpacing:2,textTransform:"uppercase",marginBottom:8 }}>{cat}</div>
+                {items.map(item => {
+                  const inCart = cart.find(c=>c.name===item.name);
+                  return (
+                    <div key={item.id} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:inCart?"#2c1a0e":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:6,transition:"all 0.15s" }}>
+                      <div>
+                        <div style={{ color:C.text,fontSize:14,fontWeight:inCart?"bold":"normal" }}>{item.name}</div>
+                        <div style={{ color:C.gold,fontSize:13 }}>RM {parseFloat(item.price).toFixed(2)}</div>
+                      </div>
+                      <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                        {inCart && <button onClick={()=>removeFromCart(item.name)} style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:34,height:34,fontSize:20,borderRadius:8 })}>−</button>}
+                        {inCart && <span style={{ color:C.goldLight,fontWeight:"bold",minWidth:22,textAlign:"center",fontSize:15 }}>{inCart.qty}</span>}
+                        <button onClick={()=>addToCart(item)} style={btn({ background:C.gold,border:"none",color:C.dark,width:34,height:34,fontSize:20,borderRadius:8,fontWeight:"bold" })}>+</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))
+          )}
+        </div>
+        <div style={{ width:210,background:"#0f0a04",borderLeft:`2px solid ${C.border}`,display:"flex",flexDirection:"column",flexShrink:0 }}>
+          <div style={{ padding:"12px 14px",borderBottom:`1px solid ${C.border}`,fontSize:13,color:C.goldLight,fontWeight:"bold" }}>🛒 To Add</div>
+          <div style={{ flex:1,overflowY:"auto",padding:"8px 14px" }}>
+            {cart.length===0
+              ? <div style={{ color:C.muted,fontSize:12,textAlign:"center",padding:20 }}>No items selected</div>
+              : cart.map((item,i)=>(
+                <div key={i} style={{ marginBottom:10,paddingBottom:10,borderBottom:`1px solid ${C.border}` }}>
+                  <div style={{ color:C.text,fontSize:13 }}>{item.name}</div>
+                  <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4 }}>
+                    <span style={{ color:C.gold,fontSize:12 }}>×{item.qty} · RM {(item.price*item.qty).toFixed(2)}</span>
+                    <button onClick={()=>removeFromCart(item.name)} style={btn({ background:"transparent",border:"none",color:"#ff7777",fontSize:16,padding:"0 4px",cursor:"pointer" })}>✕</button>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+          <div style={{ padding:"12px 14px",borderTop:`2px solid ${C.border}` }}>
+            <div style={{ display:"flex",justifyContent:"space-between",fontSize:14,color:C.goldLight,fontWeight:"bold",marginBottom:10 }}>
+              <span>Total</span><span>RM {cartTotal.toFixed(2)}</span>
+            </div>
+            <button onClick={saveOrder} disabled={!cart.length||saving}
+              style={btn({ width:"100%",background:cart.length?`linear-gradient(135deg,${C.gold},#a07020)`:"#333",border:"none",color:cart.length?C.dark:"#666",padding:"14px 0",fontSize:14,fontWeight:"bold",borderRadius:10,cursor:cart.length?"pointer":"not-allowed" })}>
+              {saving?"Saving…":"✅ Add to Bill"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CashierScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
   const [waiterCalls, setWaiterCalls] = useState([]);
@@ -2025,41 +2191,9 @@ function CashierScreen({ goHome }) {
   const [paying, setPaying] = useState(null);
   const [payModal, setPayModal] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
-  const [reprintList, setReprintList] = useState([]); // list of recent paid sessions
-  const [reprintModal, setReprintModal] = useState(false);
-  const reprintHiddenIds = useRef(new Set()); // IDs of orders hidden by Clear
+  const [editTableModal, setEditTableModal] = useState(null); // tableNo to edit
 
-  const fetchReprintList = async () => {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data } = await supabase.from("orders").select("*").eq("status","paid")
-      .gte("created_at", since)
-      .order("created_at", { ascending:false }).limit(200);
-    if (!data || data.length === 0) { setReprintList([]); return; }
-    const charge = parseFloat(localStorage.getItem("service_charge")||"10");
-    const sessions = [];
-    const used = new Set();
-    // Group by paid_session_id if available, else by table+2min window
-    const sessionMap = {};
-    data.forEach(o => {
-      if (reprintHiddenIds.current.has(o.id)) return;
-      const key = o.paid_session_id || (String(o.table_no) + "_" + Math.floor(new Date(o.created_at).getTime() / 120000));
-      if (!sessionMap[key]) sessionMap[key] = { tableNo: o.table_no, orders: [], paidAt: o.paid_at || o.created_at };
-      sessionMap[key].orders.push(o);
-      // Use the latest paid_at as the session time
-      if (o.paid_at && o.paid_at > sessionMap[key].paidAt) sessionMap[key].paidAt = o.paid_at;
-    });
-    Object.values(sessionMap)
-      .sort((a,b) => new Date(b.paidAt) - new Date(a.paidAt))
-      .forEach(sess => {
-        const subtotal = sess.orders.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
-        const grandTotal = +(Math.round((subtotal * (1 + charge/100)) * 20) / 20).toFixed(2);
-        const timeStr = new Date(sess.paidAt).toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
-        sessions.push({ tableNo: sess.tableNo, orders: sess.orders, total: subtotal, grandTotal, time: timeStr });
-      });
-    setReprintList(sessions.slice(0, 15));
-  };
-
-  useEffect(() => { fetchReprintList(); }, []);
+  useEffect(() => {
   const [tableDetailModal, setTableDetailModal] = useState(null); // tableNo only — reads live orders
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem("c_sound") !== "off");
   const [filterTab, setFilterTab] = useState("all");
@@ -2427,45 +2561,9 @@ function CashierScreen({ goHome }) {
         );
       })()}
 
-      {/* Reprint Modal */}
-      {reprintModal && (
-        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.8)", zIndex:10000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-          <div style={{ background:"#1a1208", border:`1px solid ${C.gold}`, borderRadius:20, width:"100%", maxWidth:380, overflow:"hidden" }}>
-            <div style={{ background:"#2c1a0e", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div style={{ fontSize:17, fontWeight:"bold", color:C.goldLight }}>🖨️ Reprint Receipt</div>
-              <button onClick={() => setReprintModal(false)} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, width:36, height:36, fontSize:18, borderRadius:50 })}>✕</button>
-            </div>
-            <div style={{ padding:"8px 16px 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div style={{ fontSize:11, color:C.muted }}>Last 24 hours only</div>
-              {reprintList.length > 0 && (
-                <button onClick={() => {
-                  // Remember all current order IDs so they stay hidden after re-fetch
-                  reprintList.forEach(s => s.orders.forEach(o => reprintHiddenIds.current.add(o.id)));
-                  setReprintList([]);
-                }} style={btn({ background:"#3a1010", border:`1px solid #aa4444`, color:"#ff8888", padding:"5px 12px", fontSize:12, fontWeight:"bold" })}>
-                  🗑️ Clear List
-                </button>
-              )}
-            </div>
-            <div style={{ padding:16, maxHeight:400, overflowY:"auto" }}>
-              {reprintList.length === 0
-                ? <div style={{ textAlign:"center", color:C.muted, padding:30 }}>No paid receipts (last 24h)</div>
-                : reprintList.map((session, i) => (
-                  <button key={i} onClick={() => {
-                    printReceipt(session.tableNo, { pending:[], done:session.orders, total:session.total }, null, null, null);
-                    setReprintModal(false);
-                  }} style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, borderRadius:12, padding:"14px 16px", marginBottom:10, cursor:"pointer", textAlign:"left", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                    <div>
-                      <div style={{ fontSize:16, fontWeight:"bold", color:C.goldLight }}>{isTakeaway(session.tableNo) ? takeawayLabel(session.tableNo) : `Table ${session.tableNo}`}</div>
-                      <div style={{ fontSize:12, color:C.muted, marginTop:2 }}>Paid at {session.time}</div>
-                    </div>
-                    <div style={{ fontSize:16, fontWeight:"bold", color:C.gold }}>RM {(session.grandTotal ?? session.total).toFixed(2)}</div>
-                  </button>
-                ))
-              }
-            </div>
-          </div>
-        </div>
+      {/* Edit Table Modal */}
+      {editTableModal && (
+        <EditTableModal tableNo={editTableModal} onClose={() => setEditTableModal(null)} onSaved={() => { setEditTableModal(null); fetchAll(); }} />
       )}
 
       {/* Custom Confirm Payment Modal */}
@@ -2516,8 +2614,7 @@ function CashierScreen({ goHome }) {
                 <button onClick={() => {
                   printReceipt(confirmModal.tableNo, confirmModal.data, confirmModal.method, confirmModal.cashReceived, confirmModal.change);
                   markPaid(confirmModal.tableNo, confirmModal.method);
-                  setTimeout(fetchReprintList, 1500); // refresh reprint list after paid
-                  setConfirmModal(null);
+                          setConfirmModal(null);
                   setPayModal(null);
                 }}
                   style={{ flex:2, background:"linear-gradient(135deg,#1976d2,#0d47a1)", border:"none", color:"#fff", padding:"13px 0", fontSize:14, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:"0 4px 12px rgba(25,118,210,0.4)" }}>
@@ -2550,10 +2647,7 @@ function CashierScreen({ goHome }) {
               {voiceLang === "en" ? "🇬🇧 EN" : "🇨🇳 中文"}
             </button>
           )}
-          <button onClick={() => { fetchReprintList(); setReprintModal(true); }}
-            style={btn({ background:"#2a1a3a", border:`1px solid #aa5aff`, color:"#cc99ff", padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
-            🖨️ Reprint{reprintList.length > 0 ? ` (${reprintList.length})` : ""}
-          </button>
+
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
         </div>
       </div>
