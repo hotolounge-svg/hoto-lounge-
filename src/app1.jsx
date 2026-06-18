@@ -2032,7 +2032,6 @@ function CashierScreen({ goHome }) {
     const { data } = await supabase.from("orders").select("*").eq("status","paid")
       .order("updated_at", { ascending:false }).limit(30);
     if (!data || data.length === 0) { setReprintList([]); return; }
-    // Group into sessions by table_no + updated within 3 mins of each other
     const sessions = [];
     const used = new Set();
     data.forEach(order => {
@@ -2040,14 +2039,10 @@ function CashierScreen({ goHome }) {
       const group = data.filter(o => !used.has(o.id) && String(o.table_no) === String(order.table_no) && Math.abs(new Date(o.updated_at) - new Date(order.updated_at)) < 180000);
       group.forEach(o => used.add(o.id));
       const total = group.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
-      const paidAt = new Date(order.updated_at);
-      const timeStr = paidAt.toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true});
+      const timeStr = new Date(order.updated_at).toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true});
       sessions.push({ tableNo: order.table_no, orders: group, total, time: timeStr });
     });
-    // Only show today's sessions (last 24h)
-    const oneDayAgo = Date.now() - 24*60*60*1000;
-    const todaySessions = sessions.filter(s => new Date(s.orders[0].updated_at) > oneDayAgo);
-    setReprintList(todaySessions.slice(0, 10));
+    setReprintList(sessions.slice(0, 10));
   };
 
   useEffect(() => { fetchReprintList(); }, []);
@@ -2526,12 +2521,10 @@ function CashierScreen({ goHome }) {
               {voiceLang === "en" ? "🇬🇧 EN" : "🇨🇳 中文"}
             </button>
           )}
-          {reprintList.length > 0 && (
-            <button onClick={() => setReprintModal(true)}
-              style={btn({ background:"#2a1a3a", border:`1px solid #aa5aff`, color:"#cc99ff", padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
-              🖨️ Reprint ({reprintList.length})
-            </button>
-          )}
+          <button onClick={() => { fetchReprintList(); setReprintModal(true); }}
+            style={btn({ background:"#2a1a3a", border:`1px solid #aa5aff`, color:"#cc99ff", padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
+            🖨️ Reprint{reprintList.length > 0 ? ` (${reprintList.length})` : ""}
+          </button>
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
         </div>
       </div>
