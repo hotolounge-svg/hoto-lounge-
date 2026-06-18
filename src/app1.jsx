@@ -1439,10 +1439,6 @@ function QRScreen({ goHome }) {
         <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold" }}>📱 QR Codes for Tables</div>
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={() => window.print()} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>🖨️ Print All</button>
-          <button onClick={() => setEditTableModal("pick")}
-            style={btn({ background:"#1a2a3a", border:`1px solid #5aaaff`, color:"#99ccff", padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
-            ✏️ Edit Table
-          </button>
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
         </div>
       </div>
@@ -2647,6 +2643,10 @@ function CashierScreen({ goHome }) {
             </button>
           )}
 
+          <button onClick={() => setEditTableModal("pick")}
+            style={btn({ background:"#1a2a3a", border:`1px solid #5aaaff`, color:"#99ccff", padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
+            ✏️ Edit Table
+          </button>
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
         </div>
       </div>
