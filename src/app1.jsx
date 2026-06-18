@@ -1923,7 +1923,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
 }
 
 function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrders, foodOrders, total, liveData, markOrderDone, cancelOrder, printReceipt, setPayModal, setTableDetailModal }) {
-  const [detailTab, setDetailTab] = useState("all");
+  const [detailTab, setDetailTab] = useState("drinks");
   const ordersToShow = detailTab === "drinks" ? drinkOrders : detailTab === "food" ? foodOrders : allOrders;
   return (
     <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.95)", zIndex:9000, display:"flex", flexDirection:"column" }}>
@@ -2024,7 +2024,8 @@ function CashierScreen({ goHome }) {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(null);
   const [payModal, setPayModal] = useState(null);
-  const [confirmModal, setConfirmModal] = useState(null); // {tableNo, data, method, cashReceived, change, rounded}
+  const [confirmModal, setConfirmModal] = useState(null);
+  const [lastReceipt, setLastReceipt] = useState(null); // save last receipt for reprint
   const [tableDetailModal, setTableDetailModal] = useState(null); // tableNo only — reads live orders
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem("c_sound") !== "off");
   const [filterTab, setFilterTab] = useState("all");
@@ -2436,6 +2437,7 @@ function CashierScreen({ goHome }) {
                 </button>
                 <button onClick={() => {
                   printReceipt(confirmModal.tableNo, confirmModal.data, confirmModal.method, confirmModal.cashReceived, confirmModal.change);
+                  setLastReceipt({ tableNo:confirmModal.tableNo, data:confirmModal.data, method:confirmModal.method, cashReceived:confirmModal.cashReceived, change:confirmModal.change });
                   markPaid(confirmModal.tableNo, confirmModal.method);
                   setConfirmModal(null);
                   setPayModal(null);
@@ -2468,6 +2470,12 @@ function CashierScreen({ goHome }) {
           {voiceOn && (
             <button onClick={toggleVoiceLang} style={btn({ background:"#3a2a00", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
               {voiceLang === "en" ? "🇬🇧 EN" : "🇨🇳 中文"}
+            </button>
+          )}
+          {lastReceipt && (
+            <button onClick={() => printReceipt(lastReceipt.tableNo, lastReceipt.data, lastReceipt.method, lastReceipt.cashReceived, lastReceipt.change)}
+              style={btn({ background:"#2a1a3a", border:`1px solid #aa5aff`, color:"#cc99ff", padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
+              🖨️ Reprint Last
             </button>
           )}
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
