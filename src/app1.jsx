@@ -2029,17 +2029,18 @@ function CashierScreen({ goHome }) {
   const [reprintModal, setReprintModal] = useState(false);
 
   const fetchReprintList = async () => {
-    const { data } = await supabase.from("orders").select("*").eq("status","paid")
-      .order("updated_at", { ascending:false }).limit(30);
+    const { data, error } = await supabase.from("orders").select("*").eq("status","paid")
+      .order("created_at", { ascending:false }).limit(30);
     if (!data || data.length === 0) { setReprintList([]); return; }
     const sessions = [];
     const used = new Set();
     data.forEach(order => {
       if (used.has(order.id)) return;
-      const group = data.filter(o => !used.has(o.id) && String(o.table_no) === String(order.table_no) && Math.abs(new Date(o.updated_at) - new Date(order.updated_at)) < 180000);
+      // Group same table orders within 5 mins
+      const group = data.filter(o => !used.has(o.id) && String(o.table_no) === String(order.table_no) && Math.abs(new Date(o.created_at) - new Date(order.created_at)) < 300000);
       group.forEach(o => used.add(o.id));
       const total = group.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
-      const timeStr = new Date(order.updated_at).toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true});
+      const timeStr = new Date(order.created_at).toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true});
       sessions.push({ tableNo: order.table_no, orders: group, total, time: timeStr });
     });
     setReprintList(sessions.slice(0, 10));
