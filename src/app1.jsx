@@ -2193,7 +2193,6 @@ function CashierScreen({ goHome }) {
   const [confirmModal, setConfirmModal] = useState(null);
   const [editTableModal, setEditTableModal] = useState(null); // tableNo to edit
 
-  useEffect(() => {
   const [tableDetailModal, setTableDetailModal] = useState(null); // tableNo only — reads live orders
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem("c_sound") !== "off");
   const [filterTab, setFilterTab] = useState("all");
