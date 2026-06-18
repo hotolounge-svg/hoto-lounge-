@@ -1748,7 +1748,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
     <div style={{ background:C.panel, border:`2px solid ${hasPending?"#c8973a":"#5aaa5a"}`, borderRadius:14, overflow:"hidden" }}>
 
       {/* Header — tap to open full detail */}
-      <div onClick={() => setTableDetailModal({ tableNo, data })}
+      <div onClick={() => setTableDetailModal(tableNo)}
         style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}>
         <div style={{ fontSize:22, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
         <div style={{ display:"flex", gap:6, alignItems:"center" }}>
@@ -1863,6 +1863,102 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
   );
 }
 
+function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrders, foodOrders, total, liveData, markOrderDone, cancelOrder, printReceipt, setPayModal, setTableDetailModal }) {
+  const [detailTab, setDetailTab] = useState("all");
+  const ordersToShow = detailTab === "drinks" ? drinkOrders : detailTab === "food" ? foodOrders : allOrders;
+  return (
+    <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.95)", zIndex:9000, display:"flex", flexDirection:"column" }}>
+      {/* Header */}
+      <div style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"14px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${hasPending?C.gold:"#5aaa5a"}`, flexShrink:0 }}>
+        <div>
+          <div style={{ fontSize:26, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
+          <div style={{ fontSize:13, color:C.muted, marginTop:2 }}>
+            {pending.length > 0 && <span style={{ color:C.gold, marginRight:12 }}>⏳ {pending.length} pending</span>}
+            {done.length > 0 && <span style={{ color:"#5aaa5a" }}>✅ {done.length} done</span>}
+          </div>
+        </div>
+        <button onClick={() => setTableDetailModal(null)}
+          style={btn({ background:"rgba(255,255,255,0.1)", border:`1px solid ${C.border}`, color:"#fff", width:46, height:46, fontSize:22, borderRadius:50 })}>✕</button>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display:"flex", background:"#160e04", borderBottom:`2px solid ${C.border}`, flexShrink:0 }}>
+        {[["all","📋 All"],["drinks",`☕ Drinks (${drinkOrders.length})`],["food",`🍳 Food (${foodOrders.length})`]].map(([key,label]) => (
+          <button key={key} onClick={() => setDetailTab(key)}
+            style={btn({ flex:1, background:"transparent", border:"none", borderBottom:detailTab===key?`3px solid ${C.gold}`:"3px solid transparent", color:detailTab===key?C.goldLight:C.muted, padding:"12px 8px", fontSize:13, fontWeight:detailTab===key?"bold":"normal", borderRadius:0 })}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Orders */}
+      <div style={{ flex:1, overflowY:"auto", padding:"14px 16px" }}>
+        {ordersToShow.length === 0
+          ? <div style={{ textAlign:"center", color:C.muted, padding:40, fontSize:16 }}>No orders</div>
+          : ordersToShow.map((order) => {
+            const isPending = order.status === "pending";
+            const isDrink = order.items.every(i => DRINK_CATEGORIES.includes(i.category));
+            return (
+              <div key={order.id} style={{ background:isPending?"#2c1a0e":"#1a2c1a", border:`2px solid ${isPending?C.gold:"#5aaa5a"}`, borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    {order.order_seq && <span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"2px 8px", fontSize:13, fontWeight:"bold" }}>#{order.order_seq}</span>}
+                    <span style={{ color:C.muted, fontSize:13 }}>{isDrink?"☕":"🍳"} · {order.time}</span>
+                  </div>
+                  <span style={{ background:isPending?"#c8973a":"#2d6a2d", color:"#fff", borderRadius:8, padding:"3px 10px", fontSize:12, fontWeight:"bold" }}>
+                    {isPending?"⏳ Pending":"✅ Served"}
+                  </span>
+                </div>
+                {order.items.map((item, ii) => (
+                  <div key={ii} style={{ marginBottom:8 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:18 }}>
+                      <span style={{ color:isPending?C.goldLight:"#aaffaa", fontWeight:"bold" }}>
+                        {item.item_no && <span style={{ color:C.gold, marginRight:6 }}>{item.item_no}</span>}
+                        {item.name}
+                      </span>
+                      <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
+                    </div>
+                    <div style={{ color:"#aaffaa", fontSize:15, marginTop:2 }}>RM {(item.price*item.qty).toFixed(2)}</div>
+                    {item.note && <div style={{ fontSize:13, color:"#ffcc44", background:"#2a1a00", borderRadius:8, padding:"5px 10px", marginTop:5 }}>📝 {item.note}</div>}
+                  </div>
+                ))}
+                {order.special_request && (
+                  <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:8, padding:"7px 10px", marginTop:6 }}>📝 {order.special_request}</div>
+                )}
+                {isPending && (
+                  <div style={{ display:"flex", gap:10, marginTop:12 }}>
+                    <button onClick={() => markOrderDone(order.id)}
+                      style={btn({ flex:1, background:"#2d6a2d", border:"none", color:"#aaffaa", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✓ Mark Done</button>
+                    <button onClick={() => cancelOrder(order.id)}
+                      style={btn({ flex:1, background:"#6a1a1a", border:"none", color:"#ff9999", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✕ Cancel</button>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        }
+      </div>
+
+      {/* Footer */}
+      <div style={{ background:"#0f0a04", padding:"14px 16px", borderTop:`2px solid ${C.border}`, flexShrink:0 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", fontSize:22, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
+          <span>TOTAL</span><span>RM {total.toFixed(2)}</span>
+        </div>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={() => printReceipt(tableNo, liveData, null, null, null)}
+            style={btn({ flex:1, background:"#3a2a10", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"14px 0", fontSize:14, fontWeight:"bold" })}>
+            🖨️ Print Bill
+          </button>
+          <button onClick={() => { setTableDetailModal(null); setPayModal({tableNo, data:liveData, method:"QR DuitNow", cashReceived:""}); }}
+            style={btn({ flex:2, background:"linear-gradient(135deg,#1976d2,#0d47a1)", border:"none", color:"#fff", padding:"14px 0", fontSize:16, fontWeight:"bold", borderRadius:10 })}>
+            💳 Collect Payment
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CashierScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
   const [waiterCalls, setWaiterCalls] = useState([]);
@@ -1870,7 +1966,7 @@ function CashierScreen({ goHome }) {
   const [paying, setPaying] = useState(null);
   const [payModal, setPayModal] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); // {tableNo, data, method, cashReceived, change, rounded}
-  const [tableDetailModal, setTableDetailModal] = useState(null); // {tableNo, data}
+  const [tableDetailModal, setTableDetailModal] = useState(null); // tableNo only — reads live orders
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem("c_sound") !== "off");
   const [filterTab, setFilterTab] = useState("all");
   const [selectedTable, setSelectedTable] = useState(null);
@@ -2212,88 +2308,25 @@ function CashierScreen({ goHome }) {
         );
       })()}
 
-      {/* Full Screen Table Detail Modal */}
+      {/* Full Screen Table Detail Modal — live, with tabs, stays open */}
       {tableDetailModal && (() => {
-        const { tableNo, data } = tableDetailModal;
-        const hasPending = data.pending.length > 0;
-        const allOrders = [...data.pending, ...data.done];
+        const tableNo = tableDetailModal;
+        const tableOrders = orders.filter(o => String(o.table_no) === String(tableNo));
+        const pending = tableOrders.filter(o => o.status === "pending");
+        const done = tableOrders.filter(o => o.status === "done");
+        const total = tableOrders.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
+        const liveData = { pending, done, total };
+        const hasPending = pending.length > 0;
+        const allOrders = [...pending, ...done];
+        const drinkOrders = allOrders.filter(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
+        const foodOrders = allOrders.filter(o => o.items.some(i => FOOD_CATEGORIES.includes(i.category)));
         return (
-          <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.95)", zIndex:9000, display:"flex", flexDirection:"column" }}>
-            {/* Header */}
-            <div style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${hasPending?C.gold:"#5aaa5a"}`, flexShrink:0 }}>
-              <div>
-                <div style={{ fontSize:28, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
-                <div style={{ fontSize:13, color:C.muted, marginTop:3 }}>
-                  {data.pending.length > 0 && <span style={{ color:C.gold, marginRight:12 }}>⏳ {data.pending.length} pending</span>}
-                  {data.done.length > 0 && <span style={{ color:"#5aaa5a" }}>✅ {data.done.length} done</span>}
-                </div>
-              </div>
-              <button onClick={() => setTableDetailModal(null)}
-                style={btn({ background:"rgba(255,255,255,0.1)", border:`1px solid ${C.border}`, color:"#fff", width:46, height:46, fontSize:22, borderRadius:50 })}>✕</button>
-            </div>
-
-            {/* Orders */}
-            <div style={{ flex:1, overflowY:"auto", padding:"16px 20px" }}>
-              {allOrders.map((order, oi) => {
-                const isPending = order.status === "pending";
-                const isDrink = order.items.every(i => DRINK_CATEGORIES.includes(i.category));
-                return (
-                  <div key={oi} style={{ background:isPending?"#2c1a0e":"#1a2c1a", border:`2px solid ${isPending?C.gold:"#5aaa5a"}`, borderRadius:14, padding:"16px 18px", marginBottom:14 }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        {order.order_seq && <span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"3px 10px", fontSize:14, fontWeight:"bold" }}>#{order.order_seq}</span>}
-                        <span style={{ color:C.muted, fontSize:14 }}>{isDrink?"☕ Drinks":"🍳 Food"} · {order.time}</span>
-                      </div>
-                      <span style={{ background:isPending?"#c8973a":"#2d6a2d", color:"#fff", borderRadius:8, padding:"4px 12px", fontSize:13, fontWeight:"bold" }}>
-                        {isPending?"⏳ Pending":"✅ Served"}
-                      </span>
-                    </div>
-                    {order.items.map((item, ii) => (
-                      <div key={ii} style={{ marginBottom:10 }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:19 }}>
-                          <span style={{ color:isPending?C.goldLight:"#aaffaa", fontWeight:"bold" }}>
-                            {item.item_no && <span style={{ color:C.gold, marginRight:6 }}>{item.item_no}</span>}
-                            {item.name}
-                          </span>
-                          <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
-                        </div>
-                        <div style={{ color:"#aaffaa", fontSize:16, marginTop:2 }}>RM {(item.price*item.qty).toFixed(2)}</div>
-                        {item.note && <div style={{ fontSize:14, color:"#ffcc44", background:"#2a1a00", borderRadius:8, padding:"6px 10px", marginTop:6 }}>📝 {item.note}</div>}
-                      </div>
-                    ))}
-                    {order.special_request && (
-                      <div style={{ fontSize:14, color:C.gold, background:"#2a1a00", borderRadius:8, padding:"8px 12px", marginTop:8 }}>📝 {order.special_request}</div>
-                    )}
-                    {isPending && (
-                      <div style={{ display:"flex", gap:10, marginTop:14 }}>
-                        <button onClick={() => { markOrderDone(order.id); setTableDetailModal(null); }}
-                          style={btn({ flex:1, background:"#2d6a2d", border:"none", color:"#aaffaa", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✓ Mark Done</button>
-                        <button onClick={() => { cancelOrder(order.id); setTableDetailModal(null); }}
-                          style={btn({ flex:1, background:"#6a1a1a", border:"none", color:"#ff9999", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✕ Cancel</button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Footer */}
-            <div style={{ background:"#0f0a04", padding:"16px 20px", borderTop:`2px solid ${C.border}`, flexShrink:0 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", fontSize:22, color:C.goldLight, fontWeight:"bold", marginBottom:14 }}>
-                <span>TOTAL</span><span>RM {data.total.toFixed(2)}</span>
-              </div>
-              <div style={{ display:"flex", gap:10 }}>
-                <button onClick={() => printReceipt(tableNo, data, null, null, null)}
-                  style={btn({ flex:1, background:"#3a2a10", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"14px 0", fontSize:15, fontWeight:"bold" })}>
-                  🖨️ Print Bill
-                </button>
-                <button onClick={() => { setTableDetailModal(null); setPayModal({tableNo, data, method:"QR DuitNow", cashReceived:""}); }}
-                  style={btn({ flex:2, background:"linear-gradient(135deg,#1976d2,#0d47a1)", border:"none", color:"#fff", padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:10, boxShadow:"0 4px 12px rgba(25,118,210,0.35)" })}>
-                  💳 Collect Payment
-                </button>
-              </div>
-            </div>
-          </div>
+          <DetailModal tableNo={tableNo} hasPending={hasPending} pending={pending} done={done}
+            allOrders={allOrders} drinkOrders={drinkOrders} foodOrders={foodOrders}
+            total={total} liveData={liveData}
+            markOrderDone={markOrderDone} cancelOrder={cancelOrder}
+            printReceipt={printReceipt} setPayModal={setPayModal}
+            setTableDetailModal={setTableDetailModal} />
         );
       })()}
 
