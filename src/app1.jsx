@@ -1279,10 +1279,19 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           <div style={{ background:"#fff", padding:"16px 16px 12px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", gap:12 }}>
             <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", fontSize:26, color:T.brown, padding:0 }}>←</button>
             <div style={{ fontSize:20, fontWeight:"bold", color:T.text }}>Your Order</div>
-            <span style={{ background:T.green, color:"#fff", borderRadius:20, padding:"2px 10px", fontSize:14, fontWeight:"bold" }}>{cartItems.reduce((s,i)=>s+i.qty,0)} items</span>
+            <span style={{ background:cartItems.length>0?T.green:"#ccc", color:"#fff", borderRadius:20, padding:"2px 10px", fontSize:14, fontWeight:"bold" }}>{cartItems.reduce((s,i)=>s+i.qty,0)} items</span>
           </div>
 
           <div style={{ padding:"16px 16px 140px" }}>
+            {/* Empty cart state */}
+            {cartItems.length === 0 && (
+              <div style={{ textAlign:"center", padding:"60px 20px" }}>
+                <div style={{ fontSize:60, marginBottom:16 }}>🛒</div>
+                <div style={{ fontSize:18, color:T.muted, marginBottom:20 }}>Your cart is empty</div>
+                <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", padding:"14px 32px", fontSize:17, fontWeight:"bold", borderRadius:12 }}>← Browse Menu</button>
+              </div>
+            )}
+
             {/* Cart items */}
             {cartItems.map(item => (
               <div key={item.cartKey||item.id} style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, boxShadow:T.shadow }}>
@@ -1330,9 +1339,9 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
           {/* Sticky Place Order button */}
           <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px 28px", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
-            <button onClick={placeOrder} disabled={isSubmitting}
-              style={{ width:"100%", maxWidth:500, display:"block", margin:"0 auto", background:isSubmitting?"#a0836a":T.green, border:"none", color:"#fff", padding:"18px 0", fontSize:19, fontWeight:"bold", borderRadius:16, cursor:isSubmitting?"not-allowed":"pointer", fontFamily:"Georgia,serif", boxShadow:"0 4px 20px rgba(46,125,50,0.4)" }}>
-              {isSubmitting ? t.placing : `✓ ${t.placeOrder} · RM ${total.toFixed(2)}`}
+            <button onClick={placeOrder} disabled={isSubmitting || cartItems.length === 0}
+              style={{ width:"100%", maxWidth:500, display:"block", margin:"0 auto", background:cartItems.length===0?"#ccc":isSubmitting?"#a0836a":T.green, border:"none", color:"#fff", padding:"18px 0", fontSize:19, fontWeight:"bold", borderRadius:16, cursor:(isSubmitting||cartItems.length===0)?"not-allowed":"pointer", fontFamily:"Georgia,serif", boxShadow:cartItems.length>0?"0 4px 20px rgba(46,125,50,0.4)":"none" }}>
+              {cartItems.length===0 ? "Add items to order" : isSubmitting ? t.placing : `✓ ${t.placeOrder} · RM ${total.toFixed(2)}`}
             </button>
           </div>
         </div>
