@@ -1463,7 +1463,7 @@ function KitchenScreen({ goHome }) {
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem("k_sound") !== "off");
   const [voiceOn, setVoiceOn] = useState(() => localStorage.getItem("k_voice") === "on");
   const [voiceLang, setVoiceLang] = useState(() => localStorage.getItem("k_voice_lang") || "en");
-  const [kitchenDetailModal, setKitchenDetailModal] = useState(null); // order object
+  const [kitchenDetailModal, setKitchenDetailModal] = useState(null); // order ID only
   const prevPendingCount = useRef(0);
   const soundOnRef = useRef(localStorage.getItem("k_sound") !== "off");
   const voiceOnRef = useRef(localStorage.getItem("k_voice") === "on");
@@ -1604,7 +1604,7 @@ function KitchenScreen({ goHome }) {
         {pending.length===0 && <div style={{ color:C.muted, textAlign:"center", padding:40 }}>All clear! ✅</div>}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(260px,1fr))", gap:14, marginBottom:24 }}>
           {pending.map(order => (
-            <div key={order.id} onClick={() => setKitchenDetailModal(order)}
+            <div key={order.id} onClick={() => setKitchenDetailModal(order.id)}
               style={{ background:C.panel, border:`1.5px solid ${C.gold}`, borderRadius:14, padding:16, display:"flex", flexDirection:"column", cursor:"pointer" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -1660,17 +1660,20 @@ function KitchenScreen({ goHome }) {
         </>}
       </div>
 
-      {/* Kitchen Order Detail Modal */}
-      {kitchenDetailModal && (
+      {/* Kitchen Order Detail Modal — live sync */}
+      {kitchenDetailModal && (() => {
+        const liveOrder = [...pending, ...done, ...cancelled].find(o => o.id === kitchenDetailModal);
+        if (!liveOrder) return null;
+        return (
         <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.95)", zIndex:9000, display:"flex", flexDirection:"column" }}>
           {/* Header */}
           <div style={{ background:"#2c1a0e", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${C.gold}`, flexShrink:0 }}>
             <div>
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-                {kitchenDetailModal.order_seq && <span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"3px 10px", fontSize:16, fontWeight:"bold" }}>#{kitchenDetailModal.order_seq}</span>}
-                <div style={{ fontSize:28, fontWeight:"bold", color:C.goldLight }}>{isTakeaway(kitchenDetailModal.table_no) ? takeawayLabel(kitchenDetailModal.table_no) : `Table ${kitchenDetailModal.table_no}`}</div>
+                {liveOrder.order_seq && <span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"3px 10px", fontSize:16, fontWeight:"bold" }}>#{liveOrder.order_seq}</span>}
+                <div style={{ fontSize:28, fontWeight:"bold", color:C.goldLight }}>{isTakeaway(liveOrder.table_no) ? takeawayLabel(liveOrder.table_no) : `Table ${liveOrder.table_no}`}</div>
               </div>
-              <div style={{ fontSize:13, color:C.muted }}>🍳 Food Order · {kitchenDetailModal.time}</div>
+              <div style={{ fontSize:13, color:C.muted }}>🍳 Food Order · {liveOrder.time}</div>
             </div>
             <button onClick={() => setKitchenDetailModal(null)}
               style={btn({ background:"rgba(255,255,255,0.1)", border:`1px solid ${C.border}`, color:"#fff", width:46, height:46, fontSize:22, borderRadius:50 })}>✕</button>
@@ -1678,7 +1681,7 @@ function KitchenScreen({ goHome }) {
 
           {/* Items */}
           <div style={{ flex:1, overflowY:"auto", padding:"20px" }}>
-            {kitchenDetailModal.items.map((item, i) => (
+            {liveOrder.items.map((item, i) => (
               <div key={i} style={{ marginBottom:16, padding:"16px", background:C.panel, borderRadius:14, border:`1px solid ${C.border}` }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <div style={{ fontSize:22, fontWeight:"bold", color:C.goldLight }}>
@@ -1691,20 +1694,25 @@ function KitchenScreen({ goHome }) {
                 )}
               </div>
             ))}
-            {getFoodReq(kitchenDetailModal.special_request) && (
-              <div style={{ fontSize:16, color:C.gold, background:"#2a1a00", borderRadius:10, padding:"12px 16px", marginTop:8 }}>📝 {getFoodReq(kitchenDetailModal.special_request)}</div>
+            {getFoodReq(liveOrder.special_request) && (
+              <div style={{ fontSize:16, color:C.gold, background:"#2a1a00", borderRadius:10, padding:"12px 16px", marginTop:8 }}>📝 {getFoodReq(liveOrder.special_request)}</div>
             )}
           </div>
 
           {/* Done button */}
           <div style={{ padding:"16px 20px", background:"#0f0a04", borderTop:`2px solid ${C.border}`, flexShrink:0 }}>
-            <button onClick={() => { markDone(kitchenDetailModal.id); setKitchenDetailModal(null); }}
-              style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"18px 0", fontSize:20, fontWeight:"bold", borderRadius:14 })}>
-              ✓ Mark as Done
-            </button>
+            {liveOrder.status === "pending" ? (
+              <button onClick={() => { markDone(liveOrder.id); setKitchenDetailModal(null); }}
+                style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"18px 0", fontSize:20, fontWeight:"bold", borderRadius:14 })}>
+                ✓ Mark as Done
+              </button>
+            ) : (
+              <div style={{ textAlign:"center", color:"#5aaa5a", fontSize:18, fontWeight:"bold", padding:"14px 0" }}>✅ Already Done</div>
+            )}
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
