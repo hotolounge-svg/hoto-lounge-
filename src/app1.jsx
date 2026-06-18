@@ -28,7 +28,7 @@ const btn = (x={}) => ({ fontFamily:"Georgia,serif", cursor:"pointer", borderRad
 const T = {
   bg:"#f5f5f5", panel:"#ffffff", border:"#e0e0e0",
   brown:"#8a5a00", text:"#1a1a1a", muted:"#666666",
-  green:"#2e7d32", greenBg:"#e8f5e9", red:"#c62828",
+  green:"#8a5a00", greenBg:"#fdf3e0", red:"#c62828",
   orange:"#e65100", shadow:"0 2px 8px rgba(0,0,0,0.1)"
 };
 
@@ -1152,7 +1152,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       addToCart(item, itemModal.freeDrink||null, itemModal.selectedAddons, itemModal.note, itemModal.qty);
                       setItemModal(null);
                     }} disabled={!canAdd}
-                      style={{ flex:1, background:canAdd?T.green:"#ccc", border:"none", color:"#fff", padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:50, cursor:canAdd?"pointer":"not-allowed", fontFamily:"Georgia,serif", boxShadow:canAdd?"0 4px 12px rgba(46,125,50,0.35)":"none" }}>
+                      style={{ flex:1, background:canAdd?T.green:"#ccc", border:"none", color:"#fff", padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:50, cursor:canAdd?"pointer":"not-allowed", fontFamily:"Georgia,serif", boxShadow:canAdd?"0 4px 12px rgba(138,90,0,0.35)":"none" }}>
                       {!canAdd && item.addon_required ? t.pleaseSelect : `Add to Order — RM ${totalPrice.toFixed(2)}`}
                     </button>
                   </div>
@@ -1264,7 +1264,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           {cartItems.length > 0 && (
             <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:500, padding:"12px 16px 24px", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
               <button onClick={() => setView("cart")}
-                style={{ width:"100%", maxWidth:500, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", background:T.green, border:"none", color:"#fff", padding:"16px 20px", fontSize:17, fontWeight:"bold", borderRadius:16, cursor:"pointer", fontFamily:"Georgia,serif", boxShadow:"0 4px 20px rgba(46,125,50,0.4)" }}>
+                style={{ width:"100%", maxWidth:500, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", background:T.green, border:"none", color:"#fff", padding:"16px 20px", fontSize:17, fontWeight:"bold", borderRadius:16, cursor:"pointer", fontFamily:"Georgia,serif", boxShadow:"0 4px 20px rgba(138,90,0,0.4)" }}>
                 <span style={{ background:"rgba(255,255,255,0.25)", borderRadius:8, padding:"2px 10px", fontSize:16 }}>{cartItems.reduce((s,i)=>s+i.qty,0)}</span>
                 <span>View Cart</span>
                 <span>RM {total.toFixed(2)}</span>
@@ -1331,7 +1331,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           {/* Sticky Place Order button */}
           <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px 28px", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
             <button onClick={placeOrder} disabled={isSubmitting || cartItems.length === 0}
-              style={{ width:"100%", maxWidth:500, display:"block", margin:"0 auto", background:cartItems.length===0?"#ccc":isSubmitting?"#a0836a":T.green, border:"none", color:"#fff", padding:"18px 0", fontSize:19, fontWeight:"bold", borderRadius:16, cursor:(isSubmitting||cartItems.length===0)?"not-allowed":"pointer", fontFamily:"Georgia,serif", boxShadow:cartItems.length>0?"0 4px 20px rgba(46,125,50,0.4)":"none" }}>
+              style={{ width:"100%", maxWidth:500, display:"block", margin:"0 auto", background:cartItems.length===0?"#ccc":isSubmitting?"#a0836a":T.green, border:"none", color:"#fff", padding:"18px 0", fontSize:19, fontWeight:"bold", borderRadius:16, cursor:(isSubmitting||cartItems.length===0)?"not-allowed":"pointer", fontFamily:"Georgia,serif", boxShadow:cartItems.length>0?"0 4px 20px rgba(138,90,0,0.4)":"none" }}>
               {cartItems.length===0 ? "Add items to order" : isSubmitting ? t.placing : `✓ ${t.placeOrder} · RM ${total.toFixed(2)}`}
             </button>
           </div>
@@ -2030,35 +2030,32 @@ function CashierScreen({ goHome }) {
   const reprintHiddenIds = useRef(new Set()); // IDs of orders hidden by Clear
 
   const fetchReprintList = async () => {
-    // Fetch all paid orders (created_at always exists), filter last 24h client-side
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data } = await supabase.from("orders").select("*").eq("status","paid")
-      .order("created_at", { ascending:false }).limit(100);
+      .gte("created_at", since)
+      .order("created_at", { ascending:false }).limit(200);
     if (!data || data.length === 0) { setReprintList([]); return; }
-    const since = Date.now() - 24 * 60 * 60 * 1000;
-    // Filter to last 24h by created_at
-    const recent = data.filter(o => new Date(o.created_at).getTime() >= since);
-    if (recent.length === 0) { setReprintList([]); return; }
     const charge = parseFloat(localStorage.getItem("service_charge")||"10");
     const sessions = [];
     const used = new Set();
-    recent.forEach(order => {
-      if (used.has(order.id)) return;
-      if (reprintHiddenIds.current.has(order.id)) return;
-      // Group: same table, created within 2 minutes of each other (same sitting)
-      const orderTime = new Date(order.created_at).getTime();
-      const usedSnapshot = new Set(used);
-      const group = recent.filter(o =>
-        !usedSnapshot.has(o.id) &&
-        !reprintHiddenIds.current.has(o.id) &&
-        String(o.table_no) === String(order.table_no) &&
-        Math.abs(new Date(o.created_at).getTime() - orderTime) < 120000
-      );
-      group.forEach(o => used.add(o.id));
-      const subtotal = group.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
-      const grandTotal = +(Math.round((subtotal * (1 + charge/100)) * 20) / 20).toFixed(2);
-      const timeStr = new Date(order.created_at).toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
-      sessions.push({ tableNo: order.table_no, orders: group, total: subtotal, grandTotal, time: timeStr });
+    // Group by paid_session_id if available, else by table+2min window
+    const sessionMap = {};
+    data.forEach(o => {
+      if (reprintHiddenIds.current.has(o.id)) return;
+      const key = o.paid_session_id || (String(o.table_no) + "_" + Math.floor(new Date(o.created_at).getTime() / 120000));
+      if (!sessionMap[key]) sessionMap[key] = { tableNo: o.table_no, orders: [], paidAt: o.paid_at || o.created_at };
+      sessionMap[key].orders.push(o);
+      // Use the latest paid_at as the session time
+      if (o.paid_at && o.paid_at > sessionMap[key].paidAt) sessionMap[key].paidAt = o.paid_at;
     });
+    Object.values(sessionMap)
+      .sort((a,b) => new Date(b.paidAt) - new Date(a.paidAt))
+      .forEach(sess => {
+        const subtotal = sess.orders.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
+        const grandTotal = +(Math.round((subtotal * (1 + charge/100)) * 20) / 20).toFixed(2);
+        const timeStr = new Date(sess.paidAt).toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
+        sessions.push({ tableNo: sess.tableNo, orders: sess.orders, total: subtotal, grandTotal, time: timeStr });
+      });
     setReprintList(sessions.slice(0, 15));
   };
 
@@ -2204,8 +2201,10 @@ function CashierScreen({ goHome }) {
 
   const markPaid = async (tableNo, paymentMethod="Cash") => {
     setPaying(tableNo);
-    await supabase.from("orders").update({status:"paid"}).eq("table_no",tableNo).in("status",["pending","done"]);
-    await supabase.from("table_sessions").upsert({table_no:parseInt(tableNo), session_id:"paid_"+Date.now(), updated_at:new Date().toISOString()});
+    const sessionId = "paid_" + Date.now();
+    const paidAt = new Date().toISOString();
+    await supabase.from("orders").update({status:"paid", paid_session_id: sessionId, paid_at: paidAt}).eq("table_no",tableNo).in("status",["pending","done"]);
+    await supabase.from("table_sessions").upsert({table_no:parseInt(tableNo), session_id:sessionId, updated_at:paidAt});
     setPaying(null); fetchAll();
   };
 
