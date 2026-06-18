@@ -2025,23 +2025,28 @@ function CashierScreen({ goHome }) {
   const [paying, setPaying] = useState(null);
   const [payModal, setPayModal] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
-  const [lastReceipt, setLastReceipt] = useState(null);
+  const [reprintList, setReprintList] = useState([]); // list of recent paid sessions
+  const [reprintModal, setReprintModal] = useState(false);
 
-  // Load last paid order for reprint on mount
-  useEffect(() => {
-    const fetchLastPaid = async () => {
-      const { data } = await supabase.from("orders").select("*").eq("status","paid").order("updated_at", { ascending:false }).limit(10);
-      if (!data || data.length === 0) return;
-      // Group by table_no + payment session (same updated_at within 1 min)
-      const last = data[0];
-      const sameSession = data.filter(o => Math.abs(new Date(o.updated_at) - new Date(last.updated_at)) < 60000);
-      const tableNo = last.table_no;
-      const allItems = sameSession.flatMap(o => o.items);
-      const total = allItems.reduce((s,i) => s+i.price*i.qty, 0);
-      setLastReceipt({ tableNo, data:{ pending:[], done:sameSession, total }, method: null, cashReceived: null, change: null });
-    };
-    fetchLastPaid();
-  }, []);
+  const fetchReprintList = async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const { data } = await supabase.from("orders").select("*").eq("status","paid")
+      .gte("updated_at", today + "T00:00:00").order("updated_at", { ascending:false });
+    if (!data || data.length === 0) { setReprintList([]); return; }
+    // Group into sessions by table_no + updated within 2 mins of each other
+    const sessions = [];
+    const used = new Set();
+    data.forEach(order => {
+      if (used.has(order.id)) return;
+      const group = data.filter(o => !used.has(o.id) && String(o.table_no) === String(order.table_no) && Math.abs(new Date(o.updated_at) - new Date(order.updated_at)) < 120000);
+      group.forEach(o => used.add(o.id));
+      const total = group.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
+      sessions.push({ tableNo: order.table_no, orders: group, total, time: new Date(order.updated_at).toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"}) });
+    });
+    setReprintList(sessions);
+  };
+
+  useEffect(() => { fetchReprintList(); }, []);
   const [tableDetailModal, setTableDetailModal] = useState(null); // tableNo only — reads live orders
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem("c_sound") !== "off");
   const [filterTab, setFilterTab] = useState("all");
@@ -2406,6 +2411,35 @@ function CashierScreen({ goHome }) {
         );
       })()}
 
+      {/* Reprint Modal */}
+      {reprintModal && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.8)", zIndex:10000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#1a1208", border:`1px solid ${C.gold}`, borderRadius:20, width:"100%", maxWidth:380, overflow:"hidden" }}>
+            <div style={{ background:"#2c1a0e", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ fontSize:17, fontWeight:"bold", color:C.goldLight }}>🖨️ Reprint Receipt</div>
+              <button onClick={() => setReprintModal(false)} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, width:36, height:36, fontSize:18, borderRadius:50 })}>✕</button>
+            </div>
+            <div style={{ padding:16, maxHeight:400, overflowY:"auto" }}>
+              {reprintList.length === 0
+                ? <div style={{ textAlign:"center", color:C.muted, padding:30 }}>No paid receipts today</div>
+                : reprintList.map((session, i) => (
+                  <button key={i} onClick={() => {
+                    printReceipt(session.tableNo, { pending:[], done:session.orders, total:session.total }, null, null, null);
+                    setReprintModal(false);
+                  }} style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, borderRadius:12, padding:"14px 16px", marginBottom:10, cursor:"pointer", textAlign:"left", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div>
+                      <div style={{ fontSize:16, fontWeight:"bold", color:C.goldLight }}>{isTakeaway(session.tableNo) ? takeawayLabel(session.tableNo) : `Table ${session.tableNo}`}</div>
+                      <div style={{ fontSize:12, color:C.muted, marginTop:2 }}>Paid at {session.time}</div>
+                    </div>
+                    <div style={{ fontSize:16, fontWeight:"bold", color:C.gold }}>RM {session.total.toFixed(2)}</div>
+                  </button>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Custom Confirm Payment Modal */}
       {confirmModal && (
         <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.75)", zIndex:10000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
@@ -2453,8 +2487,8 @@ function CashierScreen({ goHome }) {
                 </button>
                 <button onClick={() => {
                   printReceipt(confirmModal.tableNo, confirmModal.data, confirmModal.method, confirmModal.cashReceived, confirmModal.change);
-                  setLastReceipt({ tableNo:confirmModal.tableNo, data:confirmModal.data, method:confirmModal.method, cashReceived:confirmModal.cashReceived, change:confirmModal.change });
                   markPaid(confirmModal.tableNo, confirmModal.method);
+                  setTimeout(fetchReprintList, 1500); // refresh reprint list after paid
                   setConfirmModal(null);
                   setPayModal(null);
                 }}
@@ -2488,10 +2522,10 @@ function CashierScreen({ goHome }) {
               {voiceLang === "en" ? "🇬🇧 EN" : "🇨🇳 中文"}
             </button>
           )}
-          {lastReceipt && (
-            <button onClick={() => printReceipt(lastReceipt.tableNo, lastReceipt.data, lastReceipt.method, lastReceipt.cashReceived, lastReceipt.change)}
+          {reprintList.length > 0 && (
+            <button onClick={() => setReprintModal(true)}
               style={btn({ background:"#2a1a3a", border:`1px solid #aa5aff`, color:"#cc99ff", padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
-              🖨️ Reprint Last
+              🖨️ Reprint ({reprintList.length})
             </button>
           )}
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
