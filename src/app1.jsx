@@ -1463,6 +1463,7 @@ function KitchenScreen({ goHome }) {
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem("k_sound") !== "off");
   const [voiceOn, setVoiceOn] = useState(() => localStorage.getItem("k_voice") === "on");
   const [voiceLang, setVoiceLang] = useState(() => localStorage.getItem("k_voice_lang") || "en");
+  const [kitchenDetailModal, setKitchenDetailModal] = useState(null); // order object
   const prevPendingCount = useRef(0);
   const soundOnRef = useRef(localStorage.getItem("k_sound") !== "off");
   const voiceOnRef = useRef(localStorage.getItem("k_voice") === "on");
@@ -1603,13 +1604,17 @@ function KitchenScreen({ goHome }) {
         {pending.length===0 && <div style={{ color:C.muted, textAlign:"center", padding:40 }}>All clear! ✅</div>}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(260px,1fr))", gap:14, marginBottom:24 }}>
           {pending.map(order => (
-            <div key={order.id} style={{ background:C.panel, border:`1.5px solid ${C.gold}`, borderRadius:14, padding:16, display:"flex", flexDirection:"column" }}>
+            <div key={order.id} onClick={() => setKitchenDetailModal(order)}
+              style={{ background:C.panel, border:`1.5px solid ${C.gold}`, borderRadius:14, padding:16, display:"flex", flexDirection:"column", cursor:"pointer" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                   {order.order_seq && <span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"2px 8px", fontSize:13, fontWeight:"bold" }}>#{order.order_seq}</span>}
-                  <div style={{ fontSize:20, fontWeight:"bold", color:C.goldLight }}>Table {order.table_no}</div>
+                  <div style={{ fontSize:20, fontWeight:"bold", color:C.goldLight }}>{isTakeaway(order.table_no) ? takeawayLabel(order.table_no) : `Table ${order.table_no}`}</div>
                 </div>
-                <div style={{ fontSize:11, color:C.muted }}>{order.time}</div>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                  <div style={{ fontSize:11, color:C.muted }}>{order.time}</div>
+                  <span style={{ color:C.muted, fontSize:14 }}>↗</span>
+                </div>
               </div>
               <div style={{ flex:1 }}>
                 {order.items.map((item,i) => (
@@ -1626,7 +1631,7 @@ function KitchenScreen({ goHome }) {
                 )}
               </div>
               <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"flex-end" }}>
-                <button onClick={() => markDone(order.id)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 20px", fontSize:14, fontWeight:"bold" })}>Done ✓</button>
+                <button onClick={e => { e.stopPropagation(); markDone(order.id); }} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 20px", fontSize:14, fontWeight:"bold" })}>Done ✓</button>
               </div>
             </div>
           ))}
@@ -1654,6 +1659,52 @@ function KitchenScreen({ goHome }) {
           </div>
         </>}
       </div>
+
+      {/* Kitchen Order Detail Modal */}
+      {kitchenDetailModal && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.95)", zIndex:9000, display:"flex", flexDirection:"column" }}>
+          {/* Header */}
+          <div style={{ background:"#2c1a0e", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${C.gold}`, flexShrink:0 }}>
+            <div>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+                {kitchenDetailModal.order_seq && <span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"3px 10px", fontSize:16, fontWeight:"bold" }}>#{kitchenDetailModal.order_seq}</span>}
+                <div style={{ fontSize:28, fontWeight:"bold", color:C.goldLight }}>{isTakeaway(kitchenDetailModal.table_no) ? takeawayLabel(kitchenDetailModal.table_no) : `Table ${kitchenDetailModal.table_no}`}</div>
+              </div>
+              <div style={{ fontSize:13, color:C.muted }}>🍳 Food Order · {kitchenDetailModal.time}</div>
+            </div>
+            <button onClick={() => setKitchenDetailModal(null)}
+              style={btn({ background:"rgba(255,255,255,0.1)", border:`1px solid ${C.border}`, color:"#fff", width:46, height:46, fontSize:22, borderRadius:50 })}>✕</button>
+          </div>
+
+          {/* Items */}
+          <div style={{ flex:1, overflowY:"auto", padding:"20px" }}>
+            {kitchenDetailModal.items.map((item, i) => (
+              <div key={i} style={{ marginBottom:16, padding:"16px", background:C.panel, borderRadius:14, border:`1px solid ${C.border}` }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div style={{ fontSize:22, fontWeight:"bold", color:C.goldLight }}>
+                    {item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, marginRight:6 }}>{item.item_no}</span>}{item.name}
+                  </div>
+                  <div style={{ fontSize:28, fontWeight:"bold", color:C.gold }}>×{item.qty}</div>
+                </div>
+                {item.note && (
+                  <div style={{ fontSize:16, color:"#ffcc44", background:"#2a1a00", borderRadius:8, padding:"10px 14px", marginTop:10 }}>📝 {item.note}</div>
+                )}
+              </div>
+            ))}
+            {getFoodReq(kitchenDetailModal.special_request) && (
+              <div style={{ fontSize:16, color:C.gold, background:"#2a1a00", borderRadius:10, padding:"12px 16px", marginTop:8 }}>📝 {getFoodReq(kitchenDetailModal.special_request)}</div>
+            )}
+          </div>
+
+          {/* Done button */}
+          <div style={{ padding:"16px 20px", background:"#0f0a04", borderTop:`2px solid ${C.border}`, flexShrink:0 }}>
+            <button onClick={() => { markDone(kitchenDetailModal.id); setKitchenDetailModal(null); }}
+              style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"18px 0", fontSize:20, fontWeight:"bold", borderRadius:14 })}>
+              ✓ Mark as Done
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
