@@ -2025,7 +2025,23 @@ function CashierScreen({ goHome }) {
   const [paying, setPaying] = useState(null);
   const [payModal, setPayModal] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
-  const [lastReceipt, setLastReceipt] = useState(null); // save last receipt for reprint
+  const [lastReceipt, setLastReceipt] = useState(null);
+
+  // Load last paid order for reprint on mount
+  useEffect(() => {
+    const fetchLastPaid = async () => {
+      const { data } = await supabase.from("orders").select("*").eq("status","paid").order("updated_at", { ascending:false }).limit(10);
+      if (!data || data.length === 0) return;
+      // Group by table_no + payment session (same updated_at within 1 min)
+      const last = data[0];
+      const sameSession = data.filter(o => Math.abs(new Date(o.updated_at) - new Date(last.updated_at)) < 60000);
+      const tableNo = last.table_no;
+      const allItems = sameSession.flatMap(o => o.items);
+      const total = allItems.reduce((s,i) => s+i.price*i.qty, 0);
+      setLastReceipt({ tableNo, data:{ pending:[], done:sameSession, total }, method: null, cashReceived: null, change: null });
+    };
+    fetchLastPaid();
+  }, []);
   const [tableDetailModal, setTableDetailModal] = useState(null); // tableNo only — reads live orders
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem("c_sound") !== "off");
   const [filterTab, setFilterTab] = useState("all");
