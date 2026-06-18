@@ -2029,21 +2029,29 @@ function CashierScreen({ goHome }) {
   const [reprintModal, setReprintModal] = useState(false);
 
   const fetchReprintList = async () => {
-    const { data, error } = await supabase.from("orders").select("*").eq("status","paid")
-      .order("created_at", { ascending:false }).limit(30);
+    // Only fetch paid orders from the last 24 hours
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data } = await supabase.from("orders").select("*").eq("status","paid")
+      .gte("created_at", since)
+      .order("created_at", { ascending:false }).limit(50);
     if (!data || data.length === 0) { setReprintList([]); return; }
+    const charge = parseFloat(localStorage.getItem("service_charge")||"10");
     const sessions = [];
     const used = new Set();
     data.forEach(order => {
       if (used.has(order.id)) return;
-      // Group same table orders within 5 mins
-      const group = data.filter(o => !used.has(o.id) && String(o.table_no) === String(order.table_no) && Math.abs(new Date(o.created_at) - new Date(order.created_at)) < 300000);
+      // Group same table orders within 5 mins — snapshot used before filtering
+      const usedSnapshot = new Set(used);
+      const group = data.filter(o => !usedSnapshot.has(o.id) && String(o.table_no) === String(order.table_no) && Math.abs(new Date(o.created_at) - new Date(order.created_at)) < 300000);
       group.forEach(o => used.add(o.id));
-      const total = group.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
-      const timeStr = new Date(order.created_at).toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true});
-      sessions.push({ tableNo: order.table_no, orders: group, total, time: timeStr });
+      const subtotal = group.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
+      const grandTotal = +(Math.round((subtotal * (1 + charge/100)) * 20) / 20).toFixed(2);
+      // Display time in MYT (UTC+8)
+      const mytDate = new Date(new Date(order.created_at).getTime() + 8*60*60*1000);
+      const timeStr = mytDate.toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"UTC"});
+      sessions.push({ tableNo: order.table_no, orders: group, total: subtotal, grandTotal, time: timeStr });
     });
-    setReprintList(sessions.slice(0, 10));
+    setReprintList(sessions.slice(0, 15));
   };
 
   useEffect(() => { fetchReprintList(); }, []);
@@ -2419,9 +2427,17 @@ function CashierScreen({ goHome }) {
               <div style={{ fontSize:17, fontWeight:"bold", color:C.goldLight }}>🖨️ Reprint Receipt</div>
               <button onClick={() => setReprintModal(false)} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, width:36, height:36, fontSize:18, borderRadius:50 })}>✕</button>
             </div>
+            <div style={{ padding:"8px 16px 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ fontSize:11, color:C.muted }}>Last 24 hours only</div>
+              {reprintList.length > 0 && (
+                <button onClick={() => setReprintList([])} style={btn({ background:"#3a1010", border:`1px solid #aa4444`, color:"#ff8888", padding:"5px 12px", fontSize:12, fontWeight:"bold" })}>
+                  🗑️ Clear List
+                </button>
+              )}
+            </div>
             <div style={{ padding:16, maxHeight:400, overflowY:"auto" }}>
               {reprintList.length === 0
-                ? <div style={{ textAlign:"center", color:C.muted, padding:30 }}>No paid receipts today</div>
+                ? <div style={{ textAlign:"center", color:C.muted, padding:30 }}>No paid receipts (last 24h)</div>
                 : reprintList.map((session, i) => (
                   <button key={i} onClick={() => {
                     printReceipt(session.tableNo, { pending:[], done:session.orders, total:session.total }, null, null, null);
@@ -2431,7 +2447,7 @@ function CashierScreen({ goHome }) {
                       <div style={{ fontSize:16, fontWeight:"bold", color:C.goldLight }}>{isTakeaway(session.tableNo) ? takeawayLabel(session.tableNo) : `Table ${session.tableNo}`}</div>
                       <div style={{ fontSize:12, color:C.muted, marginTop:2 }}>Paid at {session.time}</div>
                     </div>
-                    <div style={{ fontSize:16, fontWeight:"bold", color:C.gold }}>RM {session.total.toFixed(2)}</div>
+                    <div style={{ fontSize:16, fontWeight:"bold", color:C.gold }}>RM {(session.grandTotal ?? session.total).toFixed(2)}</div>
                   </button>
                 ))
               }
