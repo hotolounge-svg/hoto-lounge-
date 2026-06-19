@@ -21,7 +21,7 @@ const DRINK_CATEGORIES = ["Beverage", "Desserts"];
 const FOOD_CATEGORIES = ["Food & Snacks", "Promo", "Add-ons"];
 
 // Staff dark theme
-const C = { bg:"#1a1208", panel:"#2c1a0e", border:"#3d2d1a", gold:"#c8973a", goldLight:"#e8c77a", muted:"#a07840", text:"#f5ede0", dark:"#1a1208" };
+const C = { bg:"#2a1f10", panel:"#3d2c18", border:"#5a4020", gold:"#c8973a", goldLight:"#e8c77a", muted:"#c0a060", text:"#fff8ee", dark:"#1a1208" };
 const btn = (x={}) => ({ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:8, transition:"all 0.2s", ...x });
 
 // Customer bright theme
