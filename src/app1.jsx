@@ -2325,7 +2325,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                   return (
                     <div key={item.id} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:inCart?"#2c1a0e":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:8 }}>
                       <div style={{ flex:1,minWidth:0 }}>
-                        <div style={{ color:C.text,fontSize:14,fontWeight:inCart?"bold":"normal" }}>{item.name}</div>
+                        <div style={{ color:C.text,fontSize:14,fontWeight:inCart?"bold":"normal" }}>{item.item_no && <span style={{ color:C.gold,fontSize:11,fontWeight:"bold",marginRight:5 }}>{item.item_no}</span>}{item.name}</div>
                         <div style={{ color:C.gold,fontSize:13 }}>RM {parseFloat(item.price).toFixed(2)}</div>
                       </div>
                       <div style={{ display:"flex",alignItems:"center",gap:8,flexShrink:0 }}>
