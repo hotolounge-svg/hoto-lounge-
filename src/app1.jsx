@@ -2058,6 +2058,8 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [activeOrders, setActiveOrders] = useState([]); // existing orders on table
   const [editTab, setEditTab] = useState("existing"); // "existing" | "add"
+  const [editingNote, setEditingNote] = useState(null); // {orderId, itemIdx, note}
+  const [editingPrice, setEditingPrice] = useState(null); // {orderId, itemIdx, price}
   const tableNo = pickedTable;
 
   const loadData = () => {
@@ -2102,6 +2104,21 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
     }
     loadData();
     onSaved();
+  };
+
+  const updateExistingNote = async (order, itemIdx, note) => {
+    const newItems = order.items.map((it,i) => i===itemIdx ? {...it, note} : it);
+    await supabase.from("orders").update({items:newItems}).eq("id",order.id);
+    setEditingNote(null); loadData(); onSaved();
+  };
+
+  const updateExistingPrice = async (order, itemIdx, price) => {
+    const newPrice = parseFloat(price);
+    if (isNaN(newPrice) || newPrice < 0) return;
+    const newItems = order.items.map((it,i) => i===itemIdx ? {...it, price:newPrice} : it);
+    const newTotal = newItems.reduce((s,it)=>s+it.price*it.qty,0);
+    await supabase.from("orders").update({items:newItems, total:newTotal}).eq("id",order.id);
+    setEditingPrice(null); loadData(); onSaved();
   };
 
   const cancelExistingOrder = async (orderId) => {
@@ -2198,22 +2215,64 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                     🗑️ Remove Order
                   </button>
                 </div>
-                {order.items.map((item,ii)=>(
-                  <div key={ii} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}` }}>
-                    <div style={{ flex:1 }}>
-                      <div style={{ color:C.text,fontSize:14,fontWeight:"bold" }}>{item.name}</div>
-                      <div style={{ color:C.gold,fontSize:13 }}>RM {parseFloat(item.price).toFixed(2)} each</div>
+                {order.items.map((item,ii)=>{
+                  const isEditNote = editingNote?.orderId===order.id && editingNote?.itemIdx===ii;
+                  const isEditPrice = editingPrice?.orderId===order.id && editingPrice?.itemIdx===ii;
+                  return (
+                  <div key={ii} style={{ padding:"8px 0",borderBottom:`1px solid ${C.border}` }}>
+                    <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ color:C.text,fontSize:14,fontWeight:"bold" }}>{item.name}</div>
+                        {isEditPrice ? (
+                          <div style={{ display:"flex",alignItems:"center",gap:6,marginTop:4 }}>
+                            <span style={{ color:C.gold,fontSize:12 }}>RM</span>
+                            <input type="number" step="0.10" value={editingPrice.price}
+                              onChange={e=>setEditingPrice(p=>({...p,price:e.target.value}))}
+                              style={{ width:70,background:C.bg,border:`1px solid ${C.gold}`,color:C.text,padding:"3px 6px",borderRadius:6,fontSize:13,outline:"none" }} />
+                            <button onClick={()=>updateExistingPrice(order,ii,editingPrice.price)}
+                              style={btn({ background:C.gold,border:"none",color:C.dark,padding:"3px 8px",fontSize:11,fontWeight:"bold",borderRadius:6 })}>✅</button>
+                            <button onClick={()=>setEditingPrice(null)}
+                              style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,padding:"3px 6px",fontSize:11,borderRadius:6 })}>✕</button>
+                          </div>
+                        ) : (
+                          <div style={{ display:"flex",alignItems:"center",gap:6,marginTop:2 }}>
+                            <span style={{ color:C.gold,fontSize:12 }}>RM {parseFloat(item.price).toFixed(2)} each</span>
+                            <button onClick={()=>setEditingPrice({orderId:order.id,itemIdx:ii,price:item.price})}
+                              style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,padding:"1px 6px",fontSize:10,borderRadius:5 })}>✏️ price</button>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display:"flex",alignItems:"center",gap:6,flexShrink:0 }}>
+                        <button onClick={()=>updateExistingQty(order,ii,-1)}
+                          style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:32,height:32,fontSize:18,borderRadius:8,fontWeight:"bold" })}>−</button>
+                        <span style={{ color:C.goldLight,fontWeight:"bold",fontSize:15,minWidth:22,textAlign:"center" }}>{item.qty}</span>
+                        <button onClick={()=>updateExistingQty(order,ii,+1)}
+                          style={btn({ background:"#1a4a1a",border:"none",color:"#aaffaa",width:32,height:32,fontSize:18,borderRadius:8,fontWeight:"bold" })}>+</button>
+                        <span style={{ color:"#aaffaa",fontWeight:"bold",fontSize:12,minWidth:55,textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                      </div>
                     </div>
-                    <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                      <button onClick={()=>updateExistingQty(order,ii,-1)}
-                        style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:34,height:34,fontSize:20,borderRadius:8,fontWeight:"bold" })}>−</button>
-                      <span style={{ color:C.goldLight,fontWeight:"bold",fontSize:16,minWidth:24,textAlign:"center" }}>{item.qty}</span>
-                      <button onClick={()=>updateExistingQty(order,ii,+1)}
-                        style={btn({ background:"#1a4a1a",border:"none",color:"#aaffaa",width:34,height:34,fontSize:20,borderRadius:8,fontWeight:"bold" })}>+</button>
-                      <span style={{ color:"#aaffaa",fontWeight:"bold",fontSize:13,minWidth:60,textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
-                    </div>
+                    {isEditNote ? (
+                      <div style={{ marginTop:6,display:"flex",gap:6 }}>
+                        <input value={editingNote.note} onChange={e=>setEditingNote(n=>({...n,note:e.target.value}))}
+                          placeholder="e.g. no sugar, less ice..."
+                          style={{ flex:1,background:C.bg,border:`1px solid ${C.gold}`,color:C.text,padding:"6px 10px",borderRadius:8,fontSize:13,outline:"none" }} />
+                        <button onClick={()=>updateExistingNote(order,ii,editingNote.note)}
+                          style={btn({ background:C.gold,border:"none",color:C.dark,padding:"6px 12px",fontSize:12,fontWeight:"bold",borderRadius:8 })}>✅</button>
+                        <button onClick={()=>setEditingNote(null)}
+                          style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,padding:"6px 10px",fontSize:12,borderRadius:8 })}>✕</button>
+                      </div>
+                    ) : (
+                      <div style={{ marginTop:4,display:"flex",alignItems:"center",gap:8 }}>
+                        {item.note && <span style={{ color:C.muted,fontSize:12 }}>📝 {item.note}</span>}
+                        <button onClick={()=>setEditingNote({orderId:order.id,itemIdx:ii,note:item.note||""})}
+                          style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,padding:"2px 8px",fontSize:11,borderRadius:6 })}>
+                          {item.note?"✏️ note":"➕ note"}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
                 <div style={{ textAlign:"right",marginTop:8,color:C.goldLight,fontWeight:"bold",fontSize:14 }}>
                   Order Total: RM {order.items.reduce((s,i)=>s+i.price*i.qty,0).toFixed(2)}
                 </div>
