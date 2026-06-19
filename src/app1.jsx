@@ -862,7 +862,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden", background:T.bg, fontFamily:"Georgia,serif" }}>
       {/* Header */}
-      <div style={{ background:T.brown, padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+      <div style={{ background:"linear-gradient(135deg, #2a1010, #1a0808)", padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0, borderBottom:"2px solid #c8973a" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           {isStaff && <button onClick={goHome} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.4)", color:"#fff", borderRadius:8, padding:"6px 12px", fontSize:13 }}>← Back</button>}
           <div>
@@ -881,11 +881,11 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       </div>
 
       {/* Tab bar */}
-      <div style={{ display:"flex", background:"#fff", borderBottom:`2px solid ${T.border}`, flexShrink:0 }}>
-        <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:"transparent", border:"none", borderBottom:view==="menu"?`3px solid ${T.brown}`:"3px solid transparent", color:view==="menu"?T.brown:T.muted, padding:"14px 0", fontSize:17, fontWeight:view==="menu"?"bold":"normal" }}>
+      <div style={{ display:"flex", background:"#2a1010", borderBottom:"2px solid #c8973a", flexShrink:0 }}>
+        <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:"transparent", border:"none", borderBottom:view==="menu"?"3px solid #c8973a":"3px solid transparent", color:view==="menu"?"#c8973a":"#a07060", padding:"14px 0", fontSize:17, fontWeight:view==="menu"?"bold":"normal" }}>
           {t.menu}
         </button>
-        <button onClick={() => setView("orders")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:"transparent", border:"none", borderBottom:view==="orders"?`3px solid ${T.brown}`:"3px solid transparent", color:view==="orders"?T.brown:T.muted, padding:"14px 0", fontSize:17, fontWeight:view==="orders"?"bold":"normal" }}>
+        <button onClick={() => setView("orders")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:"transparent", border:"none", borderBottom:view==="orders"?"3px solid #c8973a":"3px solid transparent", color:view==="orders"?"#c8973a":"#a07060", padding:"14px 0", fontSize:17, fontWeight:view==="orders"?"bold":"normal" }}>
           {t.myOrders} {hasOrders && <span style={{ background:pendingOrders.length>0?T.orange:T.green, color:"#fff", borderRadius:12, padding:"2px 9px", fontSize:13, marginLeft:6 }}>{myOrders.length}</span>}
         </button>
       </div>
@@ -951,16 +951,16 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
       {/* MENU */}
       {view === "menu" && (
-        <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", background:T.bg }}>
+        <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", background:"#f5f0eb" }}>
           {/* Search bar */}
-          <div style={{ padding:"10px 12px", background:"#fff", borderBottom:`1px solid ${T.border}` }}>
+          <div style={{ padding:"10px 12px", background:"#2a1010", borderBottom:"1px solid #4a2020" }}>
             <div style={{ position:"relative" }}>
               <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:18, color:T.muted }}>🔍</span>
               <input
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder={t.searchPlaceholder}
-                style={{ width:"100%", background:"#f5f5f5", border:`1px solid ${T.border}`, color:T.text, padding:"10px 12px 10px 40px", borderRadius:10, fontSize:16, fontFamily:"Georgia,serif", boxSizing:"border-box" }}
+                style={{ width:"100%", background:"#1a0808", border:"1px solid #4a2020", color:"#f5ede0", padding:"10px 12px 10px 40px", borderRadius:10, fontSize:16, fontFamily:"Georgia,serif", boxSizing:"border-box" }}
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery("")} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", fontSize:20, color:T.muted, cursor:"pointer" }}>×</button>
@@ -971,9 +971,9 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
           {/* Category tabs — hidden when searching */}
           {!searchQuery && (
-            <div style={{ display:"flex", background:"#fff", borderBottom:`1px solid ${T.border}`, overflowX:"auto", flexShrink:0 }}>
+            <div style={{ display:"flex", background:"#1a0808", borderBottom:"1px solid #4a2020", overflowX:"auto", flexShrink:0 }}>
               {CATEGORIES.map(cat => (
-                <button key={cat} onClick={() => setActiveCategory(cat)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:activeCategory===cat?T.brown:"#fff", border:"none", color:activeCategory===cat?"#fff":T.muted, padding:"14px 18px", fontSize:15, fontWeight:activeCategory===cat?"bold":"normal", whiteSpace:"nowrap", flexShrink:0, borderBottom:activeCategory===cat?`3px solid #5a3a00`:"3px solid transparent" }}>
+                <button key={cat} onClick={() => setActiveCategory(cat)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:activeCategory===cat?"#c8973a":"transparent", border:"none", color:activeCategory===cat?"#1a0808":"#a07060", padding:"14px 18px", fontSize:15, fontWeight:activeCategory===cat?"bold":"normal", whiteSpace:"nowrap", flexShrink:0, borderBottom:activeCategory===cat?"3px solid #a07020":"3px solid transparent" }}>
                   {cat==="Beverage"?t.beverage:cat==="Food & Snacks"?t.food:cat==="Desserts"?t.desserts:t.addons}
                 </button>
               ))}
@@ -1289,9 +1289,9 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
           {/* Floating Cart Button */}
           {cartItems.length > 0 && (
-            <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:500, padding:"12px 16px", paddingBottom:"max(24px, calc(12px + env(safe-area-inset-bottom)))", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
+            <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:500, padding:"12px 16px", paddingBottom:"max(24px, calc(12px + env(safe-area-inset-bottom)))", background:"linear-gradient(to top, rgba(26,8,8,1) 60%, rgba(26,8,8,0))" }}>
               <button onClick={() => setView("cart")}
-                style={{ width:"100%", maxWidth:500, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", background:T.green, border:"none", color:"#fff", padding:"16px 20px", fontSize:17, fontWeight:"bold", borderRadius:16, cursor:"pointer", fontFamily:"Georgia,serif", boxShadow:"0 4px 20px rgba(138,90,0,0.4)" }}>
+                style={{ width:"100%", maxWidth:500, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", background:"linear-gradient(135deg,#c8973a,#a07020)", border:"none", color:"#1a0808", padding:"16px 20px", fontSize:17, fontWeight:"bold", borderRadius:16, cursor:"pointer", fontFamily:"Georgia,serif", boxShadow:"0 4px 20px rgba(200,151,58,0.5)" }}>
                 <span style={{ background:"rgba(255,255,255,0.25)", borderRadius:8, padding:"2px 10px", fontSize:16 }}>{cartItems.reduce((s,i)=>s+i.qty,0)}</span>
                 <span>View Cart</span>
                 <span>RM {total.toFixed(2)}</span>
