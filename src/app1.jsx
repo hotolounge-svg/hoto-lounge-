@@ -2078,7 +2078,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
 
   useEffect(() => { if (step === "edit" && tableNo) loadData(); }, [step, tableNo]);
 
-  const filtered = menuItems.filter(m => m.name.toLowerCase().includes(searchQ.toLowerCase()));
+  const filtered = menuItems.filter(m => m.name.toLowerCase().includes(searchQ.toLowerCase()) || (m.item_no||'').toLowerCase().includes(searchQ.toLowerCase()));
   const cats = [...new Set(menuItems.map(m=>m.category))];
   const grouped = cats.reduce((acc, cat) => {
     const items = filtered.filter(m => m.category === cat);
