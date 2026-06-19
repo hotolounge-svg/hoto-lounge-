@@ -1762,7 +1762,10 @@ function SalesScreen({ goHome }) {
     fetchSales();
   }, [selectedDate]);
 
-  const totalRevenue = orders.reduce((s,o) => s+o.total, 0);
+  const charge = parseFloat(localStorage.getItem("service_charge")||"10");
+  const subtotalRevenue = orders.reduce((s,o) => s+o.total, 0);
+  const chargeRevenue = +(subtotalRevenue * charge / 100).toFixed(2);
+  const totalRevenue = +(subtotalRevenue + chargeRevenue).toFixed(2);
   const totalOrders  = orders.length;
   const itemCount = {};
   orders.forEach(o => o.items.forEach(item => {
@@ -1772,6 +1775,10 @@ function SalesScreen({ goHome }) {
   const topItems = Object.values(itemCount).sort((a,b) => b.qty-a.qty);
   const byTable = {};
   orders.forEach(o => { if (!byTable[o.table_no]) byTable[o.table_no]={count:0,total:0}; byTable[o.table_no].count++; byTable[o.table_no].total+=o.total; });
+
+  // Category breakdown
+  const drinkRevenue = orders.reduce((s,o) => s+o.items.filter(i=>DRINK_CATEGORIES.includes(i.category)).reduce((ss,i)=>ss+i.price*i.qty,0), 0);
+  const foodRevenue = orders.reduce((s,o) => s+o.items.filter(i=>FOOD_CATEGORIES.includes(i.category)).reduce((ss,i)=>ss+i.price*i.qty,0), 0);
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
@@ -1786,14 +1793,42 @@ function SalesScreen({ goHome }) {
             style={{ background:C.panel, border:`1px solid ${C.gold}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
         </div>
         {loading ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>Loading...</div> : <>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px,1fr))", gap:12, marginBottom:24 }}>
-            {[["RM "+totalRevenue.toFixed(2),"Total Revenue",C.gold],[""+totalOrders,"Orders Completed",C.border],["RM "+(totalOrders>0?(totalRevenue/totalOrders).toFixed(2):"0.00"),"Avg Order Value",C.border]].map(([val,label,border]) => (
+          {/* Revenue summary cards */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px,1fr))", gap:12, marginBottom:16 }}>
+            {[
+              ["RM "+totalRevenue.toFixed(2), charge>0?"Total (incl. "+charge+"% charge)":"Total Revenue", C.gold],
+              [""+totalOrders, "Orders Completed", C.border],
+              ["RM "+(totalOrders>0?(totalRevenue/totalOrders).toFixed(2):"0.00"), "Avg per Bill", C.border]
+            ].map(([val,label,border]) => (
               <div key={label} style={{ background:C.panel, border:`1px solid ${border}`, borderRadius:12, padding:16, textAlign:"center" }}>
                 <div style={{ fontSize:22, color:C.goldLight, fontWeight:"bold" }}>{val}</div>
                 <div style={{ fontSize:12, color:C.muted, marginTop:4 }}>{label}</div>
               </div>
             ))}
           </div>
+
+          {/* Revenue breakdown */}
+          {orders.length > 0 && charge > 0 && (
+            <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 16px", marginBottom:20 }}>
+              <div style={{ fontSize:11, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:"bold" }}>💵 Revenue Breakdown</div>
+              {[
+                ["Food Sales", "RM "+foodRevenue.toFixed(2)],
+                ["Drink Sales", "RM "+drinkRevenue.toFixed(2)],
+                ["Subtotal (before charge)", "RM "+subtotalRevenue.toFixed(2)],
+                [charge+"% Service Charge", "RM "+chargeRevenue.toFixed(2)],
+              ].map(([label,val]) => (
+                <div key={label} style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:6, color:C.text }}>
+                  <span style={{ color:C.muted }}>{label}</span>
+                  <span style={{ color:C.goldLight, fontWeight:"bold" }}>{val}</span>
+                </div>
+              ))}
+              <div style={{ borderTop:`1px solid ${C.border}`, marginTop:8, paddingTop:8, display:"flex", justifyContent:"space-between", fontSize:15, fontWeight:"bold" }}>
+                <span style={{ color:C.gold }}>Grand Total</span>
+                <span style={{ color:C.goldLight }}>RM {totalRevenue.toFixed(2)}</span>
+              </div>
+            </div>
+          )}
+
           {orders.length===0 ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>No completed orders for this date</div> : <>
             <div style={{ fontSize:13, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>🏆 Top Selling Items</div>
             <div style={{ background:C.panel, borderRadius:12, overflow:"hidden", marginBottom:24 }}>
@@ -1812,11 +1847,14 @@ function SalesScreen({ goHome }) {
             </div>
             <div style={{ fontSize:13, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>🪑 Sales by Table</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(130px,1fr))", gap:10, marginBottom:24 }}>
-              {Object.entries(byTable).sort((a,b) => parseInt(a[0])-parseInt(b[0])).map(([tno,data]) => (
+              {Object.entries(byTable).sort((a,b) => {
+                const aNum = parseInt(a[0]); const bNum = parseInt(b[0]);
+                return isNaN(aNum)||isNaN(bNum) ? String(a[0]).localeCompare(String(b[0])) : aNum-bNum;
+              }).map(([tno,tdata]) => (
                 <div key={tno} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:10, padding:12, textAlign:"center" }}>
-                  <div style={{ fontSize:14, color:C.goldLight, fontWeight:"bold", marginBottom:4 }}>Table {tno}</div>
-                  <div style={{ fontSize:13, color:C.gold, fontWeight:"bold" }}>RM {data.total.toFixed(2)}</div>
-                  <div style={{ fontSize:11, color:C.muted }}>{data.count} order{data.count>1?"s":""}</div>
+                  <div style={{ fontSize:14, color:C.goldLight, fontWeight:"bold", marginBottom:4 }}>{isTakeaway(tno)?takeawayLabel(tno):`Table ${tno}`}</div>
+                  <div style={{ fontSize:13, color:C.gold, fontWeight:"bold" }}>RM {tdata.total.toFixed(2)}</div>
+                  <div style={{ fontSize:11, color:C.muted }}>{tdata.count} order{tdata.count>1?"s":""}</div>
                 </div>
               ))}
             </div>
