@@ -2339,14 +2339,28 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
               </div>
             ))
           }
-          {/* Floating cart summary + note + Add to Bill */}
+          {/* Floating cart summary + note + Send to Kitchen */}
           {cart.length > 0 && (
             <div style={{ position:"sticky",bottom:0,left:0,right:0,padding:"10px 0 4px",background:`linear-gradient(to top,${C.bg} 60%,transparent)` }}>
               <div style={{ background:C.panel,border:`1px solid ${C.gold}`,borderRadius:12,padding:"10px 12px",marginBottom:8 }}>
-                <div style={{ fontSize:12,color:C.muted,marginBottom:6 }}>📝 Special request for all items (optional)</div>
+                <div style={{ fontSize:12,color:C.goldLight,fontWeight:"bold",marginBottom:8 }}>🛒 Order Summary</div>
+                {cart.map((item,i)=>(
+                  <div key={i} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:`1px solid ${C.border}` }}>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <span style={{ color:C.text,fontSize:13 }}>{item.name}</span>
+                      <span style={{ color:C.muted,fontSize:12,marginLeft:6 }}>×{item.qty}</span>
+                    </div>
+                    <div style={{ display:"flex",alignItems:"center",gap:8,flexShrink:0 }}>
+                      <span style={{ color:C.gold,fontSize:13 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                      <button onClick={()=>removeFromCart(item.name)}
+                        style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:26,height:26,fontSize:14,borderRadius:6 })}>✕</button>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ fontSize:12,color:C.muted,marginTop:10,marginBottom:4 }}>📝 Special request (optional)</div>
                 <input value={cartNote} onChange={e=>setCartNote(e.target.value)}
                   placeholder="e.g. no sugar, less ice, extra spicy..."
-                  style={{ width:"100%",background:C.bg,border:`1px solid ${C.border}`,color:C.text,padding:"8px 12px",borderRadius:8,fontSize:14,fontFamily:"Georgia,serif",boxSizing:"border-box",outline:"none" }} />
+                  style={{ width:"100%",background:C.bg,border:`1px solid ${C.border}`,color:C.text,padding:"7px 10px",borderRadius:8,fontSize:14,fontFamily:"Georgia,serif",boxSizing:"border-box",outline:"none" }} />
               </div>
               <button onClick={saveNewItems} disabled={saving}
                 style={btn({ width:"100%",background:`linear-gradient(135deg,${C.gold},#a07020)`,border:"none",color:C.dark,padding:"16px 0",fontSize:15,fontWeight:"bold",borderRadius:12 })}>
