@@ -2,15 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <title>Hoto Lounge</title>
     <meta name="description" content="Hoto Lounge — Table Ordering System" />
     <style>
-      /* Prevent zoom on input focus - iOS & Android */
+      /* Prevent zoom + tap highlight on all devices */
       input, textarea, select { font-size: 16px !important; }
-      /* Remove tap highlight */
-      * { -webkit-tap-highlight-color: transparent; }
-      body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; margin: 0; }
+      * { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+      body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     </style>
   </head>
   <body>
