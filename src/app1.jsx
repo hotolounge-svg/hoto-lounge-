@@ -2222,62 +2222,43 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
           }
         </div>
       ) : (
-        /* ── ADD ITEMS TAB ── */
-        <div style={{ display:"flex",flex:1,overflow:"hidden" }}>
-          <div style={{ flex:1,overflowY:"auto",padding:12 }}>
-            <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Search menu..."
-              style={{ width:"100%",background:C.bg,border:`1px solid ${C.border}`,color:C.text,padding:"10px 14px",borderRadius:10,fontSize:14,fontFamily:"Georgia,serif",boxSizing:"border-box",marginBottom:12 }} />
-            {Object.keys(grouped).length===0
-              ? <div style={{ color:C.muted,textAlign:"center",padding:40 }}>No menu items found</div>
-              : Object.entries(grouped).map(([cat,items])=>(
-                <div key={cat} style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:11,color:C.gold,fontWeight:"bold",letterSpacing:2,textTransform:"uppercase",marginBottom:8 }}>{cat}</div>
-                  {items.map(item=>{
-                    const inCart=cart.find(c=>c.name===item.name);
-                    return (
-                      <div key={item.id} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:inCart?"#2c1a0e":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:6 }}>
-                        <div>
-                          <div style={{ color:C.text,fontSize:14,fontWeight:inCart?"bold":"normal" }}>{item.name}</div>
-                          <div style={{ color:C.gold,fontSize:13 }}>RM {parseFloat(item.price).toFixed(2)}</div>
-                        </div>
-                        <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                          {inCart&&<button onClick={()=>removeFromCart(item.name)} style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:34,height:34,fontSize:20,borderRadius:8 })}>−</button>}
-                          {inCart&&<span style={{ color:C.goldLight,fontWeight:"bold",minWidth:22,textAlign:"center",fontSize:15 }}>{inCart.qty}</span>}
-                          <button onClick={()=>addToCart(item)} style={btn({ background:C.gold,border:"none",color:C.dark,width:34,height:34,fontSize:20,borderRadius:8,fontWeight:"bold" })}>+</button>
-                        </div>
+        /* ── ADD ITEMS TAB — single column + floating cart ── */
+        <div style={{ flex:1,overflowY:"auto",padding:"12px 12px 100px" }}>
+          <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Search menu..."
+            style={{ width:"100%",background:C.bg,border:`1px solid ${C.border}`,color:C.text,padding:"10px 14px",borderRadius:10,fontSize:16,fontFamily:"Georgia,serif",boxSizing:"border-box",marginBottom:12 }} />
+          {Object.keys(grouped).length===0
+            ? <div style={{ color:C.muted,textAlign:"center",padding:40 }}>No menu items found</div>
+            : Object.entries(grouped).map(([cat,items])=>(
+              <div key={cat} style={{ marginBottom:16 }}>
+                <div style={{ fontSize:11,color:C.gold,fontWeight:"bold",letterSpacing:2,textTransform:"uppercase",marginBottom:8 }}>{cat}</div>
+                {items.map(item=>{
+                  const inCart=cart.find(c=>c.name===item.name);
+                  return (
+                    <div key={item.id} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:inCart?"#2c1a0e":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:8 }}>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ color:C.text,fontSize:14,fontWeight:inCart?"bold":"normal" }}>{item.name}</div>
+                        <div style={{ color:C.gold,fontSize:13 }}>RM {parseFloat(item.price).toFixed(2)}</div>
                       </div>
-                    );
-                  })}
-                </div>
-              ))
-            }
-          </div>
-          <div style={{ width:210,background:"#0f0a04",borderLeft:`2px solid ${C.border}`,display:"flex",flexDirection:"column",flexShrink:0 }}>
-            <div style={{ padding:"12px 14px",borderBottom:`1px solid ${C.border}`,fontSize:13,color:C.goldLight,fontWeight:"bold" }}>🛒 To Add</div>
-            <div style={{ flex:1,overflowY:"auto",padding:"8px 14px" }}>
-              {cart.length===0
-                ? <div style={{ color:C.muted,fontSize:12,textAlign:"center",padding:20 }}>No items selected</div>
-                : cart.map((item,i)=>(
-                  <div key={i} style={{ marginBottom:10,paddingBottom:10,borderBottom:`1px solid ${C.border}` }}>
-                    <div style={{ color:C.text,fontSize:13 }}>{item.name}</div>
-                    <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4 }}>
-                      <span style={{ color:C.gold,fontSize:12 }}>×{item.qty} · RM {(item.price*item.qty).toFixed(2)}</span>
-                      <button onClick={()=>removeFromCart(item.name)} style={btn({ background:"transparent",border:"none",color:"#ff7777",fontSize:16,padding:"0 4px" })}>✕</button>
+                      <div style={{ display:"flex",alignItems:"center",gap:8,flexShrink:0 }}>
+                        {inCart&&<button onClick={()=>removeFromCart(item.name)} style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:36,height:36,fontSize:20,borderRadius:8 })}>−</button>}
+                        {inCart&&<span style={{ color:C.goldLight,fontWeight:"bold",minWidth:24,textAlign:"center",fontSize:16 }}>{inCart.qty}</span>}
+                        <button onClick={()=>addToCart(item)} style={btn({ background:C.gold,border:"none",color:C.dark,width:36,height:36,fontSize:20,borderRadius:8,fontWeight:"bold" })}>+</button>
+                      </div>
                     </div>
-                  </div>
-                ))
-              }
-            </div>
-            <div style={{ padding:"12px 14px",borderTop:`2px solid ${C.border}` }}>
-              <div style={{ display:"flex",justifyContent:"space-between",fontSize:14,color:C.goldLight,fontWeight:"bold",marginBottom:10 }}>
-                <span>Total</span><span>RM {cartTotal.toFixed(2)}</span>
+                  );
+                })}
               </div>
-              <button onClick={saveNewItems} disabled={!cart.length||saving}
-                style={btn({ width:"100%",background:cart.length?`linear-gradient(135deg,${C.gold},#a07020)`:"#333",border:"none",color:cart.length?C.dark:"#666",padding:"14px 0",fontSize:14,fontWeight:"bold",borderRadius:10,cursor:cart.length?"pointer":"not-allowed" })}>
-                {saving?"Saving…":"✅ Add to Bill"}
+            ))
+          }
+          {/* Floating Add to Bill button */}
+          {cart.length > 0 && (
+            <div style={{ position:"sticky",bottom:0,left:0,right:0,padding:"12px 0 4px",background:`linear-gradient(to top,${C.bg} 70%,transparent)` }}>
+              <button onClick={saveNewItems} disabled={saving}
+                style={btn({ width:"100%",background:`linear-gradient(135deg,${C.gold},#a07020)`,border:"none",color:C.dark,padding:"16px 0",fontSize:15,fontWeight:"bold",borderRadius:12 })}>
+                {saving?"Saving…":`✅ Add to Bill — RM ${cartTotal.toFixed(2)} (${cart.reduce((s,i)=>s+i.qty,0)} items)`}
               </button>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
