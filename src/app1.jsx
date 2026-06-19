@@ -21,7 +21,7 @@ const DRINK_CATEGORIES = ["Beverage", "Desserts"];
 const FOOD_CATEGORIES = ["Food & Snacks", "Promo", "Add-ons"];
 
 // Staff dark theme
-const C = { bg:"#1a1208", panel:"#2c1a0e", border:"#3d2d1a", gold:"#c8973a", goldLight:"#e8c77a", muted:"#a07840", text:"#f5ede0", dark:"#1a1208" };
+const C = { bg:"#120808", panel:"#2a1010", border:"#4a2020", gold:"#c8973a", goldLight:"#e8c77a", muted:"#a07060", text:"#f5ede0", dark:"#120808" };
 const btn = (x={}) => ({ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:8, transition:"all 0.2s", ...x });
 
 // Customer bright theme
@@ -331,7 +331,7 @@ function AdminScreen({ goHome }) {
       </div>
       {showForm && (
         <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.75)", zIndex:2000, display:"flex", alignItems:"flex-start", justifyContent:"center", overflowY:"auto", padding:"20px 0" }}>
-        <div style={{ background:"#0a0804", border:`2px solid ${C.gold}`, borderRadius:16, padding:20, width:"100%", maxWidth:900, margin:"auto", position:"relative" }}>
+        <div style={{ background:"#0a0404", border:`2px solid ${C.gold}`, borderRadius:16, padding:20, width:"100%", maxWidth:900, margin:"auto", position:"relative" }}>
           <button onClick={() => setShowForm(false)} style={{ position:"absolute", top:12, right:12, background:"transparent", border:"none", color:C.muted, fontSize:24, cursor:"pointer", fontFamily:"Georgia,serif" }}>✕</button>
           <div style={{ fontSize:16, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>{editItem ? "Edit Item" : "Add New Item"}</div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:12 }}>
@@ -388,7 +388,7 @@ function AdminScreen({ goHome }) {
                 <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
                   <div style={{ fontSize:10, color:"#e8c77a" }}>Happy Hour Price</div>
                   <input value={addon.promo_price||""} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],promo_price:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="optional" type="number" step="0.50"
-                    style={{ width:90, background:"#1a1208", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 10px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
+                    style={{ width:90, background:"#120808", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 10px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
                 </div>
                 <button onClick={() => setForm(f=>({...f,addons:f.addons.map((a,i)=>i===ai?{...a,sold_out:!a.sold_out}:a)}))}
                   style={btn({ background:addon.sold_out?"#6a2d2d":"transparent", border:`1px solid ${addon.sold_out?"#cc4444":C.border}`, color:addon.sold_out?"#ff7777":C.muted, padding:"6px 10px", fontSize:12, fontWeight:"bold" })}>
@@ -416,17 +416,17 @@ function AdminScreen({ goHome }) {
               <div>
                 <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Promo Start</div>
                 <input type="time" value={form.promo_start} onChange={e => setForm(f=>({...f, promo_start:e.target.value}))}
-                  style={{ background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+                  style={{ background:"#120808", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
               </div>
               <div>
                 <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Promo End</div>
                 <input type="time" value={form.promo_end} onChange={e => setForm(f=>({...f, promo_end:e.target.value}))}
-                  style={{ background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+                  style={{ background:"#120808", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
               </div>
               <div>
                 <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Happy Hour Price (RM)</div>
                 <input type="number" step="0.50" placeholder="e.g. 10.00" value={form.promo_price} onChange={e => setForm(f=>({...f, promo_price:e.target.value}))}
-                  style={{ width:120, background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+                  style={{ width:120, background:"#120808", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
               </div>
             </div>
             <div style={{ marginBottom:8 }}>
@@ -434,7 +434,7 @@ function AdminScreen({ goHome }) {
               {(form.promo_drinks||[]).map((drink, di) => (
                 <div key={di} style={{ display:"flex", gap:8, alignItems:"center", marginBottom:6 }}>
                   <input value={drink} onChange={e => { const u=[...form.promo_drinks]; u[di]=e.target.value; setForm(f=>({...f,promo_drinks:u})); }} placeholder="e.g. Coffee"
-                    style={{ flex:1, background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"7px 12px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
+                    style={{ flex:1, background:"#120808", border:`1px solid ${C.border}`, color:C.text, padding:"7px 12px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
                   <button onClick={() => setForm(f=>({...f,promo_drinks:f.promo_drinks.filter((_,i)=>i!==di)}))}
                     style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"6px 10px", fontSize:13 })}>✕</button>
                 </div>
@@ -476,14 +476,14 @@ function AdminScreen({ goHome }) {
           <div style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:12, padding:20, marginBottom:20 }}>
             <div style={{ fontSize:15, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>🔑 Change Passwords</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(260px,1fr))", gap:16 }}>
-              <div style={{ background:"#1a1208", borderRadius:10, padding:16 }}>
+              <div style={{ background:"#120808", borderRadius:10, padding:16 }}>
                 <div style={{ fontSize:13, color:C.muted, marginBottom:10, fontWeight:"bold" }}>🔐 Staff Home PIN</div>
                 <input type="password" placeholder="New PIN" value={newStaffPin} onChange={e=>setNewStaffPin(e.target.value)}
                   style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:8 }} />
                 <button onClick={() => { if(newStaffPin){ localStorage.setItem("staff_pin", newStaffPin); setNewStaffPin(""); showToast("Staff PIN updated! Reload page to apply."); }}}
                   style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>Save PIN</button>
               </div>
-              <div style={{ background:"#1a1208", borderRadius:10, padding:16 }}>
+              <div style={{ background:"#120808", borderRadius:10, padding:16 }}>
                 <div style={{ fontSize:13, color:C.muted, marginBottom:10, fontWeight:"bold" }}>⚙️ Admin Password</div>
                 <input type="password" placeholder="New Password" value={newAdminPw} onChange={e=>setNewAdminPw(e.target.value)}
                   style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:8 }} />
@@ -1694,7 +1694,7 @@ function KitchenScreen({ goHome }) {
         return (
         <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.95)", zIndex:9000, display:"flex", flexDirection:"column" }}>
           {/* Header */}
-          <div style={{ background:"#2c1a0e", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${C.gold}`, flexShrink:0 }}>
+          <div style={{ background:"#2a1010", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${C.gold}`, flexShrink:0 }}>
             <div>
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
                 {liveOrder.order_seq && <span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"3px 10px", fontSize:16, fontWeight:"bold" }}>#{liveOrder.order_seq}</span>}
@@ -1727,7 +1727,7 @@ function KitchenScreen({ goHome }) {
           </div>
 
           {/* Done button */}
-          <div style={{ padding:"16px 20px", background:"#0f0a04", borderTop:`2px solid ${C.border}`, flexShrink:0 }}>
+          <div style={{ padding:"16px 20px", background:"#0f0606", borderTop:`2px solid ${C.border}`, flexShrink:0 }}>
             {liveOrder.status === "pending" ? (
               <button onClick={() => { markDone(liveOrder.id); setKitchenDetailModal(null); }}
                 style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"18px 0", fontSize:20, fontWeight:"bold", borderRadius:14 })}>
@@ -1835,7 +1835,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
 
       {/* Header — tap to open full detail */}
       <div onClick={() => setTableDetailModal(tableNo)}
-        style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}>
+        style={{ background:hasPending?"#2a1010":"#1a2c1a", padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}>
         <div style={{ fontSize:22, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
         <div style={{ display:"flex", gap:6, alignItems:"center" }}>
           {data.pending.length>0 && <span style={{ background:"#3d2a00", color:C.gold, borderRadius:6, padding:"3px 10px", fontSize:12 }}>⏳ {data.pending.length} pending</span>}
@@ -1845,10 +1845,10 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
       </div>
 
       {/* Card tabs */}
-      <div style={{ display:"flex", borderBottom:`2px solid ${C.border}`, background:"#160e04" }}>
+      <div style={{ display:"flex", borderBottom:`2px solid ${C.border}`, background:"#160808" }}>
         {[["drinks",`☕ Drinks (${drinkOrders.length})`],["food",`🍳 Food (${foodOrders.length})`],["all","📋 All"]].map(([key, label]) => (
           <button key={key} onClick={() => setCardTab(key)}
-            style={btn({ flex:1, background:cardTab===key?(key==="drinks"?"#0d2010":key==="food"?"#1a1208":"#1a1a0a"):"transparent",
+            style={btn({ flex:1, background:cardTab===key?(key==="drinks"?"#0d2010":key==="food"?"#120808":"#1a1a0a"):"transparent",
               border:"none", borderBottom:cardTab===key?`3px solid ${key==="drinks"?"#5aaa5a":key==="food"?C.gold:"#aaa"}`:"3px solid transparent",
               color:cardTab===key?(key==="drinks"?"#aaffaa":key==="food"?C.goldLight:"#ddd"):C.muted,
               padding:"14px 8px", fontSize:13, fontWeight:cardTab===key?"bold":"normal", borderRadius:0 })}>
@@ -1898,7 +1898,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
 
       {/* FOOD */}
       {(cardTab==="food" || cardTab==="all") && (
-        <div style={{ padding:"14px 16px", background:"#1a1208", borderBottom:`1px solid ${C.border}` }}>
+        <div style={{ padding:"14px 16px", background:"#120808", borderBottom:`1px solid ${C.border}` }}>
           {cardTab==="all" && <div style={{ fontSize:11, color:C.muted, fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:10 }}>🍳 Food (Kitchen)</div>}
           {foodOrders.length===0
             ? <div style={{ fontSize:13, color:C.border, fontStyle:"italic", padding:"8px 0" }}>No food ordered</div>
@@ -1932,7 +1932,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
       )}
 
       {/* Footer */}
-      <div style={{ background:"#0f0a04", padding:"12px 16px" }}>
+      <div style={{ background:"#0f0606", padding:"12px 16px" }}>
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
           <span>TOTAL</span><span>RM {data.total.toFixed(2)}</span>
         </div>
@@ -1955,7 +1955,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
   return (
     <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.95)", zIndex:9000, display:"flex", flexDirection:"column" }}>
       {/* Header */}
-      <div style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"14px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${hasPending?C.gold:"#5aaa5a"}`, flexShrink:0 }}>
+      <div style={{ background:hasPending?"#2a1010":"#1a2c1a", padding:"14px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${hasPending?C.gold:"#5aaa5a"}`, flexShrink:0 }}>
         <div>
           <div style={{ fontSize:26, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
           <div style={{ fontSize:13, color:C.muted, marginTop:2 }}>
@@ -1968,7 +1968,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
       </div>
 
       {/* Tabs */}
-      <div style={{ display:"flex", background:"#160e04", borderBottom:`2px solid ${C.border}`, flexShrink:0 }}>
+      <div style={{ display:"flex", background:"#160808", borderBottom:`2px solid ${C.border}`, flexShrink:0 }}>
         {[["all","📋 All"],["drinks",`☕ Drinks (${drinkOrders.length})`],["food",`🍳 Food (${foodOrders.length})`]].map(([key,label]) => (
           <button key={key} onClick={() => setDetailTab(key)}
             style={btn({ flex:1, background:"transparent", border:"none", borderBottom:detailTab===key?`3px solid ${C.gold}`:"3px solid transparent", color:detailTab===key?C.goldLight:C.muted, padding:"12px 8px", fontSize:13, fontWeight:detailTab===key?"bold":"normal", borderRadius:0 })}>
@@ -1985,7 +1985,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
             const isPending = order.status === "pending";
             const isDrink = order.items.every(i => DRINK_CATEGORIES.includes(i.category));
             return (
-              <div key={order.id} style={{ background:isPending?"#2c1a0e":"#1a2c1a", border:`2px solid ${isPending?C.gold:"#5aaa5a"}`, borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
+              <div key={order.id} style={{ background:isPending?"#2a1010":"#1a2c1a", border:`2px solid ${isPending?C.gold:"#5aaa5a"}`, borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                     {order.order_seq && <span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"2px 8px", fontSize:13, fontWeight:"bold" }}>#{order.order_seq}</span>}
@@ -2026,7 +2026,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
       </div>
 
       {/* Footer */}
-      <div style={{ background:"#0f0a04", padding:"14px 16px", borderTop:`2px solid ${C.border}`, flexShrink:0 }}>
+      <div style={{ background:"#0f0606", padding:"14px 16px", borderTop:`2px solid ${C.border}`, flexShrink:0 }}>
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:22, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
           <span>TOTAL</span><span>RM {total.toFixed(2)}</span>
         </div>
@@ -2128,7 +2128,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
     return (
       <div style={{ position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.9)",zIndex:10000,display:"flex",alignItems:"center",justifyContent:"center",padding:16 }}>
         <div style={{ background:C.panel,border:`1px solid ${C.gold}`,borderRadius:20,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto" }}>
-          <div style={{ background:"#2c1a0e",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:1 }}>
+          <div style={{ background:"#2a1010",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:1 }}>
             <div style={{ fontSize:18,fontWeight:"bold",color:C.goldLight }}>✏️ Edit Table — Pick Table</div>
             <button onClick={onClose} style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,width:36,height:36,fontSize:18,borderRadius:50 })}>✕</button>
           </div>
@@ -2137,7 +2137,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
             <div style={{ display:"flex",flexWrap:"wrap",gap:10,marginBottom:20 }}>
               {TABLES.map(t=>(
                 <button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}}
-                  style={btn({ background:"#2c1a0e",border:`2px solid ${C.gold}`,color:C.goldLight,padding:"14px 20px",fontSize:16,fontWeight:"bold",minWidth:60 })}>
+                  style={btn({ background:"#2a1010",border:`2px solid ${C.gold}`,color:C.goldLight,padding:"14px 20px",fontSize:16,fontWeight:"bold",minWidth:60 })}>
                   {t}
                 </button>
               ))}
@@ -2158,7 +2158,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
   return (
     <div style={{ position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.95)",zIndex:10000,display:"flex",flexDirection:"column" }}>
       {/* Header */}
-      <div style={{ background:"#2c1a0e",padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`2px solid ${C.gold}`,flexShrink:0 }}>
+      <div style={{ background:"#2a1010",padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`2px solid ${C.gold}`,flexShrink:0 }}>
         <div>
           <div style={{ fontSize:18,fontWeight:"bold",color:C.goldLight }}>✏️ {tableLabel}</div>
           <div style={{ fontSize:12,color:C.muted }}>{activeOrders.length} order(s) on this table</div>
@@ -2167,7 +2167,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
       </div>
 
       {/* Tabs */}
-      <div style={{ display:"flex",background:"#160e04",borderBottom:`2px solid ${C.border}`,flexShrink:0 }}>
+      <div style={{ display:"flex",background:"#160808",borderBottom:`2px solid ${C.border}`,flexShrink:0 }}>
         {[["existing","📋 Current Orders"],["add","➕ Add Items"]].map(([key,label])=>(
           <button key={key} onClick={()=>setEditTab(key)}
             style={btn({ flex:1,background:"transparent",border:"none",borderBottom:editTab===key?`3px solid ${C.gold}`:"3px solid transparent",
@@ -2185,7 +2185,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
           {activeOrders.length===0
             ? <div style={{ color:C.muted,textAlign:"center",padding:40 }}>No current orders on this table</div>
             : activeOrders.map(order=>(
-              <div key={order.id} style={{ background:order.status==="pending"?"#2c1a0e":"#1a2c1a",border:`2px solid ${order.status==="pending"?C.gold:"#5aaa5a"}`,borderRadius:14,padding:14,marginBottom:12 }}>
+              <div key={order.id} style={{ background:order.status==="pending"?"#2a1010":"#1a2c1a",border:`2px solid ${order.status==="pending"?C.gold:"#5aaa5a"}`,borderRadius:14,padding:14,marginBottom:12 }}>
                 <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
                   <span style={{ background:order.status==="pending"?"#c8973a":"#2d6a2d",color:"#fff",borderRadius:8,padding:"3px 10px",fontSize:12,fontWeight:"bold" }}>
                     {order.status==="pending"?"⏳ Pending":"✅ Served"}
@@ -2232,7 +2232,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                   {items.map(item=>{
                     const inCart=cart.find(c=>c.name===item.name);
                     return (
-                      <div key={item.id} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:inCart?"#2c1a0e":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:6 }}>
+                      <div key={item.id} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:inCart?"#2a1010":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:6 }}>
                         <div>
                           <div style={{ color:C.text,fontSize:14,fontWeight:inCart?"bold":"normal" }}>{item.name}</div>
                           <div style={{ color:C.gold,fontSize:13 }}>RM {parseFloat(item.price).toFixed(2)}</div>
@@ -2249,7 +2249,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
               ))
             }
           </div>
-          <div style={{ width:210,background:"#0f0a04",borderLeft:`2px solid ${C.border}`,display:"flex",flexDirection:"column",flexShrink:0 }}>
+          <div style={{ width:210,background:"#0f0606",borderLeft:`2px solid ${C.border}`,display:"flex",flexDirection:"column",flexShrink:0 }}>
             <div style={{ padding:"12px 14px",borderBottom:`1px solid ${C.border}`,fontSize:13,color:C.goldLight,fontWeight:"bold" }}>🛒 To Add</div>
             <div style={{ flex:1,overflowY:"auto",padding:"8px 14px" }}>
               {cart.length===0
