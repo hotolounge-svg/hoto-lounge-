@@ -2296,6 +2296,7 @@ function CashierScreen({ goHome }) {
   const [selectedTable, setSelectedTable] = useState(null);
   const [cardTabs, setCardTabs] = useState({});
   const prevDrinkCount = useRef(0);
+  const prevOrderIds = useRef(new Set());
   const prevWaiterCount = useRef(0);
   const soundOnRef = useRef(localStorage.getItem("c_sound") !== "off");
 
@@ -2390,17 +2391,24 @@ function CashierScreen({ goHome }) {
     const newOrders = data||[];
     const newWaiters = w||[];
     setWaiterCalls(newWaiters);
-    const drinkPending = newOrders.filter(o => o.status==="pending")
-      .reduce((s,o) => s + o.items.filter(i => DRINK_CATEGORIES.includes(i.category)).length, 0);
-    if (soundOnRef.current && drinkPending > prevDrinkCount.current) {
-      const newDrinkOrder = newOrders.filter(o => o.status==="pending").find(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
-      playAlert(newDrinkOrder?.table_no);
+
+    // Find truly NEW pending drink orders (not seen before)
+    const pendingDrinkOrders = newOrders.filter(o => o.status==="pending" && o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
+    const newPendingDrinks = pendingDrinkOrders.filter(o => !prevOrderIds.current.has(o.id));
+    if ((soundOnRef.current || voiceOnRef.current) && newPendingDrinks.length > 0) {
+      // Announce the actual new order's table
+      playAlert(newPendingDrinks[newPendingDrinks.length-1].table_no);
     }
-    if (soundOnRef.current && newWaiters.length > prevWaiterCount.current) {
+
+    // Waiter calls
+    if ((soundOnRef.current || voiceOnRef.current) && newWaiters.length > prevWaiterCount.current) {
       const newWaiter = newWaiters[newWaiters.length-1];
       playWaiterAlert(newWaiter?.table_no);
     }
-    prevDrinkCount.current = drinkPending;
+
+    // Update tracked IDs
+    prevOrderIds.current = new Set(newOrders.map(o => o.id));
+    prevDrinkCount.current = pendingDrinkOrders.length;
     prevWaiterCount.current = newWaiters.length;
     setOrders(newOrders);
     setLoading(false);
@@ -2424,6 +2432,10 @@ function CashierScreen({ goHome }) {
     const bLatest = Math.max(...[...b[1].pending,...b[1].done].map(o => new Date(o.created_at||0).getTime()));
     return bLatest - aLatest;
   });
+  // Auto-clear selectedTable if it's no longer active
+  useEffect(() => {
+    if (selectedTable && !byTable[selectedTable]) setSelectedTable(null);
+  }, [orders]);
   const pendingTables = activeTables.filter(([,tbl]) => tbl.pending.length > 0);
   const doneTables = activeTables.filter(([,tbl]) => tbl.pending.length === 0);
   const tabFiltered = filterTab==="pending" ? pendingTables : filterTab==="done" ? doneTables : activeTables;
@@ -2818,7 +2830,7 @@ function CashierScreen({ goHome }) {
                   <div style={{ fontSize:11, color:C.muted }}>Total Outstanding</div>
                 </div>
               </div>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(340px,1fr))", gap:14 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(340px,100%),1fr))", gap:14 }}>
                 {displayTables.map(([tableNo, data]) => (
                   <TableCard key={tableNo} tableNo={tableNo} data={data} paying={paying} markPaid={markPaid} markOrderDone={markOrderDone} cancelOrder={cancelOrder} cardTab={cardTabs[tableNo]||"drinks"} setCardTab={(tab) => setCardTabs(prev => ({...prev, [tableNo]:tab}))} printReceipt={printReceipt} setPayModal={setPayModal} setTableDetailModal={setTableDetailModal} />
                 ))}
