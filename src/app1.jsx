@@ -1164,8 +1164,11 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                   <div style={{ padding:"16px 20px", paddingBottom:"max(20px, calc(12px + env(safe-area-inset-bottom)))", borderTop:`1px solid ${T.border}`, background:"#fff", flexShrink:0, display:"flex", alignItems:"center", gap:16 }}>
                     {/* Qty controls */}
                     <div style={{ display:"flex", alignItems:"center", gap:0, border:`2px solid ${T.border}`, borderRadius:50, overflow:"hidden" }}>
-                      <button onClick={() => setItemModal(m=>({...m, qty:Math.max(1,m.qty-1)}))}
-                        style={{ background:itemModal.qty<=1?"#f5f5f5":"#fff", border:"none", color:itemModal.qty<=1?T.muted:T.brown, width:46, height:46, fontSize:26, fontWeight:"bold", cursor:itemModal.qty<=1?"not-allowed":"pointer", fontFamily:"Georgia,serif" }}>−</button>
+                      <button onClick={() => {
+                        if (itemModal.qty <= 1) { setItemModal(null); return; }
+                        setItemModal(m=>({...m, qty:m.qty-1}));
+                      }}
+                        style={{ background:"#fff", border:"none", color:T.brown, width:46, height:46, fontSize:26, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>−</button>
                       <span style={{ width:42, textAlign:"center", fontSize:20, fontWeight:"bold", color:T.text, fontFamily:"Georgia,serif" }}>{itemModal.qty}</span>
                       <button onClick={() => setItemModal(m=>({...m, qty:m.qty+1}))}
                         style={{ background:T.brown, border:"none", color:"#fff", width:46, height:46, fontSize:26, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>+</button>
