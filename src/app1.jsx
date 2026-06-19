@@ -26,9 +26,9 @@ const btn = (x={}) => ({ fontFamily:"Georgia,serif", cursor:"pointer", borderRad
 
 // Customer bright theme
 const T = {
-  bg:"#f5f5f5", panel:"#ffffff", border:"#e0e0e0",
-  brown:"#8a5a00", text:"#1a1a1a", muted:"#666666",
-  green:"#8a5a00", greenBg:"#fdf3e0", red:"#c62828",
+  bg:"#f5f0eb", panel:"#ffffff", border:"#e0d8d0",
+  brown:"#c8973a", text:"#1a1a1a", muted:"#888888",
+  green:"#c8973a", greenBg:"#fff8ed", red:"#c62828",
   orange:"#e65100", shadow:"0 2px 8px rgba(0,0,0,0.1)"
 };
 
@@ -1179,7 +1179,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       addToCart(item, itemModal.freeDrink||null, itemModal.selectedAddons, itemModal.note, itemModal.qty);
                       setItemModal(null);
                     }} disabled={!canAdd}
-                      style={{ flex:1, background:canAdd?T.green:"#ccc", border:"none", color:"#fff", padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:50, cursor:canAdd?"pointer":"not-allowed", fontFamily:"Georgia,serif", boxShadow:canAdd?"0 4px 12px rgba(138,90,0,0.35)":"none" }}>
+                      style={{ flex:1, background:canAdd?"linear-gradient(135deg,#c8973a,#a07020)":"#ccc", border:"none", color:canAdd?"#1a0808":"#fff", padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:50, cursor:canAdd?"pointer":"not-allowed", fontFamily:"Georgia,serif", boxShadow:canAdd?"0 4px 12px rgba(138,90,0,0.35)":"none" }}>
                       {!canAdd && item.addon_required ? t.pleaseSelect : `Add to Order — RM ${totalPrice.toFixed(2)}`}
                     </button>
                   </div>
@@ -1358,7 +1358,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           {/* Sticky Place Order button */}
           <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", paddingBottom:"max(28px, calc(12px + env(safe-area-inset-bottom)))", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
             <button onClick={placeOrder} disabled={isSubmitting || cartItems.length === 0}
-              style={{ width:"100%", maxWidth:500, display:"block", margin:"0 auto", background:cartItems.length===0?"#ccc":isSubmitting?"#a0836a":T.green, border:"none", color:"#fff", padding:"18px 0", fontSize:19, fontWeight:"bold", borderRadius:16, cursor:(isSubmitting||cartItems.length===0)?"not-allowed":"pointer", fontFamily:"Georgia,serif", boxShadow:cartItems.length>0?"0 4px 20px rgba(138,90,0,0.4)":"none" }}>
+              style={{ width:"100%", maxWidth:500, display:"block", margin:"0 auto", background:cartItems.length===0?"#ccc":isSubmitting?"#a0836a":"linear-gradient(135deg,#c8973a,#a07020)", border:"none", color:"#1a0808", padding:"18px 0", fontSize:19, fontWeight:"bold", borderRadius:16, cursor:(isSubmitting||cartItems.length===0)?"not-allowed":"pointer", fontFamily:"Georgia,serif", boxShadow:cartItems.length>0?"0 4px 20px rgba(138,90,0,0.4)":"none" }}>
               {cartItems.length===0 ? "Add items to order" : isSubmitting ? t.placing : `✓ ${t.placeOrder} · RM ${total.toFixed(2)}`}
             </button>
           </div>
