@@ -2390,7 +2390,11 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
               <button onClick={confirmAddonPicker}
                 disabled={addonPicker.addon_required && pickerAddons.length===0}
                 style={btn({ width:"100%",background:(!addonPicker.addon_required||pickerAddons.length>0)?`linear-gradient(135deg,${C.gold},#a07020)`:"#333",border:"none",color:(!addonPicker.addon_required||pickerAddons.length>0)?C.dark:"#666",padding:"14px 0",fontSize:15,fontWeight:"bold",borderRadius:10 })}>
-                {addonPicker.addon_required && pickerAddons.length===0 ? "Please select one ↑" : `✅ Add to Cart — RM ${(addonPicker.addon_required?0:parseFloat(addonPicker.price)+pickerAddons.reduce((s,a)=>s+parseFloat(a.price||0),0):parseFloat(addonPicker.price)+pickerAddons.reduce((s,a)=>s+parseFloat(a.price||0),0)).toFixed(2)}`}
+                {addonPicker.addon_required && pickerAddons.length===0 ? "Please select one ↑" : (() => {
+                  const addonTotal = pickerAddons.reduce((s,a)=>s+parseFloat(a.price||0),0);
+                  const base = addonPicker.addon_required ? 0 : parseFloat(addonPicker.price);
+                  return `✅ Add to Cart — RM ${(base+addonTotal).toFixed(2)}`;
+                })()}
               </button>
             </div>
           </div>
