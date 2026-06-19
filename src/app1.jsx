@@ -2060,6 +2060,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
   const [editTab, setEditTab] = useState("existing"); // "existing" | "add"
   const [editingNote, setEditingNote] = useState(null); // {orderId, itemIdx, note}
   const [editingPrice, setEditingPrice] = useState(null); // {orderId, itemIdx, price}
+  const [cartNote, setCartNote] = useState(""); // note for new order being added
   const tableNo = pickedTable;
 
   const loadData = () => {
@@ -2133,11 +2134,14 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
     const maxSeq = activeOrders.reduce((m,o)=>Math.max(m,o.order_seq||0),0);
     const now = new Date();
     const timeStr = now.toLocaleString("en-MY",{hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
+    // Attach cartNote to all items
+    const itemsWithNote = cart.map(i => cartNote.trim() ? {...i, note:cartNote.trim()} : i);
     await supabase.from("orders").insert({
-      table_no: tableNo, items: cart, total: cartTotal,
+      table_no: tableNo, items: itemsWithNote, total: cartTotal,
       status:"pending", order_seq:maxSeq+1, time:timeStr, created_at:now.toISOString()
     });
     setCart([]);
+    setCartNote("");
     setSaving(false);
     loadData();
     onSaved();
@@ -2309,12 +2313,18 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
               </div>
             ))
           }
-          {/* Floating Add to Bill button */}
+          {/* Floating cart summary + note + Add to Bill */}
           {cart.length > 0 && (
-            <div style={{ position:"sticky",bottom:0,left:0,right:0,padding:"12px 0 4px",background:`linear-gradient(to top,${C.bg} 70%,transparent)` }}>
+            <div style={{ position:"sticky",bottom:0,left:0,right:0,padding:"10px 0 4px",background:`linear-gradient(to top,${C.bg} 60%,transparent)` }}>
+              <div style={{ background:C.panel,border:`1px solid ${C.gold}`,borderRadius:12,padding:"10px 12px",marginBottom:8 }}>
+                <div style={{ fontSize:12,color:C.muted,marginBottom:6 }}>📝 Special request for all items (optional)</div>
+                <input value={cartNote} onChange={e=>setCartNote(e.target.value)}
+                  placeholder="e.g. no sugar, less ice, extra spicy..."
+                  style={{ width:"100%",background:C.bg,border:`1px solid ${C.border}`,color:C.text,padding:"8px 12px",borderRadius:8,fontSize:14,fontFamily:"Georgia,serif",boxSizing:"border-box",outline:"none" }} />
+              </div>
               <button onClick={saveNewItems} disabled={saving}
                 style={btn({ width:"100%",background:`linear-gradient(135deg,${C.gold},#a07020)`,border:"none",color:C.dark,padding:"16px 0",fontSize:15,fontWeight:"bold",borderRadius:12 })}>
-                {saving?"Saving…":`✅ Add to Bill — RM ${cartTotal.toFixed(2)} (${cart.reduce((s,i)=>s+i.qty,0)} items)`}
+                {saving?"Saving…":`✅ Send to Kitchen — RM ${cartTotal.toFixed(2)} (${cart.reduce((s,i)=>s+i.qty,0)} items)`}
               </button>
             </div>
           )}
