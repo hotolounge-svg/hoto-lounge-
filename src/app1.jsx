@@ -1061,8 +1061,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             const totalPrice = unitPrice * itemModal.qty;
             const canAdd = !soldOut && (!item.addon_required || itemModal.selectedAddons.length > 0);
             return (
-              <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.65)", zIndex:1000, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={() => setItemModal(null)}>
-                <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:520, height:"min(92vh, 680px)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+              <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.65)", zIndex:1000, display:"flex", alignItems:"flex-end", justifyContent:"center", WebkitTransform:"translateZ(0)" }} onClick={() => setItemModal(null)}>
+                <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:520, height:640, maxHeight:"85dvh", display:"flex", flexDirection:"column", overflow:"hidden", WebkitTransform:"translateZ(0)" }}>
 
                   {/* Big photo / emoji */}
                   <div style={{ position:"relative", flexShrink:0 }}>
