@@ -2061,6 +2061,8 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
   const [editingNote, setEditingNote] = useState(null); // {orderId, itemIdx, note}
   const [editingPrice, setEditingPrice] = useState(null); // {orderId, itemIdx, price}
   const [cartNote, setCartNote] = useState(""); // note for new order being added
+  const [addonPicker, setAddonPicker] = useState(null); // item needing addon selection
+  const [pickerAddons, setPickerAddons] = useState([]);
   const tableNo = pickedTable;
 
   const loadData = () => {
@@ -2086,11 +2088,35 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
     return acc;
   }, {});
 
-  const addToCart = (item) => setCart(prev => {
-    const ex = prev.find(c=>c.name===item.name);
-    if (ex) return prev.map(c=>c.name===item.name?{...c,qty:c.qty+1}:c);
-    return [...prev,{name:item.name,price:parseFloat(item.price),qty:1,category:item.category||""}];
-  });
+  const addToCart = (item) => {
+    if (item.addons && item.addons.length > 0) {
+      // Show addon picker
+      setAddonPicker(item);
+      setPickerAddons([]);
+      return;
+    }
+    setCart(prev => {
+      const ex = prev.find(c=>c.name===item.name);
+      if (ex) return prev.map(c=>c.name===item.name?{...c,qty:c.qty+1}:c);
+      return [...prev,{name:item.name,price:parseFloat(item.price),qty:1,category:item.category||""}];
+    });
+  };
+
+  const confirmAddonPicker = () => {
+    if (!addonPicker) return;
+    const addonPrice = pickerAddons.reduce((s,a)=>s+parseFloat(a.price||0),0);
+    const basePrice = addonPicker.addon_required ? 0 : parseFloat(addonPicker.price);
+    const totalPrice = basePrice + addonPrice;
+    const addonNames = pickerAddons.length > 0 ? " " + pickerAddons.map(a=>a.name).join(" +") : "";
+    const cartName = addonPicker.name + addonNames;
+    setCart(prev => {
+      const ex = prev.find(c=>c.name===cartName);
+      if (ex) return prev.map(c=>c.name===cartName?{...c,qty:c.qty+1}:c);
+      return [...prev,{name:cartName,price:totalPrice,qty:1,category:addonPicker.category||""}];
+    });
+    setAddonPicker(null);
+    setPickerAddons([]);
+  };
   const removeFromCart = (name) => setCart(prev=>prev.map(c=>c.name===name?{...c,qty:c.qty-1}:c).filter(c=>c.qty>0));
   const cartTotal = cart.reduce((s,c)=>s+c.price*c.qty,0);
 
@@ -2328,6 +2354,46 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
               </button>
             </div>
           )}
+        </div>
+      )}
+      {/* Addon Picker Modal */}
+      {addonPicker && (
+        <div style={{ position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",zIndex:20000,display:"flex",alignItems:"center",justifyContent:"center",padding:16 }}>
+          <div style={{ background:C.panel,border:`2px solid ${C.gold}`,borderRadius:16,width:"100%",maxWidth:440,maxHeight:"80vh",display:"flex",flexDirection:"column",overflow:"hidden" }}>
+            <div style={{ padding:"14px 16px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+              <div>
+                <div style={{ color:C.goldLight,fontSize:16,fontWeight:"bold" }}>{addonPicker.name}</div>
+                <div style={{ color:C.muted,fontSize:12 }}>{addonPicker.addon_required?"Select one (required)":"Select extras (optional)"}</div>
+              </div>
+              <button onClick={()=>setAddonPicker(null)} style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,width:32,height:32,borderRadius:50,fontSize:16 })}>✕</button>
+            </div>
+            <div style={{ overflowY:"auto",padding:12,flex:1 }}>
+              {addonPicker.addons.map((addon,ai)=>{
+                const selected = pickerAddons.some(a=>a.name===addon.name);
+                return (
+                  <div key={ai} onClick={()=>{
+                    if (addonPicker.addon_required) setPickerAddons([addon]);
+                    else setPickerAddons(prev=>selected?prev.filter(a=>a.name!==addon.name):[...prev,addon]);
+                  }} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",marginBottom:8,borderRadius:10,border:`2px solid ${selected?C.gold:C.border}`,background:selected?"#2c1a0e":C.bg,cursor:"pointer" }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+                      <div style={{ width:22,height:22,borderRadius:addonPicker.addon_required?11:5,border:`2px solid ${selected?C.gold:C.border}`,background:selected?C.gold:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                        {selected && <span style={{ color:C.dark,fontSize:13,fontWeight:"bold" }}>✓</span>}
+                      </div>
+                      <span style={{ color:C.text,fontSize:14 }}>{addon.name}</span>
+                    </div>
+                    <span style={{ color:C.gold,fontSize:13,fontWeight:"bold",flexShrink:0 }}>{parseFloat(addon.price||0)>0?`+RM ${parseFloat(addon.price).toFixed(2)}`:""}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ padding:"12px 16px",borderTop:`1px solid ${C.border}` }}>
+              <button onClick={confirmAddonPicker}
+                disabled={addonPicker.addon_required && pickerAddons.length===0}
+                style={btn({ width:"100%",background:(!addonPicker.addon_required||pickerAddons.length>0)?`linear-gradient(135deg,${C.gold},#a07020)`:"#333",border:"none",color:(!addonPicker.addon_required||pickerAddons.length>0)?C.dark:"#666",padding:"14px 0",fontSize:15,fontWeight:"bold",borderRadius:10 })}>
+                {addonPicker.addon_required && pickerAddons.length===0 ? "Please select one ↑" : `✅ Add to Cart — RM ${(addonPicker.addon_required?0:parseFloat(addonPicker.price)+pickerAddons.reduce((s,a)=>s+parseFloat(a.price||0),0):parseFloat(addonPicker.price)+pickerAddons.reduce((s,a)=>s+parseFloat(a.price||0),0)).toFixed(2)}`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
