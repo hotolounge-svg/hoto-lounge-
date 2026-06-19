@@ -931,7 +931,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                           </span>
                           <span style={{ color:T.brown, fontWeight:"bold" }}>×{item.qty}</span>
                         </div>
-
+                        {item.note && <div style={{ fontSize:13, color:T.orange, marginTop:3 }}>📝 {item.note}</div>}
                       </div>
                     ))}
                     {order.special_request && (
