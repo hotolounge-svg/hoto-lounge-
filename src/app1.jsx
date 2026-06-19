@@ -542,20 +542,28 @@ function AdminScreen({ goHome }) {
 
 function TabletScreen({ tableNo, goHome, isStaff }) {
   useEffect(() => {
-    // Prevent zoom on all phones (iOS + Android) when tapping inputs
+    // Set viewport
+    const noZoom = "width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover";
     const vp = document.querySelector("meta[name=viewport]");
-    if (vp) {
-      let content = vp.content;
-      if (!content.includes("maximum-scale")) content += ", maximum-scale=1";
-      if (!content.includes("user-scalable")) content += ", user-scalable=no";
-      if (!content.includes("viewport-fit")) content += ", viewport-fit=cover";
-      vp.content = content;
-    }
-    // Force 16px on all inputs to prevent iOS auto-zoom
+    if (vp) vp.content = noZoom;
+    // Force 16px on inputs
     const style = document.createElement("style");
     style.id = "no-zoom-fix";
-    style.textContent = "input, textarea, select { font-size: 16px !important; touch-action: manipulation; } * { -webkit-tap-highlight-color: transparent; }";
+    style.textContent = "input, textarea, select { font-size: 16px !important; } * { -webkit-tap-highlight-color: transparent; }";
     if (!document.getElementById("no-zoom-fix")) document.head.appendChild(style);
+    // Block pinch zoom on iOS Safari via gesture events
+    const blockGesture = e => e.preventDefault();
+    const blockPinch = e => { if (e.touches.length > 1) e.preventDefault(); };
+    document.addEventListener("gesturestart", blockGesture, { passive:false });
+    document.addEventListener("gesturechange", blockGesture, { passive:false });
+    document.addEventListener("gestureend", blockGesture, { passive:false });
+    document.addEventListener("touchmove", blockPinch, { passive:false });
+    return () => {
+      document.removeEventListener("gesturestart", blockGesture);
+      document.removeEventListener("gesturechange", blockGesture);
+      document.removeEventListener("gestureend", blockGesture);
+      document.removeEventListener("touchmove", blockPinch);
+    };
   }, []);
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
   const [cart, setCart] = useState({});
