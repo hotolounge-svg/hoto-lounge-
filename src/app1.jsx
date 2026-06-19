@@ -1750,7 +1750,11 @@ function KitchenScreen({ goHome }) {
 function exportExcel(orders, selectedDate, charge) {
   const subtotal = orders.reduce((s,o)=>s+o.total,0);
   const chargeAmt = +(subtotal*charge/100).toFixed(2);
-  const grandTotal = +(subtotal+chargeAmt).toFixed(2);
+  // Sum per-bill rounded amounts (matches what was actually collected)
+  const grandTotal = +orders.reduce((s,o)=>{
+    const bc=+(o.total*charge/100).toFixed(2);
+    return s + +(Math.round((o.total+bc)*20)/20).toFixed(2);
+  },0).toFixed(2);
   const rows = [];
   rows.push(["Order ID","Table","Time","Item","Category","Qty","Unit Price","Item Total","Special Request"]);
   orders.forEach(o => {
@@ -1791,7 +1795,14 @@ function SalesScreen({ goHome }) {
   const charge = parseFloat(localStorage.getItem("service_charge")||"10");
   const subtotalRevenue = orders.reduce((s,o) => s+o.total, 0);
   const chargeRevenue = +(subtotalRevenue * charge / 100).toFixed(2);
-  const totalRevenue = +(subtotalRevenue + chargeRevenue).toFixed(2);
+  // Apply Malaysian rounding (nearest 0.05) per bill — same as what cashier actually collected
+  const totalRevenue = +orders.reduce((s,o) => {
+    const billSubtotal = o.total;
+    const billCharge = +(billSubtotal * charge / 100).toFixed(2);
+    const billGrand = +(billSubtotal + billCharge).toFixed(2);
+    const billRounded = +(Math.round(billGrand * 20) / 20).toFixed(2);
+    return s + billRounded;
+  }, 0).toFixed(2);
   const totalOrders  = orders.length;
   const itemCount = {};
   orders.forEach(o => o.items.forEach(item => {
