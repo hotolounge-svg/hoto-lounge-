@@ -1176,8 +1176,11 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     {/* Add to order button */}
                     <button onClick={() => {
                       if (!canAdd) return;
-                      addToCart(item, itemModal.freeDrink||null, itemModal.selectedAddons, itemModal.note, itemModal.qty);
-                      setItemModal(null);
+                      document.activeElement?.blur();
+                      setTimeout(() => {
+                        addToCart(item, itemModal.freeDrink||null, itemModal.selectedAddons, itemModal.note, itemModal.qty);
+                        setItemModal(null);
+                      }, 80);
                     }} disabled={!canAdd}
                       style={{ flex:1, background:canAdd?"linear-gradient(135deg,#c8973a,#a07020)":"#ccc", border:"none", color:canAdd?"#1a1208":"#fff", padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:50, cursor:canAdd?"pointer":"not-allowed", fontFamily:"Georgia,serif", boxShadow:canAdd?"0 4px 12px rgba(138,90,0,0.35)":"none" }}>
                       {!canAdd && item.addon_required ? t.pleaseSelect : `Add to Order — RM ${totalPrice.toFixed(2)}`}
