@@ -1132,13 +1132,13 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                                 : [...m.selectedAddons, addon]
                             }));}}
                               style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px", marginBottom:8, borderRadius:12, border:`2px solid ${addon.sold_out?"#eee":selected?T.brown:T.border}`, background:addon.sold_out?"#f9f9f9":selected?"#fff8f0":"#fff", cursor:addon.sold_out?"not-allowed":"pointer", opacity:addon.sold_out?0.5:1 }}>
-                              <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                              <div style={{ display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 }}>
                                 <div style={{ width:26, height:26, borderRadius:isRequired?13:6, border:`2px solid ${selected?T.brown:T.border}`, background:selected?T.brown:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                                   {selected && <span style={{ color:"#fff", fontSize:16, fontWeight:"bold" }}>✓</span>}
                                 </div>
-                                <span style={{ fontSize:16, color:addon.sold_out?T.muted:T.text }}>{addon.name}</span>
+                                <span style={{ fontSize:16, color:addon.sold_out?T.muted:T.text, flex:1, minWidth:0 }}>{addon.name}</span>
                               </div>
-                              <span style={{ fontSize:14, color:T.brown, fontWeight:"bold" }}>
+                              <span style={{ fontSize:14, color:T.brown, fontWeight:"bold", flexShrink:0, marginLeft:8, whiteSpace:"nowrap" }}>
                                 {parseFloat(addon.price||0) > 0 ? `+RM ${parseFloat(addon.price||0).toFixed(2)}` : ""}
                               </span>
                             </div>
