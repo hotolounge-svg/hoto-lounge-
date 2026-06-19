@@ -1911,14 +1911,16 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                 return (
                   <div key={oi} style={{ marginBottom:12, paddingBottom:12, borderBottom: oi < foodOrders.length-1 ? `1px solid #2d1a08` : "none" }}>
                     {foodItems.map((item, ii) => (
-                      <div key={ii} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderTop: ii>0 ? `1px solid #2d1a08` : "none" }}>
-                        <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:15 }}>
-                          {item.item_no && <span style={{ color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", marginRight:5 }}>{item.item_no}</span>}
-                          {item.name} <span style={{ color:isPending?C.gold:"#5aaa5a", marginLeft:6 }}>×{item.qty}</span>
-                        </span>
-                        <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                      <div key={ii} style={{ padding:"8px 0", borderTop: ii>0 ? `1px solid #2d1a08` : "none" }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                          <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:15 }}>
+                            {item.item_no && <span style={{ color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", marginRight:5 }}>{item.item_no}</span>}
+                            {item.name} <span style={{ color:isPending?C.gold:"#5aaa5a", marginLeft:6 }}>×{item.qty}</span>
+                          </span>
+                          <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                        </div>
+                        {item.note && <div style={{ fontSize:12, color:"#ffcc44", background:"#2a1a00", borderRadius:6, padding:"3px 8px", marginTop:3 }}>📝 {item.note}</div>}
                       </div>
-
                     ))}
                     {getFoodReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getFoodReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
