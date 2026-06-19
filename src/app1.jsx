@@ -541,6 +541,22 @@ function AdminScreen({ goHome }) {
 }
 
 function TabletScreen({ tableNo, goHome, isStaff }) {
+  useEffect(() => {
+    // Prevent zoom on all phones (iOS + Android) when tapping inputs
+    const vp = document.querySelector("meta[name=viewport]");
+    if (vp) {
+      let content = vp.content;
+      if (!content.includes("maximum-scale")) content += ", maximum-scale=1";
+      if (!content.includes("user-scalable")) content += ", user-scalable=no";
+      if (!content.includes("viewport-fit")) content += ", viewport-fit=cover";
+      vp.content = content;
+    }
+    // Force 16px on all inputs to prevent iOS auto-zoom
+    const style = document.createElement("style");
+    style.id = "no-zoom-fix";
+    style.textContent = "input, textarea, select { font-size: 16px !important; touch-action: manipulation; } * { -webkit-tap-highlight-color: transparent; }";
+    if (!document.getElementById("no-zoom-fix")) document.head.appendChild(style);
+  }, []);
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
   const [cart, setCart] = useState({});
   const [view, setView] = useState("menu");
@@ -957,7 +973,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           )}
 
           {/* Items grid — Zeoniq style */}
-          <div style={{ flex:1, overflowY:"auto", padding:"10px 14px" }}>
+          <div style={{ flex:1, overflowY:"auto", padding:"10px 14px 100px" }}>
             {menuLoading ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>{t.loadingMenu}</div>
               : currentMenuItems.length===0 ? <div style={{ color:T.muted, textAlign:"center", padding:40, fontSize:18 }}>{searchQuery ? `No results for "${searchQuery}"` : t.noItems}</div>
               : (
@@ -1046,12 +1062,12 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             const canAdd = !soldOut && (!item.addon_required || itemModal.selectedAddons.length > 0);
             return (
               <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.65)", zIndex:1000, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={() => setItemModal(null)}>
-                <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:520, maxHeight:"92vh", overflowY:"auto", display:"flex", flexDirection:"column" }}>
+                <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:520, height:"min(92vh, 680px)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
                   {/* Big photo / emoji */}
                   <div style={{ position:"relative", flexShrink:0 }}>
                     {item.image_url
-                      ? <img src={item.image_url} alt={item.name} style={{ width:"100%", height:240, objectFit:"cover" }} />
+                      ? <img src={item.image_url} alt={item.name} loading="lazy" style={{ width:"100%", height:200, objectFit:"cover", loading:"lazy" }} />
                       : <div style={{ height:200, display:"flex", alignItems:"center", justifyContent:"center", fontSize:80, background:"#f9f9f9" }}>{item.emoji}</div>
                     }
                     {/* Close button */}
@@ -1064,8 +1080,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     )}
                   </div>
 
-                  {/* Content */}
-                  <div style={{ padding:"20px 20px 0" }}>
+                  {/* Content - scrollable */}
+                  <div style={{ flex:1, overflowY:"auto", padding:"20px 20px 0", WebkitOverflowScrolling:"touch" }}>
                     {/* Name + price */}
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
                       <div style={{ fontSize:22, fontWeight:"bold", color:T.text, flex:1, lineHeight:1.3, paddingRight:12 }}>{item.name}</div>
@@ -1132,12 +1148,12 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       <textarea value={itemModal.note} onChange={e => setItemModal(m=>({...m, note:e.target.value}))}
                         placeholder="e.g. no sugar, less ice, extra spicy..."
                         rows={2}
-                        style={{ width:"100%", border:`1.5px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontSize:15, fontFamily:"Georgia,serif", color:T.text, resize:"none", boxSizing:"border-box", outline:"none" }} />
+                        style={{ width:"100%", border:`1.5px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, resize:"none", boxSizing:"border-box", outline:"none" }} />
                     </div>
                   </div>
 
-                  {/* Qty + Add button sticky bottom */}
-                  <div style={{ padding:"16px 20px 28px", borderTop:`1px solid ${T.border}`, background:"#fff", flexShrink:0, display:"flex", alignItems:"center", gap:16 }}>
+                  {/* Qty + Add button sticky bottom - never moves */}
+                  <div style={{ padding:"16px 20px", paddingBottom:"max(20px, calc(12px + env(safe-area-inset-bottom)))", borderTop:`1px solid ${T.border}`, background:"#fff", flexShrink:0, display:"flex", alignItems:"center", gap:16 }}>
                     {/* Qty controls */}
                     <div style={{ display:"flex", alignItems:"center", gap:0, border:`2px solid ${T.border}`, borderRadius:50, overflow:"hidden" }}>
                       <button onClick={() => setItemModal(m=>({...m, qty:Math.max(1,m.qty-1)}))}
@@ -1262,7 +1278,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
           {/* Floating Cart Button */}
           {cartItems.length > 0 && (
-            <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:500, padding:"12px 16px 24px", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
+            <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:500, padding:"12px 16px", paddingBottom:"max(24px, calc(12px + env(safe-area-inset-bottom)))", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
               <button onClick={() => setView("cart")}
                 style={{ width:"100%", maxWidth:500, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", background:T.green, border:"none", color:"#fff", padding:"16px 20px", fontSize:17, fontWeight:"bold", borderRadius:16, cursor:"pointer", fontFamily:"Georgia,serif", boxShadow:"0 4px 20px rgba(138,90,0,0.4)" }}>
                 <span style={{ background:"rgba(255,255,255,0.25)", borderRadius:8, padding:"2px 10px", fontSize:16 }}>{cartItems.reduce((s,i)=>s+i.qty,0)}</span>
@@ -1329,7 +1345,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           </div>
 
           {/* Sticky Place Order button */}
-          <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px 28px", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
+          <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", paddingBottom:"max(28px, calc(12px + env(safe-area-inset-bottom)))", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
             <button onClick={placeOrder} disabled={isSubmitting || cartItems.length === 0}
               style={{ width:"100%", maxWidth:500, display:"block", margin:"0 auto", background:cartItems.length===0?"#ccc":isSubmitting?"#a0836a":T.green, border:"none", color:"#fff", padding:"18px 0", fontSize:19, fontWeight:"bold", borderRadius:16, cursor:(isSubmitting||cartItems.length===0)?"not-allowed":"pointer", fontFamily:"Georgia,serif", boxShadow:cartItems.length>0?"0 4px 20px rgba(138,90,0,0.4)":"none" }}>
               {cartItems.length===0 ? "Add items to order" : isSubmitting ? t.placing : `✓ ${t.placeOrder} · RM ${total.toFixed(2)}`}
