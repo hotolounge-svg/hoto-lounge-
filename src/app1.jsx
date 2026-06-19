@@ -1747,6 +1747,32 @@ function KitchenScreen({ goHome }) {
   );
 }
 
+function exportExcel(orders, selectedDate, charge) {
+  const subtotal = orders.reduce((s,o)=>s+o.total,0);
+  const chargeAmt = +(subtotal*charge/100).toFixed(2);
+  const grandTotal = +(subtotal+chargeAmt).toFixed(2);
+  const rows = [];
+  rows.push(["Order ID","Table","Time","Item","Category","Qty","Unit Price","Item Total","Special Request"]);
+  orders.forEach(o => {
+    const time = new Date(o.created_at).toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
+    o.items.forEach(item => {
+      rows.push([o.id, isTakeaway(o.table_no)?takeawayLabel(o.table_no):"Table "+o.table_no, time, item.name, item.category||"", item.qty, item.price.toFixed(2), (item.price*item.qty).toFixed(2), o.special_request||""]);
+    });
+  });
+  rows.push([]);
+  rows.push(["","","","","","","Subtotal",subtotal.toFixed(2)]);
+  if(charge>0) rows.push(["","","","","","",charge+"% Service Charge",chargeAmt.toFixed(2)]);
+  rows.push(["","","","","","","Grand Total",grandTotal.toFixed(2)]);
+  const escape = v => { const s=String(v!=null?v:""); return s.includes(",")||s.includes("\n")||s.includes('"') ? '"'+s.replace(/"/g,'\\"')+ '"' : s; };
+  const csv = rows.map(r=>r.map(escape).join(",")).join("\r\n");
+  const bom = "\uFEFF";
+  const blob = new Blob([bom+csv],{type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download="Sales_"+selectedDate+".csv"; a.click();
+  URL.revokeObjectURL(url);
+}
+
 function SalesScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1787,10 +1813,26 @@ function SalesScreen({ goHome }) {
         <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
       </div>
       <div style={{ padding:16, overflowY:"auto", flex:1 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
-          <div style={{ fontSize:13, color:C.muted }}>Date:</div>
-          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-            style={{ background:C.panel, border:`1px solid ${C.gold}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20, flexWrap:"wrap" }}>
+          <button onClick={() => { const d=new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split("T")[0]); }}
+            style={btn({ background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:"8px 14px", fontSize:18 })}>‹</button>
+          <div style={{ position:"relative" }}>
+            <div style={{ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:8, padding:"8px 16px", fontSize:14, color:C.goldLight, fontWeight:"bold", fontFamily:"Georgia,serif", cursor:"pointer", userSelect:"none", minWidth:160, textAlign:"center" }}>
+              📅 {new Date(selectedDate+"T00:00:00").toLocaleDateString("en-MY",{day:"2-digit",month:"short",year:"numeric"})}
+            </div>
+            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+              style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", width:"100%", height:"100%" }} />
+          </div>
+          <button onClick={() => { const d=new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split("T")[0]); }}
+            style={btn({ background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:"8px 14px", fontSize:18 })}>›</button>
+          <button onClick={() => setSelectedDate(new Date().toISOString().split("T")[0])}
+            style={btn({ background:selectedDate===new Date().toISOString().split("T")[0]?"#3d2a00":"transparent", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"8px 14px", fontSize:13, fontWeight:"bold" })}>Today</button>
+          {orders.length > 0 && (
+            <button onClick={() => exportExcel(orders, selectedDate, charge)}
+              style={btn({ background:"#1a3a1a", border:`1px solid #5aaa5a`, color:"#aaffaa", padding:"8px 16px", fontSize:13, fontWeight:"bold", marginLeft:"auto" })}>
+              📊 Export Excel
+            </button>
+          )}
         </div>
         {loading ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>Loading...</div> : <>
           {/* Revenue summary cards */}
