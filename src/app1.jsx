@@ -2247,6 +2247,12 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
     setEditingNote(null); loadData(); onSaved();
   };
 
+  const updateExistingTakeaway = async (order, itemIdx, val) => {
+    const newItems = order.items.map((it,i) => i===itemIdx ? {...it, is_takeaway:val} : it);
+    await supabase.from("orders").update({items:newItems}).eq("id",order.id);
+    loadData(); onSaved();
+  };
+
   const updateExistingPrice = async (order, itemIdx, price) => {
     const newPrice = parseFloat(price);
     if (isNaN(newPrice) || newPrice < 0) return;
@@ -2408,6 +2414,17 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                         </button>
                       </div>
                     )}
+                    {/* Takeaway toggle */}
+                    <div onClick={()=>updateExistingTakeaway(order,ii,!item.is_takeaway)}
+                      style={{ display:"inline-flex",alignItems:"center",gap:8,marginTop:6,cursor:"pointer",userSelect:"none",
+                        background:item.is_takeaway?"#3a1a00":"transparent",
+                        border:`1.5px solid ${item.is_takeaway?"#e65100":C.border}`,
+                        borderRadius:8,padding:"5px 10px",transition:"all 0.15s" }}>
+                      <div style={{ width:18,height:18,borderRadius:5,border:`2px solid ${item.is_takeaway?"#e65100":C.muted}`,background:item.is_takeaway?"#e65100":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                        {item.is_takeaway && <span style={{ color:"#fff",fontSize:11,fontWeight:"bold",lineHeight:1 }}>✓</span>}
+                      </div>
+                      <span style={{ fontSize:12,color:item.is_takeaway?"#e65100":C.muted,fontWeight:item.is_takeaway?"bold":"normal" }}>🥡 Takeaway</span>
+                    </div>
                   </div>
                   );
                 })}
