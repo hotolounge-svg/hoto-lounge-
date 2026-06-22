@@ -2470,15 +2470,27 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
               <div style={{ background:C.panel,border:`1px solid ${C.gold}`,borderRadius:12,padding:"10px 12px",marginBottom:8 }}>
                 <div style={{ fontSize:12,color:C.goldLight,fontWeight:"bold",marginBottom:8 }}>🛒 Order Summary</div>
                 {cart.map((item,i)=>(
-                  <div key={i} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:`1px solid ${C.border}` }}>
-                    <div style={{ flex:1,minWidth:0 }}>
-                      <span style={{ color:C.text,fontSize:13 }}>{item.name}</span>
-                      <span style={{ color:C.muted,fontSize:12,marginLeft:6 }}>×{item.qty}</span>
+                  <div key={i} style={{ padding:"8px 0",borderBottom:`1px solid ${C.border}` }}>
+                    <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <span style={{ color:C.text,fontSize:13 }}>{item.name}</span>
+                        <span style={{ color:C.muted,fontSize:12,marginLeft:6 }}>×{item.qty}</span>
+                      </div>
+                      <div style={{ display:"flex",alignItems:"center",gap:8,flexShrink:0 }}>
+                        <span style={{ color:C.gold,fontSize:13 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                        <button onClick={()=>removeFromCart(item.name)}
+                          style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:26,height:26,fontSize:14,borderRadius:6 })}>✕</button>
+                      </div>
                     </div>
-                    <div style={{ display:"flex",alignItems:"center",gap:8,flexShrink:0 }}>
-                      <span style={{ color:C.gold,fontSize:13 }}>RM {(item.price*item.qty).toFixed(2)}</span>
-                      <button onClick={()=>removeFromCart(item.name)}
-                        style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:26,height:26,fontSize:14,borderRadius:6 })}>✕</button>
+                    <div onClick={()=>setCart(prev=>prev.map((it,idx)=>idx===i?{...it,is_takeaway:!it.is_takeaway}:it))}
+                      style={{ display:"inline-flex",alignItems:"center",gap:6,marginTop:5,cursor:"pointer",userSelect:"none",
+                        background:item.is_takeaway?"#3a1a00":"transparent",
+                        border:`1.5px solid ${item.is_takeaway?"#e65100":C.border}`,
+                        borderRadius:7,padding:"4px 9px",transition:"all 0.15s" }}>
+                      <div style={{ width:16,height:16,borderRadius:4,border:`2px solid ${item.is_takeaway?"#e65100":C.muted}`,background:item.is_takeaway?"#e65100":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                        {item.is_takeaway && <span style={{ color:"#fff",fontSize:10,fontWeight:"bold",lineHeight:1 }}>✓</span>}
+                      </div>
+                      <span style={{ fontSize:11,color:item.is_takeaway?"#e65100":C.muted,fontWeight:item.is_takeaway?"bold":"normal" }}>🥡 Takeaway</span>
                     </div>
                   </div>
                 ))}
