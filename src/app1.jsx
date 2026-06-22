@@ -1338,15 +1338,13 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       : <div onClick={() => setCartEditModal({ cartKey:item.cartKey||item.id, note:"", name:item.name })}
                           style={{ fontSize:12, color:T.muted, marginTop:4, cursor:"pointer" }}>✏️ Add note</div>
                     }
-                    {!DRINK_CATEGORIES.includes(item.category) && (
-                      <div onClick={() => setCart(p => ({ ...p, [item.cartKey||item.id]: { ...p[item.cartKey||item.id], is_takeaway: !p[item.cartKey||item.id]?.is_takeaway } }))}
-                        style={{ display:"inline-flex", alignItems:"center", gap:6, marginTop:8, cursor:"pointer", userSelect:"none" }}>
-                        <div style={{ width:22, height:22, borderRadius:6, border:`2px solid ${item.is_takeaway?"#e65100":T.border}`, background:item.is_takeaway?"#e65100":"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.15s" }}>
-                          {item.is_takeaway && <span style={{ color:"#fff", fontSize:13, fontWeight:"bold" }}>✓</span>}
-                        </div>
-                        <span style={{ fontSize:13, color:item.is_takeaway?"#e65100":T.muted, fontWeight:item.is_takeaway?"bold":"normal" }}>🥡 Pack as takeaway</span>
+                    <div onClick={() => setCart(p => ({ ...p, [item.cartKey||item.id]: { ...p[item.cartKey||item.id], is_takeaway: !p[item.cartKey||item.id]?.is_takeaway } }))}
+                      style={{ display:"flex", alignItems:"center", gap:10, marginTop:10, cursor:"pointer", userSelect:"none", background:item.is_takeaway?"#fff3ee":"#f8f8f8", border:`2px solid ${item.is_takeaway?"#e65100":"#ddd"}`, borderRadius:10, padding:"10px 14px", transition:"all 0.15s" }}>
+                      <div style={{ width:26, height:26, borderRadius:8, border:`2px solid ${item.is_takeaway?"#e65100":"#ccc"}`, background:item.is_takeaway?"#e65100":"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        {item.is_takeaway && <span style={{ color:"#fff", fontSize:15, fontWeight:"bold" }}>✓</span>}
                       </div>
-                    )}
+                      <span style={{ fontSize:15, color:item.is_takeaway?"#e65100":T.muted, fontWeight:item.is_takeaway?"bold":"normal", lineHeight:1.3 }}>🥡 Pack as takeaway</span>
+                    </div>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:0, border:`2px solid ${T.border}`, borderRadius:50, overflow:"hidden" }}>
                     <button onClick={() => removeFromCart(item.cartKey||item.id)}
@@ -1730,6 +1728,9 @@ function KitchenScreen({ goHome }) {
                   </div>
                   <div style={{ fontSize:28, fontWeight:"bold", color:C.gold }}>×{item.qty}</div>
                 </div>
+                {item.is_takeaway && (
+                  <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:10, padding:"8px 16px", marginTop:10, fontSize:16, fontWeight:"bold", letterSpacing:1 }}>🥡 TAKEAWAY — Pack separately</div>
+                )}
                 {item.note && (
                   <div style={{ fontSize:16, color:"#ffcc44", background:"#2a1a00", borderRadius:8, padding:"10px 14px", marginTop:10 }}>📝 {item.note}</div>
                 )}
@@ -1983,6 +1984,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                           </span>
                           <span style={{ color:"#5aaa5a", fontWeight:"bold", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                         </div>
+                        {item.is_takeaway && <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold" }}>🥡 TAKEAWAY</div>}
                         {item.note && <div style={{ fontSize:12, color:"#ffcc44", background:"#2a1a00", borderRadius:6, padding:"3px 8px", marginTop:3 }}>📝 {item.note}</div>}
                       </div>
                     ))}
