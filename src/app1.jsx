@@ -805,9 +805,10 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       const drinkReq = snapDrinkReq.trim() || null;
       const foodReq = snapFoodReq.trim() || null;
       const now = new Date();
-      const time = now.toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"});
+      const time = now.toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Kuala_Lumpur"});
       // seq from time — no DB round trip needed (was the main cause of slowness)
-      const seq = String(now.getHours()*60 + now.getMinutes()).padStart(3,"0");
+      const mytNow = new Date(now.toLocaleString("en-US",{timeZone:"Asia/Kuala_Lumpur"}));
+      const seq = String(mytNow.getHours()*60 + mytNow.getMinutes()).padStart(3,"0");
 
       const snapItems = Object.values(snapCart);
       const cleanItems = (items) => items.map(i => { const {cartKey, basePrice, ...rest} = i; return rest; });
@@ -1775,7 +1776,7 @@ function exportExcel(orders, selectedDate, charge) {
   const rows = [];
   rows.push(["Order ID","Table","Time","Item","Category","Qty","Unit Price","Item Total","Special Request"]);
   orders.forEach(o => {
-    const time = new Date(o.created_at).toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
+    const time = o.time || new Date(o.created_at).toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
     o.items.forEach(item => {
       rows.push([o.id, isTakeaway(o.table_no)?takeawayLabel(o.table_no):"Table "+o.table_no, time, item.name, item.category||"", item.qty, item.price.toFixed(2), (item.price*item.qty).toFixed(2), o.special_request||""]);
     });
