@@ -2437,9 +2437,13 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
         </div>
       ) : (
         /* ── ADD ITEMS TAB — single column + floating cart ── */
-        <div style={{ flex:1,overflowY:"auto",padding:"12px 12px 100px" }}>
-          <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Search menu..."
-            style={{ width:"100%",background:C.bg,border:`1px solid ${C.border}`,color:C.text,padding:"10px 14px",borderRadius:10,fontSize:16,fontFamily:"Georgia,serif",boxSizing:"border-box",marginBottom:12 }} />
+        <div style={{ flex:1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
+          {/* Sticky search bar */}
+          <div style={{ padding:"10px 12px",background:C.bg,borderBottom:`1px solid ${C.border}`,flexShrink:0 }}>
+            <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Search menu..."
+              style={{ width:"100%",background:C.panel,border:`1px solid ${C.border}`,color:C.text,padding:"10px 14px",borderRadius:10,fontSize:16,fontFamily:"Georgia,serif",boxSizing:"border-box" }} />
+          </div>
+          <div style={{ flex:1,overflowY:"auto",padding:"12px 12px 100px" }}>
           {Object.keys(grouped).length===0
             ? <div style={{ color:C.muted,textAlign:"center",padding:40 }}>No menu items found</div>
             : Object.entries(grouped).map(([cat,items])=>(
@@ -2505,6 +2509,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
               </button>
             </div>
           )}
+          </div>
         </div>
       )}
       {/* Addon Picker Modal */}
