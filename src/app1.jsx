@@ -156,7 +156,7 @@ function TakeawayScreen({ setScreen, setTableNo, goHome }) {
     // Fetch which TW slots have active (pending/done) orders
     const fetch = async () => {
       const { data } = await supabase.from("orders").select("table_no")
-        .like("table_no","TW-%").not("status","in","("cancelled","paid")");
+        .like("table_no","TW-%").not("status","in","(cancelled,paid)");
       setActiveSlots([...new Set((data||[]).map(o=>o.table_no))]);
     };
     fetch();
