@@ -1797,13 +1797,13 @@ function exportExcel(orders, selectedDate, charge) {
 function SalesScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"}));
 
   useEffect(() => {
     const fetchSales = async () => {
       setLoading(true);
       const { data } = await supabase.from("orders").select("*").eq("status","paid").order("created_at",{ascending:true});
-      const filtered = (data||[]).filter(o => new Date(o.created_at).toLocaleDateString("en-CA")===selectedDate);
+      const filtered = (data||[]).filter(o => new Date(o.created_at).toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"})===selectedDate);
       setOrders(filtered); setLoading(false);
     };
     fetchSales();
