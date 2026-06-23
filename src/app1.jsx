@@ -12,7 +12,6 @@ const CAFE_TIN = "C60634413060";
 const CAFE_PHONE = "+60182868126";
 const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 const TW_SLOTS = Array.from({length:20},(_,i)=>`TW-${String(i+1).padStart(2,"0")}`); // 🥡 Go Takeaway
-const ST_SLOTS = Array.from({length:10},(_,i)=>`ST-${String(i+1).padStart(2,"0")}`); // 🪑 Eat Here Takeaway
 const isTakeaway = (t) => String(t).startsWith("TW-") || String(t).startsWith("ST-");
 const takeawayLabel = (t) => String(t).startsWith("TW-") ? `🥡 Takeaway ${t}` : `🪑 Eat Here ${t}`;
 const CAFE_NAME = "HOTO LOUNGE";
@@ -156,29 +155,14 @@ function TakeawayScreen({ setScreen, setTableNo, goHome }) {
       <div style={{ textAlign:"center" }}>
         <div style={{ fontSize:48 }}>🥡</div>
         <div style={{ fontSize:24, color:C.goldLight, fontWeight:"bold", letterSpacing:2 }}>Takeaway Orders</div>
-        <div style={{ fontSize:12, color:C.muted, letterSpacing:3, textTransform:"uppercase", marginTop:4 }}>Select order type & slot</div>
+        <div style={{ fontSize:12, color:C.muted, letterSpacing:3, textTransform:"uppercase", marginTop:4 }}>Select a slot to start ordering</div>
       </div>
 
-      {/* Eat Here / Sitting Takeaway */}
       <div style={{ width:"100%", maxWidth:460 }}>
-        <div style={{ fontSize:12, color:"#aaddff", letterSpacing:3, textTransform:"uppercase", marginBottom:10, textAlign:"center" }}>🪑 Eat Here (Takeaway Box)</div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8 }}>
-          {ST_SLOTS.map(slot => (
-            <button key={slot} onClick={() => { setTableNo(slot); setScreen("tablet"); }}
-              style={btn({ background:"#1a2a3a", border:`1px solid #5a7aaa`, color:"#aaccff", padding:"12px 0", fontSize:13, fontWeight:"bold" })}>
-              {slot.replace("ST-","")}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Go Takeaway */}
-      <div style={{ width:"100%", maxWidth:460 }}>
-        <div style={{ fontSize:12, color:"#aaffcc", letterSpacing:3, textTransform:"uppercase", marginBottom:10, textAlign:"center" }}>🥡 Pack & Go (Takeaway)</div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8 }}>
           {TW_SLOTS.map(slot => (
             <button key={slot} onClick={() => { setTableNo(slot); setScreen("tablet"); }}
-              style={btn({ background:"#1a3a2a", border:`1px solid #5aaa7a`, color:"#aaffcc", padding:"12px 0", fontSize:13, fontWeight:"bold" })}>
+              style={btn({ background:"#1a3a2a", border:`1px solid #5aaa7a`, color:"#aaffcc", padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:10 })}>
               {slot.replace("TW-","")}
             </button>
           ))}
