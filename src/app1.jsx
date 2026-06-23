@@ -12,8 +12,8 @@ const CAFE_TIN = "C60634413060";
 const CAFE_PHONE = "+60182868126";
 const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 const TW_SLOTS = Array.from({length:20},(_,i)=>`TW-${String(i+1).padStart(2,"0")}`); // 🥡 Go Takeaway
-const isTakeaway = (t) => String(t).startsWith("TW-") || String(t).startsWith("ST-");
-const takeawayLabel = (t) => String(t).startsWith("TW-") ? `🥡 Takeaway ${t}` : `🪑 Eat Here ${t}`;
+const isTakeaway = (t) => String(t).startsWith("TW-");
+const takeawayLabel = (t) => `🥡 Takeaway ${t}`;
 const CAFE_NAME = "HOTO LOUNGE";
 const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts", "Add-ons"];
 const DRINK_CATEGORIES = ["Beverage", "Desserts"];
@@ -2310,7 +2310,6 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
             <div style={{ fontSize:12,color:C.muted,marginBottom:8,fontWeight:"bold" }}>TAKEAWAY</div>
             <div style={{ display:"flex",flexWrap:"wrap",gap:8 }}>
               {TW_SLOTS.map(t=>(<button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}} style={btn({ background:"#1a2c1a",border:`2px solid #5aaa5a`,color:"#aaffaa",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>{t}</button>))}
-              {ST_SLOTS.map(t=>(<button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}} style={btn({ background:"#1a1a2c",border:`2px solid #5a5aff`,color:"#aaaaff",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>{t}</button>))}
             </div>
           </div>
         </div>
