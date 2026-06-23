@@ -101,7 +101,7 @@ export default function App() {
         </div>
       )}
       {screen === "home"    && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} />}
-      {screen === "tablet"  && <TabletScreen  tableNo={tableNo} isStaff={tableNo !== null && !window.location.search.includes("table=")} goHome={() => setScreen("home")} />}
+      {screen === "tablet"  && <TabletScreen  tableNo={tableNo} isStaff={tableNo !== null && !window.location.search.includes("table=")} goHome={() => setScreen(String(tableNo).startsWith("TW-") ? "takeaway" : "home")} />}
       {screen === "takeaway" && <TakeawayScreen setScreen={setScreen} setTableNo={setTableNo} goHome={() => setScreen("home")} />}
       {screen === "kitchen" && <KitchenScreen goHome={() => setScreen("home")} />}
       {screen === "qrcodes" && <QRScreen      goHome={() => setScreen("home")} />}
