@@ -794,42 +794,47 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     if (cartItems.length === 0) return;
     submittingRef.current = true;
     setIsSubmitting(true);
-    try {
-      const drinkReq = drinkRequest.trim() || null;
-      const foodReq = foodRequest.trim() || null;
-      const time = new Date().toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"});
-      // Get today's order count for sequence number
-      const today = new Date().toISOString().split("T")[0];
-      const { count } = await supabase.from("orders").select("*", { count:"exact", head:true })
-        .gte("created_at", today + "T00:00:00").lt("created_at", today + "T23:59:59");
-      const seq = String((count || 0) + 1).padStart(3, "0");
 
+    // Snapshot cart before clearing — optimistic UI clears immediately
+    const snapCart = {...cart};
+    const snapDrinkReq = drinkRequest;
+    const snapFoodReq = foodRequest;
+    setCart({}); setDrinkRequest(""); setFoodRequest(""); setView("orders");
+
+    try {
+      const drinkReq = snapDrinkReq.trim() || null;
+      const foodReq = snapFoodReq.trim() || null;
+      const now = new Date();
+      const time = now.toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit"});
+      // seq from time — no DB round trip needed (was the main cause of slowness)
+      const seq = String(now.getHours()*60 + now.getMinutes()).padStart(3,"0");
+
+      const snapItems = Object.values(snapCart);
       const cleanItems = (items) => items.map(i => { const {cartKey, basePrice, ...rest} = i; return rest; });
-      const drinkItems = cleanItems(cartItems.filter(i => DRINK_CATEGORIES.includes(i.category)));
-      const foodItems = cleanItems(cartItems.filter(i => FOOD_CATEGORIES.includes(i.category)));
+      const drinkItems = cleanItems(snapItems.filter(i => DRINK_CATEGORIES.includes(i.category)));
+      const foodItems  = cleanItems(snapItems.filter(i => FOOD_CATEGORIES.includes(i.category)));
 
       const ordersToInsert = [];
-
       if (drinkItems.length > 0) {
         const drinkTotal = drinkItems.reduce((s,i) => s+i.price*i.qty, 0);
-        ordersToInsert.push({
-          table_no:tableNo, items:drinkItems, subtotal:drinkTotal, tax:0,
-          total:drinkTotal, status:"pending",
-          special_request:drinkReq, time, order_seq:seq
-        });
+        ordersToInsert.push({ table_no:tableNo, items:drinkItems, subtotal:drinkTotal, tax:0,
+          total:drinkTotal, status:"pending", special_request:drinkReq, time, order_seq:seq });
       }
-
       if (foodItems.length > 0) {
         const foodTotal = foodItems.reduce((s,i) => s+i.price*i.qty, 0);
-        ordersToInsert.push({
-          table_no:tableNo, items:foodItems, subtotal:foodTotal, tax:0,
-          total:foodTotal, status:"pending",
-          special_request:foodReq, time, order_seq:seq
-        });
+        ordersToInsert.push({ table_no:tableNo, items:foodItems, subtotal:foodTotal, tax:0,
+          total:foodTotal, status:"pending", special_request:foodReq, time, order_seq:seq });
       }
 
-      await supabase.from("orders").insert(ordersToInsert);
-      setCart({}); setDrinkRequest(""); setFoodRequest(""); setView("orders");
+      const { error } = await supabase.from("orders").insert(ordersToInsert);
+      if (error) throw error;
+    } catch(e) {
+      // Restore cart if insert failed so customer doesn't lose their order
+      setCart(snapCart);
+      setDrinkRequest(snapDrinkReq);
+      setFoodRequest(snapFoodReq);
+      setView("cart");
+      alert("Order failed — please check your connection and try again.");
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
