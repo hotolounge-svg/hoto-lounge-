@@ -830,7 +830,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       setDrinkRequest(snapDrinkReq);
       setFoodRequest(snapFoodReq);
       setView("cart");
-      alert("Order failed — please check your connection and try again.");
+      alert("Order failed: " + (e?.message || e?.details || JSON.stringify(e)));
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
