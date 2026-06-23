@@ -2452,15 +2452,15 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                 {items.map(item=>{
                   const inCart=cart.find(c=>c.name===item.name);
                   return (
-                    <div key={item.id} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:inCart?"#2c1a0e":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:8 }}>
+                    <div key={item.id} onClick={()=>addToCart(item)} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:inCart?"#2c1a0e":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:8,cursor:"pointer" }}>
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ color:C.text,fontSize:14,fontWeight:inCart?"bold":"normal" }}>{item.item_no && <span style={{ color:C.gold,fontSize:11,fontWeight:"bold",marginRight:5 }}>{item.item_no}</span>}{item.name}</div>
                         <div style={{ color:C.gold,fontSize:13 }}>RM {parseFloat(item.price).toFixed(2)}</div>
                       </div>
                       <div style={{ display:"flex",alignItems:"center",gap:8,flexShrink:0 }}>
-                        {inCart&&<button onClick={()=>removeFromCart(item.name)} style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:36,height:36,fontSize:20,borderRadius:8 })}>−</button>}
+                        {inCart&&<button onClick={e=>{e.stopPropagation();removeFromCart(item.name);}} style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:36,height:36,fontSize:20,borderRadius:8 })}>−</button>}
                         {inCart&&<span style={{ color:C.goldLight,fontWeight:"bold",minWidth:24,textAlign:"center",fontSize:16 }}>{inCart.qty}</span>}
-                        <button onClick={()=>addToCart(item)} style={btn({ background:C.gold,border:"none",color:C.dark,width:36,height:36,fontSize:20,borderRadius:8,fontWeight:"bold" })}>+</button>
+                        <div style={{ background:C.gold,borderRadius:8,width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:"bold",color:C.dark,flexShrink:0 }}>+</div>
                       </div>
                     </div>
                   );
