@@ -150,22 +150,53 @@ function HomeScreen({ setScreen, setTableNo }) {
 }
 
 function TakeawayScreen({ setScreen, setTableNo, goHome }) {
+  const [activeSlots, setActiveSlots] = useState([]);
+
+  useEffect(() => {
+    // Fetch which TW slots have active (pending/done) orders
+    const fetch = async () => {
+      const { data } = await supabase.from("orders").select("table_no")
+        .like("table_no","TW-%").not("status","in","("cancelled","paid")");
+      setActiveSlots([...new Set((data||[]).map(o=>o.table_no))]);
+    };
+    fetch();
+    const ch = supabase.channel("tw-slots-watch")
+      .on("postgres_changes",{event:"*",schema:"public",table:"orders"},fetch).subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
+
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:28, padding:24 }}>
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:24, padding:24 }}>
       <div style={{ textAlign:"center" }}>
         <div style={{ fontSize:48 }}>🥡</div>
         <div style={{ fontSize:24, color:C.goldLight, fontWeight:"bold", letterSpacing:2 }}>Takeaway Orders</div>
         <div style={{ fontSize:12, color:C.muted, letterSpacing:3, textTransform:"uppercase", marginTop:4 }}>Select a slot to start ordering</div>
       </div>
 
+      {/* Legend */}
+      <div style={{ display:"flex", gap:16, fontSize:12 }}>
+        <span style={{ color:"#aaffcc" }}>⬜ Available</span>
+        <span style={{ color:C.gold }}>🟡 Active order</span>
+      </div>
+
       <div style={{ width:"100%", maxWidth:460 }}>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8 }}>
-          {TW_SLOTS.map(slot => (
-            <button key={slot} onClick={() => { setTableNo(slot); setScreen("tablet"); }}
-              style={btn({ background:"#1a3a2a", border:`1px solid #5aaa7a`, color:"#aaffcc", padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:10 })}>
-              {slot.replace("TW-","")}
-            </button>
-          ))}
+          {TW_SLOTS.map(slot => {
+            const isActive = activeSlots.includes(slot);
+            return (
+              <button key={slot} onClick={() => { setTableNo(slot); setScreen("tablet"); }}
+                style={btn({ 
+                  background: isActive ? "#3a2a00" : "#1a3a2a",
+                  border: `2px solid ${isActive ? C.gold : "#5aaa7a"}`,
+                  color: isActive ? C.gold : "#aaffcc",
+                  padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:10,
+                  position:"relative"
+                })}>
+                {slot.replace("TW-","")}
+                {isActive && <div style={{ position:"absolute", top:4, right:4, width:7, height:7, borderRadius:"50%", background:C.gold }} />}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -625,68 +656,48 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const submittingRef = useRef(false);
 
   useEffect(() => {
+    // Staff & takeaway slots skip session management entirely
+    if (isStaff) return;
+
     const initSession = async () => {
-      const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
+      try {
+        const { data } = await supabase.from("table_sessions").select("session_id").eq("table_no", tableNo).single();
 
-      if (!data) {
-        // No server session — first ever QR scan for this table
-        const s = Date.now().toString();
-        await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
-        sessionStorage.setItem(`ss_table_${tableNo}`, s);
-        return;
-      }
-
-      const session_id = data.session_id;
-
-      if (session_id.startsWith("paid_")) {
-        // Server says table was paid
-        // Check sessionStorage — it survives refresh but clears on browser close
-        const ss = sessionStorage.getItem(`ss_table_${tableNo}`);
-        if (ss) {
-          // sessionStorage exists = this is a REFRESH after seeing paid screen
-          // Keep showing expired
-          setSessionExpired(true); return;
+        if (!data) {
+          const s = Date.now().toString();
+          await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s });
+          sessionStorage.setItem(`ss_table_${tableNo}`, s);
+          return;
         }
-        // sessionStorage empty = either:
-        // A) Fresh QR scan (new customer) → allow ordering
-        // B) Close & reopen browser → also looks same as A
-        // 
-        // To distinguish A from B: check performance.navigation
-        // Fresh QR scan = navigate type (0 or "navigate")
-        // Close & reopen = also navigate type unfortunately...
-        //
-        // SOLUTION: When we show expired screen, set a sessionStorage flag
-        // If customer closes browser, sessionStorage clears
-        // If customer scans QR fresh, no sessionStorage → allow
-        // If customer reopens browser (no scan), no sessionStorage → BUT server still "paid_"
-        // → We allow them in (can't distinguish from fresh scan)
-        // This is acceptable — they still see an empty table with no previous orders
-        const s = Date.now().toString();
-        await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s, updated_at:new Date().toISOString() });
-        sessionStorage.setItem(`ss_table_${tableNo}`, s);
-        return;
-      }
 
-      // Active session on server
-      const ss = sessionStorage.getItem(`ss_table_${tableNo}`);
-      if (!ss) {
-        // No sessionStorage — browser was closed and reopened while session was active
-        // Server session still valid, store in sessionStorage and allow
-        sessionStorage.setItem(`ss_table_${tableNo}`, session_id);
+        const session_id = data.session_id;
+
+        if (session_id.startsWith("paid_")) {
+          const ss = sessionStorage.getItem(`ss_table_${tableNo}`);
+          if (ss) { setSessionExpired(true); return; }
+          const s = Date.now().toString();
+          await supabase.from("table_sessions").upsert({ table_no:tableNo, session_id:s });
+          sessionStorage.setItem(`ss_table_${tableNo}`, s);
+          return;
+        }
+
+        const ss = sessionStorage.getItem(`ss_table_${tableNo}`);
+        if (!ss) sessionStorage.setItem(`ss_table_${tableNo}`, session_id);
+      } catch(e) {
+        // Session table might not exist — allow ordering anyway
+        console.warn("Session init error:", e);
       }
-      // Allow ordering
     };
     initSession();
     const ch = supabase.channel(`session-${tableNo}`)
       .on("postgres_changes", { event:"*", schema:"public", table:"table_sessions", filter:`table_no=eq.${tableNo}` }, (payload) => {
         if (payload.new?.session_id?.startsWith("paid_")) {
-          // Mark in sessionStorage so refresh also shows expired
           sessionStorage.setItem(`ss_table_${tableNo}`, "expired");
           setSessionExpired(true);
         }
       }).subscribe();
     return () => supabase.removeChannel(ch);
-  }, [tableNo]);
+  }, [tableNo, isStaff]);
 
   useEffect(() => {
     const fetchMenu = async () => {
