@@ -111,7 +111,7 @@ export default function App() {
       {screen === "home"    && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} />}
       {screen === "group"      && <GroupWrapper  tableNo={tableNo} />}
       {screen === "groupadmin" && <GroupAdminScreen goHome={() => setScreen("home")} />}
-      {screen === "tablet"  && <TabletScreen  tableNo={tableNo} isStaff={tableNo !== null && !window.location.search.includes("table=")} goHome={() => setScreen(String(tableNo).startsWith("TW-") ? "takeaway" : "home")} />}
+      {screen === "tablet"  && <TabletScreen  tableNo={tableNo} isStaff={tableNo !== null && !window.location.search.includes("table=")} goHome={() => setScreen(String(tableNo).startsWith("TW-") ? "takeaway" : String(tableNo).startsWith("GRP-") ? "vipscreen" : "home")} />}
       {screen === "takeaway" && <TakeawayScreen setScreen={setScreen} setTableNo={setTableNo} goHome={() => setScreen("home")} />}
       {screen === "kitchen" && <KitchenScreen goHome={() => setScreen("home")} />}
       {screen === "qrcodes" && <QRScreen      goHome={() => setScreen("home")} />}
@@ -288,7 +288,7 @@ function GroupWrapper({ tableNo: initialTableNo }) {
 }
 
 // ── GroupScreen — table picker ──
-function GroupScreen({ tableNo, setTableNo }) {
+function GroupScreen({ tableNo, setTableNo, onBack }) {
   const baseId = String(tableNo).split("·")[0]; // strip table suffix for matching
   const memberName = groupDisplayName(baseId);
   const LS_KEY = `hl_grp_table_${baseId}`;
@@ -324,6 +324,12 @@ function GroupScreen({ tableNo, setTableNo }) {
         style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"1.5px dashed #5a4020", color:"#a07060", borderRadius:12, padding:"13px 0", fontSize:15, width:"100%", maxWidth:420 }}>
         Skip — No Table
       </button>
+      {onBack && (
+        <button onClick={onBack}
+          style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:`1px solid ${C.border}`, color:C.muted, borderRadius:12, padding:"11px 28px", fontSize:14, marginTop:16 }}>
+          ← Back
+        </button>
+      )}
     </div>
   );
 }
@@ -344,7 +350,7 @@ function JoinScreen({ groupSlug, goHome }) {
   }, [groupSlug]);
 
   const register = async () => {
-    if (!name.trim()) { setError("Please enter your name"); return; }
+    if (name.trim().length < 3) { setError("Name must be at least 3 letters"); return; }
     setSaving(true); setError("");
     const id = `${groupSlug}-${name.trim().toLowerCase().replace(/[^a-z0-9]+/g,"-")}`;
     const { error: err } = await supabase.from("groups").upsert({
@@ -442,8 +448,8 @@ function JoinScreen({ groupSlug, goHome }) {
           autoFocus
           style={{ width:"100%", background:"#2c1a0e", border:`2px solid ${error?"#cc4444":"#c8973a"}`, color:"#fff", padding:"16px 18px", borderRadius:14, fontSize:18, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"center", marginBottom:8 }} />
         {error && <div style={{ color:"#ff7777", fontSize:13, textAlign:"center", marginBottom:8 }}>{error}</div>}
-        <button onClick={register} disabled={saving||!name.trim()}
-          style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:name.trim()?"linear-gradient(135deg,#c8973a,#a07020)":"#3a2a10", border:"none", color:name.trim()?"#1a1208":"#666", padding:"16px 0", borderRadius:14, fontSize:18, fontWeight:"bold", marginTop:4 }}>
+        <button onClick={register} disabled={saving||name.trim().length<3}
+          style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:name.trim().length>=3?"linear-gradient(135deg,#c8973a,#a07020)":"#3a2a10", border:"none", color:name.trim().length>=3?"#1a1208":"#666", padding:"16px 0", borderRadius:14, fontSize:18, fontWeight:"bold", marginTop:4 }}>
           {saving?"Saving...":"✓ Get My QR Code"}
         </button>
         <div style={{ fontSize:12, color:"#5a4020", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
@@ -467,6 +473,7 @@ function GroupAdminScreen({ goHome }) {
   const [qrTarget, setQrTarget] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); // {msg, onConfirm}
   const [toast, setToast] = useState(""); // short toast message
+  const [formError, setFormError] = useState(""); // validation message for create form
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 2000); };
 
@@ -486,10 +493,16 @@ function GroupAdminScreen({ goHome }) {
   }, []);
 
   const save = async () => {
-    if (!form.groupName.trim()) return;
+    setFormError("");
+    if (form.groupName.trim().length < 3) { setFormError("Group name must be at least 3 letters"); return; }
+    const members = form.members.split(",").map(m=>m.trim()).filter(Boolean);
+    const tooShort = members.filter(m => m.length < 3);
+    if (tooShort.length > 0) {
+      setFormError(`These names are too short (need 3+ letters): ${tooShort.join(", ")}`);
+      return;
+    }
     setSaving(true);
     const slug = form.groupName.trim().toLowerCase().replace(/\s+/g,"-");
-    const members = form.members.split(",").map(m=>m.trim()).filter(Boolean);
     if (members.length > 0) {
       // Staff adding members manually
       const rows = members.map(name => ({
@@ -510,6 +523,7 @@ function GroupAdminScreen({ goHome }) {
       });
     }
     setForm({ groupName:"", members:"" });
+    setFormError("");
     setSaving(false);
     await load(false); // no flicker
   };
@@ -549,12 +563,13 @@ function GroupAdminScreen({ goHome }) {
         {/* Create form */}
         <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:16, marginBottom:20 }}>
           <div style={{ fontSize:14, color:C.gold, fontWeight:"bold", marginBottom:12 }}>➕ Create New Group</div>
-          <input value={form.groupName} onChange={e=>setForm(p=>({...p,groupName:e.target.value}))}
+          <input value={form.groupName} onChange={e=>{setForm(p=>({...p,groupName:e.target.value}));setFormError("");}}
             placeholder="Group name (e.g. Kopi Gang)"
-            style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }} />
-          <input value={form.members} onChange={e=>setForm(p=>({...p,members:e.target.value}))}
+            style={{ width:"100%", background:C.bg, border:`1px solid ${formError?"#cc4444":C.border}`, color:C.text, padding:"10px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }} />
+          <input value={form.members} onChange={e=>{setForm(p=>({...p,members:e.target.value}));setFormError("");}}
             placeholder="Member names, comma separated (optional — VIPs can self-register)"
-            style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }} />
+            style={{ width:"100%", background:C.bg, border:`1px solid ${formError?"#cc4444":C.border}`, color:C.text, padding:"10px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }} />
+          {formError && <div style={{ color:"#ff7777", fontSize:13, marginBottom:10 }}>{formError}</div>}
           <button onClick={save} disabled={saving}
             style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"11px 0", fontSize:15, fontWeight:"bold", width:"100%", borderRadius:10 })}>
             {saving?"Saving...":"✓ Create Group & Generate QRs"}
@@ -713,6 +728,7 @@ function VIPScreen({ setScreen, setTableNo, goHome }) {
       <GroupScreen
         tableNo={pickedMember.tno}
         setTableNo={(finalId) => { setTableNo(finalId); setScreen("tablet"); }}
+        onBack={() => setPickedMember(null)}
       />
     );
   }
