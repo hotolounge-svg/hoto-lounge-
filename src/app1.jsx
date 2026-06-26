@@ -2355,10 +2355,20 @@ function SalesScreen({ goHome }) {
   const [pinOk, setPinOk] = useState(false);
   const [pinVal, setPinVal] = useState("");
   const [pinErr, setPinErr] = useState(false);
-  // All hooks must be declared before any early return
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"}));
+
+  useEffect(() => {
+    if (!pinOk) return;
+    const fetchSales = async () => {
+      setLoading(true);
+      const { data } = await supabase.from("orders").select("*").eq("status","paid").order("created_at",{ascending:true});
+      const filtered = (data||[]).filter(o => new Date(o.created_at).toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"})===selectedDate);
+      setOrders(filtered); setLoading(false);
+    };
+    fetchSales();
+  }, [selectedDate, pinOk]);
 
   if (!pinOk) return (
     <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif" }}>
@@ -2381,15 +2391,7 @@ function SalesScreen({ goHome }) {
     </div>
   );
 
-  useEffect(() => {
-    const fetchSales = async () => {
-      setLoading(true);
-      const { data } = await supabase.from("orders").select("*").eq("status","paid").order("created_at",{ascending:true});
-      const filtered = (data||[]).filter(o => new Date(o.created_at).toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"})===selectedDate);
-      setOrders(filtered); setLoading(false);
-    };
-    fetchSales();
-  }, [selectedDate]);
+
 
   const charge = parseFloat(localStorage.getItem("service_charge")||"10");
   const subtotalRevenue = orders.reduce((s,o) => s+o.total, 0);
