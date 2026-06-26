@@ -89,6 +89,8 @@ export default function App() {
     const g = params.get("group");
     if (g) { setTableNo(`GRP-${g}`); setScreen("group"); }
     if (params.get("page") === "groups") setScreen("groupadmin");
+    const j = params.get("join");
+    if (j) { setTableNo(`JOIN-${j}`); setScreen("join"); }
   }, []);
   return (
     <div style={{ fontFamily:"Georgia,serif", background:C.bg, minHeight:"100vh", color:C.text }}>
@@ -108,6 +110,7 @@ export default function App() {
       {screen === "home"    && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} />}
       {screen === "group"      && <GroupWrapper  tableNo={tableNo} />}
       {screen === "groupadmin" && <GroupAdminScreen goHome={() => setScreen("home")} />}
+      {screen === "join"       && <JoinScreen groupSlug={String(tableNo).replace("JOIN-","")} goHome={() => setScreen("home")} />}
       {screen === "tablet"  && <TabletScreen  tableNo={tableNo} isStaff={tableNo !== null && !window.location.search.includes("table=")} goHome={() => setScreen(String(tableNo).startsWith("TW-") ? "takeaway" : "home")} />}
       {screen === "takeaway" && <TakeawayScreen setScreen={setScreen} setTableNo={setTableNo} goHome={() => setScreen("home")} />}
       {screen === "kitchen" && <KitchenScreen goHome={() => setScreen("home")} />}
@@ -221,6 +224,92 @@ function GroupScreen({ tableNo, setTableNo }) {
   );
 }
 
+
+// ── JoinScreen — VIP self-registers their name ──
+function JoinScreen({ groupSlug, goHome }) {
+  const [groupName, setGroupName] = useState("");
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(null); // { name, url }
+  const [error, setError] = useState("");
+  const baseUrl = window.location.origin + window.location.pathname;
+
+  useEffect(() => {
+    // Load group name
+    supabase.from("groups").select("group_name").eq("group_slug", groupSlug).limit(1).single()
+      .then(({ data }) => { if (data) setGroupName(data.group_name); });
+  }, [groupSlug]);
+
+  const register = async () => {
+    if (!name.trim()) { setError("Please enter your name"); return; }
+    setSaving(true);
+    setError("");
+    const id = `${groupSlug}-${name.trim().toLowerCase().replace(/\s+/g,"-")}`;
+    const { error: err } = await supabase.from("groups").upsert({
+      id, display_name: name.trim(), group_name: groupName || groupSlug, group_slug: groupSlug
+    });
+    if (err) { setError("Failed to save — try again"); setSaving(false); return; }
+    const url = `${baseUrl}?group=${id}`;
+    setDone({ name: name.trim(), url, id });
+    setSaving(false);
+  };
+
+  // After registered — show QR + download
+  if (done) return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
+      <div style={{ fontSize:40, marginBottom:8 }}>🎉</div>
+      <div style={{ fontSize:22, fontWeight:"bold", color:"#e8c77a", marginBottom:4 }}>You're registered, {done.name}!</div>
+      <div style={{ fontSize:13, color:"#a07060", marginBottom:24, textAlign:"center" }}>Save your personal QR below. Next time just tap it to order!</div>
+      {/* Tappable QR */}
+      <a href={done.url} style={{ display:"inline-block", borderRadius:16, overflow:"hidden", border:"4px solid #c8973a", marginBottom:20 }}>
+        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(done.url)}&bgcolor=ffffff&color=000000&margin=10`}
+          style={{ width:260, height:260, display:"block" }} alt="Your QR" />
+      </a>
+      <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:320 }}>
+        <button onClick={()=>downloadQR(done.url, done.name)}
+          style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#c8973a", color:"#1a1208", padding:"14px 0", borderRadius:12, fontWeight:"bold", fontSize:16, border:"none" }}>
+          ⬇️ Save QR to Phone
+        </button>
+        <a href={`https://wa.me/?text=${encodeURIComponent(`My personal Hoto Lounge ordering QR (${done.name}): ${done.url}`)}`}
+          target="_blank" rel="noreferrer"
+          style={{ display:"block", background:"#25D366", color:"#fff", padding:"13px 0", borderRadius:12, fontWeight:"bold", fontSize:15, textDecoration:"none", textAlign:"center" }}>
+          💬 Send to Myself on WhatsApp
+        </a>
+        <a href={done.url}
+          style={{ display:"block", background:"#2a3a2a", border:"1.5px solid #5aaa5a", color:"#aaffaa", padding:"13px 0", borderRadius:12, fontWeight:"bold", fontSize:15, textDecoration:"none", textAlign:"center" }}>
+          🛒 Go to Menu Now
+        </a>
+      </div>
+      <div style={{ fontSize:11, color:"#5a4020", marginTop:16, textAlign:"center", maxWidth:280 }}>
+        Tip: Screenshot this QR or tap "Save QR to Phone" — next time tap the image to open your menu instantly!
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
+      <div style={{ fontSize:48, marginBottom:8 }}>☕</div>
+      <div style={{ fontSize:24, fontWeight:"bold", color:"#e8c77a", marginBottom:4 }}>{groupName || "VIP Group"}</div>
+      <div style={{ fontSize:13, color:"#a07060", letterSpacing:2, textTransform:"uppercase", marginBottom:28 }}>Register your name</div>
+      <div style={{ width:"100%", maxWidth:360 }}>
+        <input value={name} onChange={e=>{setName(e.target.value);setError("");}}
+          onKeyDown={e=>e.key==="Enter"&&register()}
+          placeholder="Your name (e.g. Ahmad)"
+          autoFocus
+          style={{ width:"100%", background:"#2c1a0e", border:`2px solid ${error?"#cc4444":"#c8973a"}`, color:"#fff", padding:"16px 18px", borderRadius:14, fontSize:18, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"center", marginBottom:8 }} />
+        {error && <div style={{ color:"#ff7777", fontSize:13, textAlign:"center", marginBottom:8 }}>{error}</div>}
+        <button onClick={register} disabled={saving||!name.trim()}
+          style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background: name.trim()?"linear-gradient(135deg,#c8973a,#a07020)":"#5a4020", border:"none", color: name.trim()?"#1a1208":"#888", padding:"16px 0", borderRadius:14, fontSize:18, fontWeight:"bold", marginTop:4 }}>
+          {saving?"Saving...":"✓ Get My QR Code"}
+        </button>
+        <div style={{ fontSize:12, color:"#5a4020", textAlign:"center", marginTop:12 }}>
+          You'll get a personal QR to save on your phone
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── GroupAdminScreen — create groups + generate QR ──
 function GroupAdminScreen({ goHome }) {
   const [groups, setGroups] = useState([]);
@@ -299,18 +388,32 @@ function GroupAdminScreen({ goHome }) {
         {qrTarget && (
           <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}
             onClick={()=>setQrTarget(null)}>
-            <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:20, padding:28, textAlign:"center", maxWidth:320, width:"90%" }}>
-              <div style={{ fontSize:18, fontWeight:"bold", color:"#1a1208", marginBottom:4 }}>👤 {qrTarget.name}</div>
-              <div style={{ fontSize:12, color:"#888", marginBottom:16 }}>Scan or save this QR</div>
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrTarget.url)}&bgcolor=ffffff&color=000000&margin=10`}
-                style={{ width:240, height:240, borderRadius:8 }} alt="QR" />
-              <div style={{ fontSize:11, color:"#aaa", marginTop:8, wordBreak:"break-all" }}>{qrTarget.url}</div>
-              <button onClick={()=>downloadQR(qrTarget.url, qrTarget.name)}
-                style={{ fontFamily:"Georgia,serif", cursor:"pointer", display:"block", width:"100%", marginTop:14, background:"#c8973a", color:"#fff", padding:"11px 0", borderRadius:10, fontWeight:"bold", fontSize:14, border:"none" }}>
-                ⬇️ Download QR
-              </button>
+            <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:20, padding:24, textAlign:"center", maxWidth:340, width:"92%" }}>
+              <div style={{ fontSize:18, fontWeight:"bold", color:"#1a1208", marginBottom:2 }}>👤 {qrTarget.name}</div>
+              <div style={{ fontSize:12, color:"#888", marginBottom:14 }}>Scan, tap, or save this QR</div>
+              {/* QR is a tappable link — opens menu directly */}
+              <a href={qrTarget.url} target="_blank" rel="noreferrer" style={{ display:"inline-block", borderRadius:12, overflow:"hidden", border:"3px solid #c8973a" }}>
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrTarget.url)}&bgcolor=ffffff&color=000000&margin=10`}
+                  style={{ width:240, height:240, display:"block" }} alt="QR" />
+              </a>
+              <div style={{ fontSize:11, color:"#bbb", marginTop:8, marginBottom:14, wordBreak:"break-all" }}>{qrTarget.url}</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                <button onClick={()=>downloadQR(qrTarget.url, qrTarget.name)}
+                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"#c8973a", color:"#fff", padding:"11px 0", borderRadius:10, fontWeight:"bold", fontSize:14, border:"none" }}>
+                  ⬇️ Download QR to Phone
+                </button>
+                <a href={`https://wa.me/?text=${encodeURIComponent(`Hi ${qrTarget.name}! Here is your personal QR link for ordering at Hoto Lounge. Tap to open menu: ${qrTarget.url}`)}`}
+                  target="_blank" rel="noreferrer"
+                  style={{ display:"block", width:"100%", background:"#25D366", color:"#fff", padding:"11px 0", borderRadius:10, fontWeight:"bold", fontSize:14, textDecoration:"none", boxSizing:"border-box" }}>
+                  💬 Send via WhatsApp
+                </a>
+                <button onClick={()=>{ navigator.clipboard?.writeText(qrTarget.url); alert("Link copied!"); }}
+                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"#f0f0f0", color:"#333", padding:"10px 0", borderRadius:10, fontWeight:"bold", fontSize:13, border:"none" }}>
+                  🔗 Copy Link
+                </button>
+              </div>
               <button onClick={()=>setQrTarget(null)}
-                style={{ fontFamily:"Georgia,serif", cursor:"pointer", marginTop:8, background:"transparent", border:"none", color:"#aaa", fontSize:13 }}>Close</button>
+                style={{ fontFamily:"Georgia,serif", cursor:"pointer", marginTop:10, background:"transparent", border:"none", color:"#aaa", fontSize:13 }}>Close</button>
             </div>
           </div>
         )}
@@ -326,6 +429,20 @@ function GroupAdminScreen({ goHome }) {
                   <div style={{ fontSize:15, fontWeight:"bold", color:C.goldLight }}>👥 {grp.name}</div>
                   <button onClick={()=>deleteGroup(grp.slug)}
                     style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"4px 10px", fontSize:12, borderRadius:6 })}>Delete Group</button>
+                </div>
+                {/* Self-register invite link */}
+                <div style={{ padding:"8px 16px", borderTop:`1px solid ${C.border}`, background:"#1a2a1a", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
+                  <div>
+                    <div style={{ fontSize:11, color:"#5aaa5a", letterSpacing:1, textTransform:"uppercase", marginBottom:2 }}>🔗 VIP Self-Register Link</div>
+                    <div style={{ fontSize:11, color:"#aaffaa", fontFamily:"monospace" }}>{baseUrl}?join={grp.slug}</div>
+                  </div>
+                  <div style={{ display:"flex", gap:6 }}>
+                    <button onClick={()=>{ navigator.clipboard?.writeText(`${baseUrl}?join=${grp.slug}`); alert("Invite link copied!"); }}
+                      style={btn({ background:"#1a3a1a", border:`1px solid #5aaa5a`, color:"#aaffaa", padding:"5px 10px", fontSize:11, borderRadius:6 })}>📋 Copy</button>
+                    <a href={`https://wa.me/?text=${encodeURIComponent(`Join our VIP ordering group at Hoto Lounge! Tap to register your name and get your personal QR: ${baseUrl}?join=${grp.slug}`)}`}
+                      target="_blank" rel="noreferrer"
+                      style={{ background:"#25D366", color:"#fff", padding:"5px 10px", fontSize:11, borderRadius:6, textDecoration:"none", fontWeight:"bold" }}>💬 WA</a>
+                  </div>
                 </div>
                 {grp.members.map(m => {
                   const url = `${baseUrl}?group=${m.id}`;
