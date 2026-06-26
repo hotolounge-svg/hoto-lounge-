@@ -1445,6 +1445,22 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   );
 }
 
+async function downloadQR(url, label) {
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=000000&margin=20`;
+  try {
+    const res = await fetch(qrUrl);
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `QR-${label}.png`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch(e) {
+    // Fallback: open in new tab if fetch fails
+    window.open(qrUrl, "_blank");
+  }
+}
+
 function QRScreen({ goHome }) {
   const baseUrl = window.location.href.split("?")[0];
 
@@ -1488,7 +1504,10 @@ function QRScreen({ goHome }) {
               <div style={{ fontSize:16, fontWeight:"bold", color:C.goldLight }}>TABLE {tnum}</div>
               <QRCode url={`${baseUrl}?table=${tnum}`} size={140} />
               <div style={{ fontSize:10, color:C.muted, textAlign:"center", fontFamily:"monospace", wordBreak:"break-all" }}>{baseUrl}?table={tnum}</div>
-              <button onClick={() => printOne(tnum)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"7px 20px", fontSize:13, fontWeight:"bold", width:"100%" })}>🖨️ Print</button>
+              <div style={{ display:"flex", gap:8, width:"100%" }}>
+                <button onClick={() => printOne(tnum)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"7px 0", fontSize:13, fontWeight:"bold", flex:1 })}>🖨️ Print</button>
+                <button onClick={() => downloadQR(`${baseUrl}?table=${tnum}`, `Table-${tnum}`)} style={btn({ background:"#1a3a1a", border:`1px solid #5aaa5a`, color:"#aaffaa", padding:"7px 0", fontSize:13, fontWeight:"bold", flex:1 })}>⬇️ Save</button>
+              </div>
             </div>
           ))}
         </div>
