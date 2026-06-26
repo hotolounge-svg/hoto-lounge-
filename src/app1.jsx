@@ -267,8 +267,9 @@ function GroupWrapper({ tableNo: initialTableNo }) {
 
 // ── GroupScreen — table picker ──
 function GroupScreen({ tableNo, setTableNo }) {
-  const memberName = groupDisplayName(tableNo);
-  const LS_KEY = `hl_grp_table_${tableNo}`;
+  const baseId = String(tableNo).split("·")[0]; // strip table suffix for matching
+  const memberName = groupDisplayName(baseId);
+  const LS_KEY = `hl_grp_table_${baseId}`;
   const lastTable = localStorage.getItem(LS_KEY);
 
   const proceed = (tbl) => {
@@ -707,7 +708,13 @@ function VIPScreen({ setScreen, setTableNo, goHome }) {
             {gMembers.map(m => {
               const isActive = activeIds.includes(m.id);
               return (
-                <button key={m.id} onClick={() => { setTableNo(m.id); setScreen("tablet"); }}
+                <button key={m.id} onClick={async () => {
+                    // Check for active orders to get the correct table_no
+                    const { data } = await supabase.from("orders").select("table_no")
+                      .like("table_no", `GRP-${m.id}%`).not("status","eq","paid").limit(1);
+                    const tno = data&&data.length ? data[0].table_no : `GRP-${m.id}`;
+                    setTableNo(tno); setScreen("tablet");
+                  }}
                   style={btn({ background:isActive?"#3a2a00":"#1a1a3a", border:`2px solid ${isActive?C.gold:"#7a6aff"}`, color:isActive?C.gold:"#ccbbff", padding:"16px 8px", fontSize:14, fontWeight:"bold", borderRadius:14, position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:4 })}>
                   {isActive && <div style={{ position:"absolute", top:6, right:6, width:8, height:8, borderRadius:"50%", background:C.gold }} />}
                   <span style={{ fontSize:20 }}>👤</span>
@@ -1280,14 +1287,21 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   }, []);
 
   useEffect(() => {
+    const isVip = String(tableNo).startsWith("GRP-");
+    const baseId = String(tableNo).split("·")[0];
     const fetchMyOrders = async () => {
-      const { data } = await supabase.from("orders").select("*").eq("table_no", tableNo)
-        .not("status", "in", '("cancelled","paid")').order("created_at", { ascending:true });
+      let q = supabase.from("orders").select("*")
+        .not("status","in",'("cancelled","paid")').order("created_at",{ascending:true});
+      // VIP: match all orders with same base ID (handles table suffix variants)
+      if (isVip) q = q.like("table_no", `${baseId}%`);
+      else q = q.eq("table_no", tableNo);
+      const { data } = await q;
       setMyOrders(data || []);
     };
     fetchMyOrders();
-    const ch = supabase.channel(`table-${tableNo}`)
-      .on("postgres_changes", { event:"*", schema:"public", table:"orders", filter:`table_no=eq.${tableNo}` }, fetchMyOrders).subscribe();
+    const ch = supabase.channel(`table-${baseId}`)
+      .on("postgres_changes", { event:"*", schema:"public", table:"orders",
+        filter: isVip ? undefined : `table_no=eq.${tableNo}` }, fetchMyOrders).subscribe();
     return () => supabase.removeChannel(ch);
   }, [tableNo]);
 
@@ -3163,7 +3177,13 @@ function VIPTableButtons({ setPickedTable, setStep }) {
       <div style={{ fontSize:12,color:"#a080ff",marginBottom:8,fontWeight:"bold" }}>👥 VIP MEMBERS</div>
       <div style={{ display:"flex",flexWrap:"wrap",gap:8 }}>
         {vips.map(v => (
-          <button key={v.id} onClick={()=>{ setPickedTable(v.id); setStep("edit"); }}
+          <button key={v.id} onClick={async ()=>{
+            // Use same table_no as VIP's active order for full sync
+            const { data } = await supabase.from("orders").select("table_no")
+              .like("table_no",`GRP-${v.id}%`).not("status","eq","paid").limit(1);
+            const tno = data&&data.length ? data[0].table_no : `GRP-${v.id}`;
+            setPickedTable(tno); setStep("edit");
+          }}
             style={btn({ background:"#1a1a3a",border:`2px solid #7a6aff`,color:"#ccbbff",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>
             👤 {v.display_name}
           </button>
