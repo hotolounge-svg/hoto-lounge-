@@ -339,6 +339,18 @@ function GroupAdminScreen({ goHome }) {
                   <button onClick={()=>deleteGroup(grp.slug, grp.name)}
                     style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"4px 10px", fontSize:12, borderRadius:6 })}>Delete Group</button>
                 </div>
+                {/* Invite link — always visible */}
+                <div style={{ padding:"12px 16px", background:"#1a2a1a", borderTop:`1px solid ${C.border}` }}>
+                  <div style={{ fontSize:11, color:"#5aaa5a", letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>🔗 VIP Self-Register Link</div>
+                  <div style={{ fontSize:11, color:"#aaffaa", fontFamily:"monospace", wordBreak:"break-all", marginBottom:10 }}>{baseUrl}?join={grp.slug}</div>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={()=>{ navigator.clipboard?.writeText(`${baseUrl}?join=${grp.slug}`); alert("Link copied!"); }}
+                      style={btn({ background:"#1a3a1a", border:`1px solid #5aaa5a`, color:"#aaffaa", padding:"8px 0", fontSize:13, borderRadius:8, flex:1 })}>📋 Copy Link</button>
+                    <a href={`https://wa.me/?text=${encodeURIComponent("Hi! Register your name to order at Hoto Lounge — tap this link, type your name and save your personal QR code: "+baseUrl+"?join="+grp.slug)}`}
+                      target="_blank" rel="noreferrer"
+                      style={{ display:"block", background:"#25D366", color:"#fff", padding:"8px 0", fontSize:13, borderRadius:8, textDecoration:"none", fontWeight:"bold", flex:1, textAlign:"center" }}>💬 Send WhatsApp</a>
+                  </div>
+                </div>
                 {grp.members.filter(m=>m.display_name!=="__group__").map(m => {
                   const url = `${baseUrl}?group=${m.id}`;
                   return (
