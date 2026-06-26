@@ -385,17 +385,17 @@ function GroupAdminScreen({ goHome }) {
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 2000); };
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (showLoader=false) => {
+    if (showLoader) setLoading(true);
     const { data } = await supabase.from("groups").select("*").order("created_at",{ ascending:false });
     setGroups(data||[]);
     setLoading(false);
   };
   useEffect(() => {
-    load();
-    // Realtime — auto-update when new VIP registers via self-register link
+    load(true); // show loader only on first load
+    // Realtime — silently update without showing loader
     const ch = supabase.channel("groups-watch")
-      .on("postgres_changes", { event:"*", schema:"public", table:"groups" }, () => load())
+      .on("postgres_changes", { event:"*", schema:"public", table:"groups" }, () => load(false))
       .subscribe();
     return () => supabase.removeChannel(ch);
   }, []);
@@ -426,7 +426,7 @@ function GroupAdminScreen({ goHome }) {
     }
     setForm({ groupName:"", members:"" });
     setSaving(false);
-    await load();
+    await load(false); // no flicker
   };
 
   const deleteGroup = (slug, name) => {
