@@ -164,16 +164,35 @@ function HomeScreen({ setScreen, setTableNo }) {
 // ── downloadQR helper ──
 async function downloadQR(url, label) {
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=000000&margin=20`;
-  try {
-    const res = await fetch(qrUrl);
-    const blob = await res.blob();
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (isIOS) {
+    // iOS Safari cannot auto-save to Photos from JS
+    // Best approach: open image in new tab, user holds finger → Save to Photos
+    // Use <a> with target=_blank to avoid navigating away from current page
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `QR-${label}.png`;
+    a.href = qrUrl;
+    a.target = "_blank";
+    a.rel = "noreferrer";
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
-  } catch(e) {
-    window.open(qrUrl, "_blank");
+    document.body.removeChild(a);
+    // Show hint after small delay
+    setTimeout(() => alert("👆 Hold your finger on the QR image → tap \"Save to Photos\" to save to Camera Roll!"), 800);
+  } else {
+    // Android / desktop: fetch as blob and auto-download
+    try {
+      const res = await fetch(qrUrl);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `QR-${label}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    } catch(e) {
+      window.open(qrUrl, "_blank");
+    }
   }
 }
 
@@ -269,10 +288,20 @@ function JoinScreen({ groupSlug, goHome }) {
 
           {/* Action buttons */}
           <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:340, marginBottom:24 }}>
-            <button onClick={()=>downloadQR(done.url, done.name)}
-              style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#c8973a", color:"#1a1208", padding:"13px 0", borderRadius:12, fontWeight:"bold", fontSize:15, border:"none" }}>
-              ⬇️ Save QR to Photos
-            </button>
+            {/* iPhone: long press image to save. Android/others: download button */}
+            {isIOS ? (
+              <div style={{ background:"#2a1a0e", border:"1.5px solid #c8973a", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
+                <div style={{ fontSize:14, fontWeight:"bold", color:"#e8c77a", marginBottom:6 }}>📸 Save to Photos (iPhone)</div>
+                <div style={{ fontSize:13, color:"#a07060", lineHeight:1.6 }}>
+                  <strong style={{ color:"#c8973a" }}>Long press</strong> the QR image above → tap <strong style={{ color:"#c8973a" }}>"Save to Photos"</strong>
+                </div>
+              </div>
+            ) : (
+              <button onClick={()=>downloadQR(done.url, done.name)}
+                style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#c8973a", color:"#1a1208", padding:"13px 0", borderRadius:12, fontWeight:"bold", fontSize:15, border:"none" }}>
+                ⬇️ Save QR to Phone
+              </button>
+            )}
             <a href={`https://wa.me/?text=${encodeURIComponent(`My personal Hoto Lounge menu (${done.name}) — tap to order: ${done.url}`)}`}
               target="_blank" rel="noreferrer"
               style={{ display:"block", background:"#25D366", color:"#fff", padding:"12px 0", borderRadius:12, fontWeight:"bold", fontSize:15, textDecoration:"none", textAlign:"center" }}>
