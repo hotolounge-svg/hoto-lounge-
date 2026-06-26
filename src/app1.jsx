@@ -2355,6 +2355,10 @@ function SalesScreen({ goHome }) {
   const [pinOk, setPinOk] = useState(false);
   const [pinVal, setPinVal] = useState("");
   const [pinErr, setPinErr] = useState(false);
+  // All hooks must be declared before any early return
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"}));
 
   if (!pinOk) return (
     <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif" }}>
@@ -2376,10 +2380,6 @@ function SalesScreen({ goHome }) {
       </div>
     </div>
   );
-
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"}));
 
   useEffect(() => {
     const fetchSales = async () => {
