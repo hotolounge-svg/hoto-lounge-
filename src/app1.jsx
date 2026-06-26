@@ -678,17 +678,6 @@ function VIPScreen({ setScreen, setTableNo, goHome }) {
   const [loading, setLoading] = useState(true);
   const [pickedMember, setPickedMember] = useState(null); // { tno } when a member is chosen but table not yet picked
 
-  // After a member is picked (with no active order), show the table picker.
-  // Once a table is chosen, hand off to the tablet ordering screen.
-  if (pickedMember) {
-    return (
-      <GroupScreen
-        tableNo={pickedMember.tno}
-        setTableNo={(finalId) => { setTableNo(finalId); setScreen("tablet"); }}
-      />
-    );
-  }
-
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.from("groups").select("*")
@@ -715,6 +704,18 @@ function VIPScreen({ setScreen, setTableNo, goHome }) {
     acc[m.group_name].push(m);
     return acc;
   }, {});
+
+  // After a member is picked (with no active order), show the table picker.
+  // Once a table is chosen, hand off to the tablet ordering screen.
+  // NOTE: this return MUST come after all hooks above, or React throws error #300.
+  if (pickedMember) {
+    return (
+      <GroupScreen
+        tableNo={pickedMember.tno}
+        setTableNo={(finalId) => { setTableNo(finalId); setScreen("tablet"); }}
+      />
+    );
+  }
 
   return (
     <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
