@@ -380,6 +380,10 @@ function GroupAdminScreen({ goHome }) {
   const [form, setForm] = useState({ groupName:"", members:"" });
   const [saving, setSaving] = useState(false);
   const [qrTarget, setQrTarget] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null); // {msg, onConfirm}
+  const [toast, setToast] = useState(""); // short toast message
+
+  const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 2000); };
 
   const load = async () => {
     setLoading(true);
@@ -425,15 +429,21 @@ function GroupAdminScreen({ goHome }) {
     await load();
   };
 
-  const deleteGroup = async (slug, name) => {
-    if (!confirm(`Delete group "${name}" and all members?`)) return;
-    await supabase.from("groups").delete().eq("group_slug", slug);
-    load();
+  const deleteGroup = (slug, name) => {
+    setConfirmModal({
+      msg: `Delete group "${name}" and all members?`,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        setGroups(prev => prev.filter(g => g.group_slug !== slug));
+        await supabase.from("groups").delete().eq("group_slug", slug);
+        showToast("Group deleted");
+      }
+    });
   };
 
   const deleteMember = async (id) => {
+    setGroups(prev => prev.filter(g => g.id !== id)); // instant UI
     await supabase.from("groups").delete().eq("id", id);
-    load();
   };
 
   const grouped = groups.reduce((acc,g) => {
@@ -490,13 +500,41 @@ function GroupAdminScreen({ goHome }) {
                   style={{ display:"block", background:"#25D366", color:"#fff", padding:"11px 0", borderRadius:10, fontWeight:"bold", fontSize:14, textDecoration:"none" }}>
                   💬 Send to VIP via WhatsApp
                 </a>
-                <button onClick={()=>{ navigator.clipboard?.writeText(qrTarget.url); alert("Link copied!"); }}
+                <button onClick={()=>{ navigator.clipboard?.writeText(qrTarget.url); showToast("Link copied!"); }}
                   style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"#f0f0f0", color:"#333", padding:"9px 0", borderRadius:10, fontWeight:"bold", fontSize:13, border:"none" }}>
                   🔗 Copy Link
                 </button>
               </div>
               <button onClick={()=>setQrTarget(null)}
                 style={{ fontFamily:"Georgia,serif", cursor:"pointer", marginTop:10, background:"transparent", border:"none", color:"#aaa", fontSize:13 }}>Close</button>
+            </div>
+          </div>
+        )}
+
+        {/* Toast notification */}
+        {toast && (
+          <div style={{ position:"fixed", bottom:30, left:"50%", transform:"translateX(-50%)", background:"#1a3a1a", border:"1.5px solid #5aaa5a", color:"#aaffaa", padding:"10px 24px", borderRadius:12, fontSize:14, fontWeight:"bold", zIndex:9999, pointerEvents:"none", boxShadow:"0 4px 20px rgba(0,0,0,0.4)" }}>
+            ✓ {toast}
+          </div>
+        )}
+
+        {/* Confirm modal */}
+        {confirmModal && (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", zIndex:9998, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+            onClick={()=>setConfirmModal(null)}>
+            <div onClick={e=>e.stopPropagation()} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:16, padding:24, maxWidth:320, width:"100%", textAlign:"center" }}>
+              <div style={{ fontSize:24, marginBottom:12 }}>⚠️</div>
+              <div style={{ fontSize:15, color:C.text, marginBottom:20, lineHeight:1.6 }}>{confirmModal.msg}</div>
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={()=>setConfirmModal(null)}
+                  style={btn({ flex:1, background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"10px 0", borderRadius:10, fontSize:14 })}>
+                  Cancel
+                </button>
+                <button onClick={confirmModal.onConfirm}
+                  style={btn({ flex:1, background:"#6a1a1a", border:"none", color:"#ff9999", padding:"10px 0", borderRadius:10, fontSize:14, fontWeight:"bold" })}>
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -518,7 +556,7 @@ function GroupAdminScreen({ goHome }) {
                   <div style={{ fontSize:11, color:"#5aaa5a", letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>🔗 VIP Self-Register Link</div>
                   <div style={{ fontSize:11, color:"#aaffaa", fontFamily:"monospace", wordBreak:"break-all", marginBottom:10 }}>{baseUrl}?join={grp.slug}</div>
                   <div style={{ display:"flex", gap:8 }}>
-                    <button onClick={()=>{ navigator.clipboard?.writeText(`${baseUrl}?join=${grp.slug}`); alert("Link copied!"); }}
+                    <button onClick={()=>{ navigator.clipboard?.writeText(`${baseUrl}?join=${grp.slug}`); showToast("Link copied!"); }}
                       style={btn({ background:"#1a3a1a", border:`1px solid #5aaa5a`, color:"#aaffaa", padding:"8px 0", fontSize:13, borderRadius:8, flex:1 })}>📋 Copy Link</button>
                     <a href={`https://wa.me/?text=${encodeURIComponent("Hi! Register your name to order at Hoto Lounge — tap this link, type your name and save your personal QR code: "+baseUrl+"?join="+grp.slug)}`}
                       target="_blank" rel="noreferrer"
