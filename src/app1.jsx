@@ -117,6 +117,7 @@ export default function App() {
       {screen === "admin"   && <AdminScreen   goHome={() => setScreen("home")} />}
       {screen === "sales"   && <SalesScreen   goHome={() => setScreen("home")} />}
       {screen === "cashier" && <CashierScreen goHome={() => setScreen("home")} />}
+      {screen === "join"    && <JoinScreen groupSlug={String(tableNo).replace("JOIN-","")} goHome={() => setScreen("home")} />}
     </div>
   );
 }
@@ -219,6 +220,88 @@ function GroupScreen({ tableNo, setTableNo }) {
         style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"1.5px dashed #5a4020", color:"#a07060", borderRadius:12, padding:"13px 0", fontSize:15, width:"100%", maxWidth:420 }}>
         Skip — No Table
       </button>
+    </div>
+  );
+}
+
+
+// ── JoinScreen — VIP self-registers their name ──
+function JoinScreen({ groupSlug, goHome }) {
+  const [groupName, setGroupName] = useState("");
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(null);
+  const [error, setError] = useState("");
+  const baseUrl = window.location.origin + window.location.pathname;
+
+  useEffect(() => {
+    supabase.from("groups").select("group_name").eq("group_slug", groupSlug).limit(1)
+      .then(({ data }) => { if (data && data[0]) setGroupName(data[0].group_name); });
+  }, [groupSlug]);
+
+  const register = async () => {
+    if (!name.trim()) { setError("Please enter your name"); return; }
+    setSaving(true); setError("");
+    const id = `${groupSlug}-${name.trim().toLowerCase().replace(/[^a-z0-9]+/g,"-")}`;
+    const { error: err } = await supabase.from("groups").upsert({
+      id, display_name: name.trim(), group_name: groupName||groupSlug, group_slug: groupSlug
+    });
+    if (err) { setError("Failed — please try again"); setSaving(false); return; }
+    setDone({ name: name.trim(), url: `${baseUrl}?group=${id}` });
+    setSaving(false);
+  };
+
+  if (done) return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
+      <div style={{ fontSize:44, marginBottom:8 }}>🎉</div>
+      <div style={{ fontSize:22, fontWeight:"bold", color:"#e8c77a", marginBottom:4 }}>You are in, {done.name}!</div>
+      <div style={{ fontSize:13, color:"#a07060", marginBottom:24, textAlign:"center" }}>Save your personal QR — tap it anytime to open your menu!</div>
+      <a href={done.url} style={{ display:"inline-block", borderRadius:16, overflow:"hidden", border:"4px solid #c8973a", marginBottom:20 }}>
+        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(done.url)}&bgcolor=ffffff&color=000000&margin=10`}
+          style={{ width:260, height:260, display:"block" }} alt="Your QR" />
+      </a>
+      <div style={{ fontSize:12, color:"#a07060", marginBottom:16, textAlign:"center", wordBreak:"break-all", maxWidth:300 }}>{done.url}</div>
+      <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:320 }}>
+        <button onClick={()=>downloadQR(done.url, done.name)}
+          style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#c8973a", color:"#1a1208", padding:"14px 0", borderRadius:12, fontWeight:"bold", fontSize:16, border:"none" }}>
+          ⬇️ Save QR to Phone
+        </button>
+        <a href={`https://wa.me/?text=${encodeURIComponent(`My personal Hoto Lounge menu QR (${done.name}) — tap to order: ${done.url}`)}`}
+          target="_blank" rel="noreferrer"
+          style={{ display:"block", background:"#25D366", color:"#fff", padding:"13px 0", borderRadius:12, fontWeight:"bold", fontSize:15, textDecoration:"none", textAlign:"center" }}>
+          💬 Send to Myself via WhatsApp
+        </a>
+        <a href={done.url}
+          style={{ display:"block", background:"#2a3a2a", border:"1.5px solid #5aaa5a", color:"#aaffaa", padding:"13px 0", borderRadius:12, fontWeight:"bold", fontSize:15, textDecoration:"none", textAlign:"center" }}>
+          🛒 Start Ordering Now
+        </a>
+      </div>
+      <div style={{ fontSize:11, color:"#5a4020", marginTop:20, textAlign:"center", maxWidth:280, lineHeight:1.6 }}>
+        Tip: Screenshot this QR or tap Save — next visit just tap the image to open your menu instantly!
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
+      <div style={{ fontSize:48, marginBottom:8 }}>☕</div>
+      <div style={{ fontSize:24, fontWeight:"bold", color:"#e8c77a", marginBottom:4 }}>{groupName || "VIP Group"}</div>
+      <div style={{ fontSize:13, color:"#a07060", letterSpacing:2, textTransform:"uppercase", marginBottom:28 }}>Register your name</div>
+      <div style={{ width:"100%", maxWidth:360 }}>
+        <input value={name} onChange={e=>{setName(e.target.value);setError("");}}
+          onKeyDown={e=>e.key==="Enter"&&register()}
+          placeholder="Your name (e.g. Ahmad)"
+          autoFocus
+          style={{ width:"100%", background:"#2c1a0e", border:`2px solid ${error?"#cc4444":"#c8973a"}`, color:"#fff", padding:"16px 18px", borderRadius:14, fontSize:18, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"center", marginBottom:8 }} />
+        {error && <div style={{ color:"#ff7777", fontSize:13, textAlign:"center", marginBottom:8 }}>{error}</div>}
+        <button onClick={register} disabled={saving||!name.trim()}
+          style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:name.trim()?"linear-gradient(135deg,#c8973a,#a07020)":"#3a2a10", border:"none", color:name.trim()?"#1a1208":"#666", padding:"16px 0", borderRadius:14, fontSize:18, fontWeight:"bold", marginTop:4 }}>
+          {saving?"Saving...":"✓ Get My QR Code"}
+        </button>
+        <div style={{ fontSize:12, color:"#5a4020", textAlign:"center", marginTop:12 }}>
+          You will get a personal QR to save on your phone
+        </div>
+      </div>
     </div>
   );
 }
