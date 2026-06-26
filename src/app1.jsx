@@ -124,37 +124,73 @@ export default function App() {
 
 function HomeScreen({ setScreen, setTableNo }) {
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:28, padding:24 }}>
-      <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:52 }}>☕</div>
-        <div style={{ fontSize:28, color:C.goldLight, fontWeight:"bold", letterSpacing:2 }}>{CAFE_NAME}</div>
-        <div style={{ fontSize:12, color:C.muted, letterSpacing:4, textTransform:"uppercase", marginTop:4 }}>Ordering System</div>
+    <div style={{ minHeight:"100vh", background:C.bg, overflowY:"auto" }}>
+      {/* Header */}
+      <div style={{ background:`linear-gradient(160deg,#1a0808,#2c1a0e)`, padding:"32px 20px 24px", textAlign:"center", borderBottom:`1px solid ${C.border}` }}>
+        <div style={{ fontSize:44 }}>☕</div>
+        <div style={{ fontSize:26, color:C.goldLight, fontWeight:"bold", letterSpacing:2, marginTop:4 }}>{CAFE_NAME}</div>
+        <div style={{ fontSize:11, color:C.muted, letterSpacing:4, textTransform:"uppercase", marginTop:2 }}>Ordering System</div>
       </div>
-      <div style={{ width:"100%", maxWidth:420 }}>
-        <div style={{ fontSize:11, color:C.muted, letterSpacing:3, textTransform:"uppercase", marginBottom:10, textAlign:"center" }}>— Customer Tablet —</div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10 }}>
-          {TABLES.map(tnum => (
-            <button key={tnum} onClick={() => { setTableNo(tnum); setScreen("tablet"); }}
-              style={btn({ background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:"14px 0", fontSize:15, fontWeight:"bold" })}>
-              T{tnum}
+
+      <div style={{ padding:"20px 16px 32px", maxWidth:480, margin:"0 auto", display:"flex", flexDirection:"column", gap:20 }}>
+
+        {/* Customer section */}
+        <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:16, overflow:"hidden" }}>
+          <div style={{ padding:"10px 16px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ fontSize:14, color:C.gold, fontWeight:"bold", letterSpacing:2, textTransform:"uppercase" }}>🪑 Dine In</span>
+          </div>
+          <div style={{ padding:14 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8 }}>
+              {TABLES.map(tnum => (
+                <button key={tnum} onClick={() => { setTableNo(tnum); setScreen("tablet"); }}
+                  style={btn({ background:C.bg, border:`1.5px solid ${C.gold}`, color:C.goldLight, padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:10 })}>
+                  {tnum}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Takeaway */}
+        <button onClick={() => setScreen("takeaway")}
+          style={btn({ width:"100%", background:"linear-gradient(135deg,#1a3a4a,#0d2030)", border:`1.5px solid #5a9aaa`, color:"#aaddff", padding:"16px 0", fontSize:16, fontWeight:"bold", borderRadius:14 })}>
+          🥡 Takeaway Orders
+        </button>
+
+        {/* Staff section */}
+        <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:16, overflow:"hidden" }}>
+          <div style={{ padding:"10px 16px", borderBottom:`1px solid ${C.border}` }}>
+            <span style={{ fontSize:14, color:C.muted, fontWeight:"bold", letterSpacing:2, textTransform:"uppercase" }}>— Staff —</span>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
+            {[
+              { label:"🍳 Kitchen Screen", sub:"Food orders", color:`linear-gradient(135deg,${C.gold},#a07020)`, tc:C.dark, screen:"kitchen" },
+              { label:"💳 Cashier Screen", sub:"Drinks + Payment", color:`linear-gradient(135deg,#2d6a2d,#1a4a1a)`, tc:"#aaffaa", screen:"cashier" },
+            ].map((item,i) => (
+              <button key={item.screen} onClick={() => setScreen(item.screen)}
+                style={btn({ width:"100%", background:item.color, border:"none", color:item.tc, padding:"14px 20px", fontSize:16, fontWeight:"bold", borderRadius:0, textAlign:"left", borderTop: i>0?`1px solid rgba(255,255,255,0.1)`:"none", display:"flex", justifyContent:"space-between", alignItems:"center" })}>
+                <span>{item.label}</span>
+                <span style={{ fontSize:12, opacity:0.7, fontWeight:"normal" }}>{item.sub}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Management */}
+        <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:16, overflow:"hidden" }}>
+          {[
+            { label:"📱 View & Print QR Codes", screen:"qrcodes" },
+            { label:"👥 Group Members (VIP)", screen:"groupadmin" },
+            { label:"💰 Daily Sales Summary", screen:"sales" },
+            { label:"⚙️ Admin — Manage Menu", screen:"admin" },
+          ].map((item,i) => (
+            <button key={item.screen} onClick={() => setScreen(item.screen)}
+              style={btn({ width:"100%", background:"transparent", border:"none", borderTop: i>0?`1px solid ${C.border}`:"none", color:i<2?C.goldLight:C.muted, padding:"13px 20px", fontSize:14, fontWeight:i<2?"bold":"normal", textAlign:"left", borderRadius:0 })}>
+              {item.label}
             </button>
           ))}
         </div>
-        <div style={{ marginTop:12, display:"flex", gap:10 }}>
-          <button onClick={() => setScreen("takeaway")}
-            style={btn({ flex:1, background:"linear-gradient(135deg,#1a3a4a,#0d2030)", border:`1px solid #5a9aaa`, color:"#aaddff", padding:"14px 0", fontSize:15, fontWeight:"bold" })}>
-            🥡 Takeaway Orders
-          </button>
-        </div>
-      </div>
-      <div style={{ width:"100%", maxWidth:420, display:"flex", flexDirection:"column", gap:10 }}>
-        <div style={{ fontSize:11, color:C.muted, letterSpacing:3, textTransform:"uppercase", marginBottom:2, textAlign:"center" }}>— Staff —</div>
-        <button onClick={() => setScreen("kitchen")} style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:14, fontSize:16, fontWeight:"bold" })}>🍳 Kitchen Screen (Food)</button>
-        <button onClick={() => setScreen("cashier")} style={btn({ width:"100%", background:`linear-gradient(135deg,#2d6a2d,#1a4a1a)`, border:"none", color:"#aaffaa", padding:14, fontSize:16, fontWeight:"bold" })}>💳 Cashier Screen (Drinks + Payment)</button>
-        <button onClick={() => setScreen("qrcodes")} style={btn({ width:"100%", background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:14, fontSize:15 })}>📱 View & Print QR Codes</button>
-        <button onClick={() => setScreen("admin")} style={btn({ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:12, fontSize:13 })}>⚙️ Admin — Manage Menu</button>
-        <button onClick={() => setScreen("sales")} style={btn({ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:12, fontSize:13 })}>💰 Daily Sales Summary</button>
-        <button onClick={() => setScreen("groupadmin")} style={btn({ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:12, fontSize:13 })}>👥 Group Members</button>
+
       </div>
     </div>
   );
@@ -2744,9 +2780,10 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
               ))}
             </div>
             <div style={{ fontSize:12,color:C.muted,marginBottom:8,fontWeight:"bold" }}>TAKEAWAY</div>
-            <div style={{ display:"flex",flexWrap:"wrap",gap:8 }}>
+            <div style={{ display:"flex",flexWrap:"wrap",gap:8,marginBottom:20 }}>
               {TW_SLOTS.map(t=>(<button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}} style={btn({ background:"#1a2c1a",border:`2px solid #5aaa5a`,color:"#aaffaa",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>{t}</button>))}
             </div>
+            <VIPTableButtons setPickedTable={setPickedTable} setStep={setStep} />
           </div>
         </div>
       </div>
@@ -2993,6 +3030,30 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
         </div>
       )}
     </div>
+  );
+}
+
+// ── VIPTableButtons — shows VIP members in Edit table picker ──
+function VIPTableButtons({ setPickedTable, setStep }) {
+  const [vips, setVips] = useState([]);
+  useEffect(() => {
+    supabase.from("groups").select("id,display_name,group_name")
+      .neq("display_name","__group__")
+      .then(({ data }) => setVips(data||[]));
+  }, []);
+  if (!vips.length) return null;
+  return (
+    <>
+      <div style={{ fontSize:12,color:"#a080ff",marginBottom:8,fontWeight:"bold" }}>👥 VIP MEMBERS</div>
+      <div style={{ display:"flex",flexWrap:"wrap",gap:8 }}>
+        {vips.map(v => (
+          <button key={v.id} onClick={()=>{ setPickedTable(v.id); setStep("edit"); }}
+            style={btn({ background:"#1a1a3a",border:`2px solid #7a6aff`,color:"#ccbbff",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>
+            👤 {v.display_name}
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
 
