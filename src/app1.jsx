@@ -13,6 +13,8 @@ const CAFE_PHONE = "+60182868126";
 const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 const TW_SLOTS = Array.from({length:20},(_,i)=>`TW-${String(i+1).padStart(2,"0")}`); // 🥡 Go Takeaway
 const isTakeaway = (t) => String(t).startsWith("TW-");
+const isGroup = (t) => String(t).startsWith("GRP-");
+const groupDisplayName = (t) => { const s = String(t).split("·")[0].replace(/^GRP-/,"").replace(/-/g," "); return s.charAt(0).toUpperCase()+s.slice(1); };
 const takeawayLabel = (t) => `🥡 Takeaway ${t}`;
 const CAFE_NAME = "HOTO LOUNGE";
 const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts", "Add-ons"];
@@ -84,6 +86,9 @@ export default function App() {
     if (t && TABLES.includes(t)) { setTableNo(t); setScreen("tablet"); }
     if (params.get("screen") === "kitchen") setScreen("kitchen");
     if (params.get("screen") === "admin") setScreen("admin");
+    const g = params.get("group");
+    if (g) { setTableNo(`GRP-${g}`); setScreen("group"); }
+    if (params.get("page") === "groups") setScreen("groupadmin");
   }, []);
   return (
     <div style={{ fontFamily:"Georgia,serif", background:C.bg, minHeight:"100vh", color:C.text }}>
@@ -101,6 +106,8 @@ export default function App() {
         </div>
       )}
       {screen === "home"    && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} />}
+      {screen === "group"      && <GroupWrapper  tableNo={tableNo} />}
+      {screen === "groupadmin" && <GroupAdminScreen goHome={() => setScreen("home")} />}
       {screen === "tablet"  && <TabletScreen  tableNo={tableNo} isStaff={tableNo !== null && !window.location.search.includes("table=")} goHome={() => setScreen(String(tableNo).startsWith("TW-") ? "takeaway" : "home")} />}
       {screen === "takeaway" && <TakeawayScreen setScreen={setScreen} setTableNo={setTableNo} goHome={() => setScreen("home")} />}
       {screen === "kitchen" && <KitchenScreen goHome={() => setScreen("home")} />}
@@ -144,6 +151,199 @@ function HomeScreen({ setScreen, setTableNo }) {
         <button onClick={() => setScreen("qrcodes")} style={btn({ width:"100%", background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:14, fontSize:15 })}>📱 View & Print QR Codes</button>
         <button onClick={() => setScreen("admin")} style={btn({ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:12, fontSize:13 })}>⚙️ Admin — Manage Menu</button>
         <button onClick={() => setScreen("sales")} style={btn({ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:12, fontSize:13 })}>💰 Daily Sales Summary</button>
+        <button onClick={() => setScreen("groupadmin")} style={btn({ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:12, fontSize:13 })}>👥 Group Members</button>
+      </div>
+    </div>
+  );
+}
+
+
+// ── downloadQR helper ──
+async function downloadQR(url, label) {
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=000000&margin=20`;
+  try {
+    const res = await fetch(qrUrl);
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `QR-${label}.png`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch(e) {
+    window.open(qrUrl, "_blank");
+  }
+}
+
+// ── GroupWrapper — shows table picker then TabletScreen ──
+function GroupWrapper({ tableNo: initialTableNo }) {
+  const [finalTableNo, setFinalTableNo] = useState(null);
+  if (!finalTableNo) return <GroupScreen tableNo={initialTableNo} setTableNo={setFinalTableNo} />;
+  return <TabletScreen tableNo={finalTableNo} isStaff={false} goHome={() => setFinalTableNo(null)} />;
+}
+
+// ── GroupScreen — table picker ──
+function GroupScreen({ tableNo, setTableNo }) {
+  const memberName = groupDisplayName(tableNo);
+  const LS_KEY = `hl_grp_table_${tableNo}`;
+  const lastTable = localStorage.getItem(LS_KEY);
+
+  const proceed = (tbl) => {
+    const finalId = tbl ? `${tableNo}·T${tbl}` : tableNo;
+    if (tbl) localStorage.setItem(LS_KEY, String(tbl));
+    else localStorage.removeItem(LS_KEY);
+    setTableNo(finalId);
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
+      <div style={{ fontSize:48, marginBottom:8 }}>👤</div>
+      <div style={{ fontSize:26, fontWeight:"bold", color:"#e8c77a", marginBottom:4 }}>Welcome, {memberName}!</div>
+      <div style={{ fontSize:13, color:"#a07060", letterSpacing:3, textTransform:"uppercase", marginBottom:24 }}>Which table today?</div>
+      {lastTable && (
+        <button onClick={() => proceed(parseInt(lastTable))}
+          style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#1a3a1a", border:"2px solid #5aaa5a", color:"#aaffaa", borderRadius:12, padding:"12px 24px", fontSize:15, fontWeight:"bold", marginBottom:16, width:"100%", maxWidth:420 }}>
+          📍 Last time: Table {lastTable} — use same?
+        </button>
+      )}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, width:"100%", maxWidth:420, marginBottom:16 }}>
+        {TABLES.map(t => (
+          <button key={t} onClick={() => proceed(t)}
+            style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#2a1a0e", border:"2px solid #5a4020", color:"#e8c77a", borderRadius:12, padding:"14px 0", fontSize:16, fontWeight:"bold" }}>
+            {t}
+          </button>
+        ))}
+      </div>
+      <button onClick={() => proceed(null)}
+        style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"1.5px dashed #5a4020", color:"#a07060", borderRadius:12, padding:"13px 0", fontSize:15, width:"100%", maxWidth:420 }}>
+        Skip — No Table
+      </button>
+    </div>
+  );
+}
+
+// ── GroupAdminScreen — create groups + generate QR ──
+function GroupAdminScreen({ goHome }) {
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ groupName:"", members:"" });
+  const [saving, setSaving] = useState(false);
+  const [qrTarget, setQrTarget] = useState(null);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("groups").select("*").order("created_at",{ ascending:false });
+    setGroups(data||[]);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    if (!form.groupName.trim() || !form.members.trim()) return;
+    setSaving(true);
+    const slug = form.groupName.trim().toLowerCase().replace(/\s+/g,"-");
+    const members = form.members.split(",").map(m=>m.trim()).filter(Boolean);
+    const rows = members.map(name => ({
+      id: `${slug}-${name.toLowerCase().replace(/\s+/g,"-")}`,
+      display_name: name,
+      group_name: form.groupName.trim(),
+      group_slug: slug,
+    }));
+    await supabase.from("groups").upsert(rows);
+    setForm({ groupName:"", members:"" });
+    setSaving(false);
+    load();
+  };
+
+  const deleteGroup = async (slug) => {
+    if (!confirm("Delete this group and all members?")) return;
+    await supabase.from("groups").delete().eq("group_slug", slug);
+    load();
+  };
+
+  const deleteMember = async (id) => {
+    await supabase.from("groups").delete().eq("id", id);
+    load();
+  };
+
+  const grouped = groups.reduce((acc,g) => {
+    if (!acc[g.group_slug]) acc[g.group_slug] = { name:g.group_name, slug:g.group_slug, members:[] };
+    acc[g.group_slug].members.push(g);
+    return acc;
+  }, {});
+
+  const baseUrl = window.location.origin + window.location.pathname;
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"Georgia,serif" }}>
+      <div style={{ background:C.panel, borderBottom:`2px solid ${C.gold}`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold" }}>👥 Group Members</div>
+        <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
+      </div>
+      <div style={{ padding:16, maxWidth:600, margin:"0 auto" }}>
+        {/* Create form */}
+        <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:16, marginBottom:20 }}>
+          <div style={{ fontSize:14, color:C.gold, fontWeight:"bold", marginBottom:12 }}>➕ Create New Group</div>
+          <input value={form.groupName} onChange={e=>setForm(p=>({...p,groupName:e.target.value}))}
+            placeholder="Group name (e.g. Kopi Gang)"
+            style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }} />
+          <input value={form.members} onChange={e=>setForm(p=>({...p,members:e.target.value}))}
+            placeholder="Member names, comma separated (e.g. Ali, Bob, Cici)"
+            style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }} />
+          <button onClick={save} disabled={saving}
+            style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"11px 0", fontSize:15, fontWeight:"bold", width:"100%", borderRadius:10 })}>
+            {saving?"Saving...":"✓ Create Group & Generate QRs"}
+          </button>
+        </div>
+
+        {/* QR modal */}
+        {qrTarget && (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}
+            onClick={()=>setQrTarget(null)}>
+            <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:20, padding:28, textAlign:"center", maxWidth:320, width:"90%" }}>
+              <div style={{ fontSize:18, fontWeight:"bold", color:"#1a1208", marginBottom:4 }}>👤 {qrTarget.name}</div>
+              <div style={{ fontSize:12, color:"#888", marginBottom:16 }}>Scan or save this QR</div>
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrTarget.url)}&bgcolor=ffffff&color=000000&margin=10`}
+                style={{ width:240, height:240, borderRadius:8 }} alt="QR" />
+              <div style={{ fontSize:11, color:"#aaa", marginTop:8, wordBreak:"break-all" }}>{qrTarget.url}</div>
+              <button onClick={()=>downloadQR(qrTarget.url, qrTarget.name)}
+                style={{ fontFamily:"Georgia,serif", cursor:"pointer", display:"block", width:"100%", marginTop:14, background:"#c8973a", color:"#fff", padding:"11px 0", borderRadius:10, fontWeight:"bold", fontSize:14, border:"none" }}>
+                ⬇️ Download QR
+              </button>
+              <button onClick={()=>setQrTarget(null)}
+                style={{ fontFamily:"Georgia,serif", cursor:"pointer", marginTop:8, background:"transparent", border:"none", color:"#aaa", fontSize:13 }}>Close</button>
+            </div>
+          </div>
+        )}
+
+        {/* Groups list */}
+        {loading
+          ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>Loading...</div>
+          : Object.values(grouped).length === 0
+            ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>No groups yet — create one above</div>
+            : Object.values(grouped).map(grp => (
+              <div key={grp.slug} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, marginBottom:14, overflow:"hidden" }}>
+                <div style={{ background:`${C.border}44`, padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div style={{ fontSize:15, fontWeight:"bold", color:C.goldLight }}>👥 {grp.name}</div>
+                  <button onClick={()=>deleteGroup(grp.slug)}
+                    style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"4px 10px", fontSize:12, borderRadius:6 })}>Delete Group</button>
+                </div>
+                {grp.members.map(m => {
+                  const url = `${baseUrl}?group=${m.id}`;
+                  return (
+                    <div key={m.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 16px", borderTop:`1px solid ${C.border}` }}>
+                      <div style={{ fontSize:14, color:C.text, fontWeight:"bold" }}>👤 {m.display_name}</div>
+                      <div style={{ display:"flex", gap:8 }}>
+                        <button onClick={()=>setQrTarget({ name:m.display_name, url })}
+                          style={btn({ background:C.gold, border:"none", color:C.dark, padding:"6px 14px", fontSize:12, fontWeight:"bold", borderRadius:6 })}>📱 Show QR</button>
+                        <button onClick={()=>deleteMember(m.id)}
+                          style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"6px 10px", fontSize:12, borderRadius:6 })}>✕</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))
+        }
       </div>
     </div>
   );
@@ -1445,22 +1645,6 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   );
 }
 
-async function downloadQR(url, label) {
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=000000&margin=20`;
-  try {
-    const res = await fetch(qrUrl);
-    const blob = await res.blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `QR-${label}.png`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  } catch(e) {
-    // Fallback: open in new tab if fetch fails
-    window.open(qrUrl, "_blank");
-  }
-}
-
 function QRScreen({ goHome }) {
   const baseUrl = window.location.href.split("?")[0];
 
@@ -1504,10 +1688,7 @@ function QRScreen({ goHome }) {
               <div style={{ fontSize:16, fontWeight:"bold", color:C.goldLight }}>TABLE {tnum}</div>
               <QRCode url={`${baseUrl}?table=${tnum}`} size={140} />
               <div style={{ fontSize:10, color:C.muted, textAlign:"center", fontFamily:"monospace", wordBreak:"break-all" }}>{baseUrl}?table={tnum}</div>
-              <div style={{ display:"flex", gap:8, width:"100%" }}>
-                <button onClick={() => printOne(tnum)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"7px 0", fontSize:13, fontWeight:"bold", flex:1 })}>🖨️ Print</button>
-                <button onClick={() => downloadQR(`${baseUrl}?table=${tnum}`, `Table-${tnum}`)} style={btn({ background:"#1a3a1a", border:`1px solid #5aaa5a`, color:"#aaffaa", padding:"7px 0", fontSize:13, fontWeight:"bold", flex:1 })}>⬇️ Save</button>
-              </div>
+              <button onClick={() => printOne(tnum)} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"7px 20px", fontSize:13, fontWeight:"bold", width:"100%" })}>🖨️ Print</button>
             </div>
           ))}
         </div>
