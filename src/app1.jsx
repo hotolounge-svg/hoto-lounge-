@@ -337,7 +337,7 @@ function JoinScreen({ groupSlug, goHome }) {
               <div style={{ marginTop: isIOS ? 12 : 0 }}>
                 <div style={{ fontSize:12, color:"#c8973a", fontWeight:"bold", marginBottom:6 }}>🤖 Android:</div>
                 <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                  {["1. Tap the link above to open your menu","2. Tap ⋮ (3 dots) at top right of Chrome","3. Tap "Add to Home screen"","4. Tap Add — done! ✅"].map((s,i) => (
+                  {["1. Tap the link above to open your menu","2. Tap the 3 dots at top right of Chrome","3. Tap: Add to Home screen","4. Tap Add — done! ✅"].map((s,i) => (
                     <div key={i} style={{ fontSize:12, color:"#e8c77a", background:"#2a1a0e", borderRadius:8, padding:"6px 10px" }}>{s}</div>
                   ))}
                 </div>
