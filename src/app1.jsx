@@ -80,18 +80,6 @@ export default function App() {
     if (pinInput === STAFF_PIN) { setPinUnlocked(true); }
     else { setPinError(true); setPinInput(""); }
   };
-  // Read URL params synchronously to avoid PIN flash on non-home screens
-  const initScreen = () => {
-    const p = new URLSearchParams(window.location.search);
-    if (parseInt(p.get("table"))) return "tablet";
-    if (p.get("screen") === "kitchen") return "kitchen";
-    if (p.get("screen") === "admin") return "admin";
-    if (p.get("group")) return "group";
-    if (p.get("join")) return "join";
-    if (p.get("page") === "groups") return "groupadmin";
-    return "home";
-  };
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = parseInt(params.get("table"));
@@ -106,7 +94,7 @@ export default function App() {
   }, []);
   return (
     <div style={{ fontFamily:"Georgia,serif", background:C.bg, minHeight:"100vh", color:C.text }}>
-      {screen === "home" && !pinUnlocked && initScreen() === "home" && (
+      {screen === "home" && !pinUnlocked && !new URLSearchParams(window.location.search).get("join") && !new URLSearchParams(window.location.search).get("group") && !new URLSearchParams(window.location.search).get("page") && (
         <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}>
           <div style={{ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:16, padding:32, width:"100%", maxWidth:320, textAlign:"center" }}>
             <div style={{ fontSize:28, marginBottom:8 }}>🔐</div>
