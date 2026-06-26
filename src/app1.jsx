@@ -251,36 +251,77 @@ function JoinScreen({ groupSlug, goHome }) {
     setSaving(false);
   };
 
-  if (done) return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
-      <div style={{ fontSize:44, marginBottom:8 }}>🎉</div>
-      <div style={{ fontSize:22, fontWeight:"bold", color:"#e8c77a", marginBottom:4 }}>You are in, {done.name}!</div>
-      <div style={{ fontSize:13, color:"#a07060", marginBottom:24, textAlign:"center" }}>Save your personal QR — tap it anytime to open your menu!</div>
-      <a href={done.url} style={{ display:"inline-block", borderRadius:16, overflow:"hidden", border:"4px solid #c8973a", marginBottom:20 }}>
-        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(done.url)}&bgcolor=ffffff&color=000000&margin=10`}
-          style={{ width:260, height:260, display:"block" }} alt="Your QR" />
-      </a>
-      <div style={{ fontSize:12, color:"#a07060", marginBottom:16, textAlign:"center", wordBreak:"break-all", maxWidth:300 }}>{done.url}</div>
-      <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:320 }}>
-        <button onClick={()=>downloadQR(done.url, done.name)}
-          style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#c8973a", color:"#1a1208", padding:"14px 0", borderRadius:12, fontWeight:"bold", fontSize:16, border:"none" }}>
-          ⬇️ Save QR to Phone
-        </button>
-        <a href={`https://wa.me/?text=${encodeURIComponent(`My personal Hoto Lounge menu QR (${done.name}) — tap to order: ${done.url}`)}`}
-          target="_blank" rel="noreferrer"
-          style={{ display:"block", background:"#25D366", color:"#fff", padding:"13px 0", borderRadius:12, fontWeight:"bold", fontSize:15, textDecoration:"none", textAlign:"center" }}>
-          💬 Send to Myself via WhatsApp
-        </a>
-        <a href={done.url}
-          style={{ display:"block", background:"#2a3a2a", border:"1.5px solid #5aaa5a", color:"#aaffaa", padding:"13px 0", borderRadius:12, fontWeight:"bold", fontSize:15, textDecoration:"none", textAlign:"center" }}>
-          🛒 Start Ordering Now
-        </a>
+  if (done) {
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isAndroid = /android/i.test(navigator.userAgent);
+    return (
+      <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", fontFamily:"Georgia,serif", overflowY:"auto" }}>
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"32px 20px 40px" }}>
+          <div style={{ fontSize:44, marginBottom:8 }}>🎉</div>
+          <div style={{ fontSize:22, fontWeight:"bold", color:"#e8c77a", marginBottom:4 }}>Welcome, {done.name}!</div>
+          <div style={{ fontSize:13, color:"#a07060", marginBottom:20, textAlign:"center" }}>Your personal menu link is ready</div>
+
+          {/* QR */}
+          <a href={done.url} style={{ display:"inline-block", borderRadius:16, overflow:"hidden", border:"4px solid #c8973a", marginBottom:16 }}>
+            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(done.url)}&bgcolor=ffffff&color=000000&margin=10`}
+              style={{ width:220, height:220, display:"block" }} alt="Your QR" />
+          </a>
+
+          {/* Action buttons */}
+          <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:340, marginBottom:24 }}>
+            <button onClick={()=>downloadQR(done.url, done.name)}
+              style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#c8973a", color:"#1a1208", padding:"13px 0", borderRadius:12, fontWeight:"bold", fontSize:15, border:"none" }}>
+              ⬇️ Save QR to Photos
+            </button>
+            <a href={`https://wa.me/?text=${encodeURIComponent(`My personal Hoto Lounge menu (${done.name}) — tap to order: ${done.url}`)}`}
+              target="_blank" rel="noreferrer"
+              style={{ display:"block", background:"#25D366", color:"#fff", padding:"12px 0", borderRadius:12, fontWeight:"bold", fontSize:15, textDecoration:"none", textAlign:"center" }}>
+              💬 Send to Myself via WhatsApp
+            </a>
+            <a href={done.url}
+              style={{ display:"block", background:"#2a3a2a", border:"1.5px solid #5aaa5a", color:"#aaffaa", padding:"12px 0", borderRadius:12, fontWeight:"bold", fontSize:15, textDecoration:"none", textAlign:"center" }}>
+              🛒 Start Ordering Now
+            </a>
+          </div>
+
+          {/* Add to Home Screen instructions */}
+          <div style={{ width:"100%", maxWidth:340, background:"#1a1208", border:"1.5px solid #c8973a", borderRadius:16, padding:16 }}>
+            <div style={{ fontSize:14, fontWeight:"bold", color:"#e8c77a", marginBottom:12, textAlign:"center" }}>
+              📲 Best way — Add to Home Screen
+            </div>
+            <div style={{ fontSize:12, color:"#a07060", marginBottom:12, textAlign:"center", lineHeight:1.6 }}>
+              One tap to open your menu — works like an app icon!
+            </div>
+            {/* iOS instructions */}
+            {(isIOS || (!isIOS && !isAndroid)) && (
+              <div style={{ marginBottom: isAndroid ? 0 : 12 }}>
+                <div style={{ fontSize:12, color:"#c8973a", fontWeight:"bold", marginBottom:6 }}>🍎 iPhone / iPad:</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {["1. Tap the link above to open your menu","2. Tap the Share button ⎋ at the bottom","3. Scroll down → tap "Add to Home Screen"","4. Tap Add — done! ✅"].map((s,i) => (
+                    <div key={i} style={{ fontSize:12, color:"#e8c77a", background:"#2a1a0e", borderRadius:8, padding:"6px 10px" }}>{s}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Android instructions */}
+            {(isAndroid || (!isIOS && !isAndroid)) && (
+              <div style={{ marginTop: isIOS ? 12 : 0 }}>
+                <div style={{ fontSize:12, color:"#c8973a", fontWeight:"bold", marginBottom:6 }}>🤖 Android:</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {["1. Tap the link above to open your menu","2. Tap ⋮ (3 dots) at top right of Chrome","3. Tap "Add to Home screen"","4. Tap Add — done! ✅"].map((s,i) => (
+                    <div key={i} style={{ fontSize:12, color:"#e8c77a", background:"#2a1a0e", borderRadius:8, padding:"6px 10px" }}>{s}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{ fontSize:11, color:"#5a4020", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
+              Or just bookmark the link in your browser — also works great!
+            </div>
+          </div>
+        </div>
       </div>
-      <div style={{ fontSize:11, color:"#5a4020", marginTop:20, textAlign:"center", maxWidth:280, lineHeight:1.6 }}>
-        Tip: Screenshot this QR or tap Save — next visit just tap the image to open your menu instantly!
-      </div>
-    </div>
-  );
+    );
+  }
 
   return (
     <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
@@ -298,8 +339,12 @@ function JoinScreen({ groupSlug, goHome }) {
           style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:name.trim()?"linear-gradient(135deg,#c8973a,#a07020)":"#3a2a10", border:"none", color:name.trim()?"#1a1208":"#666", padding:"16px 0", borderRadius:14, fontSize:18, fontWeight:"bold", marginTop:4 }}>
           {saving?"Saving...":"✓ Get My QR Code"}
         </button>
-        <div style={{ fontSize:12, color:"#5a4020", textAlign:"center", marginTop:12 }}>
-          You will get a personal QR to save on your phone
+        <div style={{ fontSize:12, color:"#5a4020", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
+          Already registered before? Just type your name again — we will find your QR! 😊
+        </div>
+        <div style={{ marginTop:20, background:"#1a1208", border:"1px solid #3a2a10", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
+          <div style={{ fontSize:11, color:"#5a4020", marginBottom:4 }}>Lost your shortcut or QR?</div>
+          <div style={{ fontSize:12, color:"#a07060", lineHeight:1.6 }}>Type your name above and tap <strong style={{ color:"#c8973a" }}>Get My QR Code</strong> — your personal link will appear again instantly.</div>
         </div>
       </div>
     </div>
