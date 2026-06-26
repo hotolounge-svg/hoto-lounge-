@@ -94,7 +94,32 @@ export default function App() {
   }, []);
   return (
     <div style={{ fontFamily:"Georgia,serif", background:C.bg, minHeight:"100vh", color:C.text }}>
-
+      {screen === "home" && !pinUnlocked && !new URLSearchParams(window.location.search).get("join") && !new URLSearchParams(window.location.search).get("group") && !new URLSearchParams(window.location.search).get("page") && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:16, padding:32, width:"100%", maxWidth:320, textAlign:"center" }}>
+            <div style={{ fontSize:28, marginBottom:8 }}>🔐</div>
+            <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:20 }}>Staff Access</div>
+            <input type="password" value={pinInput} onChange={e => { setPinInput(e.target.value); setPinError(false); }} onKeyDown={e => e.key==="Enter" && submitPin()}
+              placeholder="Enter PIN" autoFocus
+              style={{ width:"100%", background:C.bg, border:`2px solid ${pinError?"#cc4444":C.gold}`, color:C.text, padding:"12px 16px", borderRadius:10, fontSize:20, fontFamily:"Georgia,serif", textAlign:"center", letterSpacing:4, boxSizing:"border-box", marginBottom:8 }} />
+            {pinError && <div style={{ color:"#ff7777", fontSize:13, marginBottom:8 }}>Wrong PIN</div>}
+            <button onClick={submitPin} style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:14, fontSize:15, fontWeight:"bold", marginTop:8 })}>Unlock ✓</button>
+          </div>
+        </div>
+      )}
+      {screen === "home" && !pinUnlocked && !new URLSearchParams(window.location.search).get("join") && !new URLSearchParams(window.location.search).get("group") && !new URLSearchParams(window.location.search).get("page") && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:16, padding:32, width:"100%", maxWidth:320, textAlign:"center" }}>
+            <div style={{ fontSize:28, marginBottom:8 }}>🔐</div>
+            <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:20 }}>Staff Access</div>
+            <input type="password" value={pinInput} onChange={e => { setPinInput(e.target.value); setPinError(false); }} onKeyDown={e => e.key==="Enter" && submitPin()}
+              placeholder="Enter PIN" autoFocus
+              style={{ width:"100%", background:C.bg, border:`2px solid ${pinError?"#cc4444":C.gold}`, color:C.text, padding:"12px 16px", borderRadius:10, fontSize:20, fontFamily:"Georgia,serif", textAlign:"center", letterSpacing:4, boxSizing:"border-box", marginBottom:8 }} />
+            {pinError && <div style={{ color:"#ff7777", fontSize:13, marginBottom:8 }}>Wrong PIN</div>}
+            <button onClick={submitPin} style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:14, fontSize:15, fontWeight:"bold", marginTop:8 })}>Unlock ✓</button>
+          </div>
+        </div>
+      )}
       {screen === "home"    && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} />}
       {screen === "group"      && <GroupWrapper  tableNo={tableNo} />}
       {screen === "groupadmin" && <GroupAdminScreen goHome={() => setScreen("home")} />}
@@ -106,7 +131,6 @@ export default function App() {
       {screen === "sales"   && <SalesScreen   goHome={() => setScreen("home")} />}
       {screen === "cashier" && <CashierScreen goHome={() => setScreen("home")} />}
       {screen === "join"    && <JoinScreen groupSlug={String(tableNo).replace("JOIN-","")} goHome={() => setScreen("home")} />}
-      {screen === "vipscreen" && <VIPScreen setScreen={setScreen} setTableNo={setTableNo} goHome={() => setScreen("home")} />}
     </div>
   );
 }
@@ -148,10 +172,10 @@ function HomeScreen({ setScreen, setTableNo }) {
             <span style={{ fontSize:28 }}>🥡</span>
             <span>Takeaway</span>
           </button>
-          <button onClick={() => setScreen("vipscreen")}
+          <button onClick={() => setScreen("groupadmin")}
             style={btn({ background:"linear-gradient(135deg,#2a1a4a,#1a0d30)", border:`1.5px solid #9a7aff`, color:"#ccbbff", padding:"20px 0", fontSize:15, fontWeight:"bold", borderRadius:14, display:"flex", flexDirection:"column", alignItems:"center", gap:6 })}>
             <span style={{ fontSize:28 }}>👥</span>
-            <span>VIP</span>
+            <span>VIP Groups</span>
           </button>
         </div>
 
@@ -189,7 +213,6 @@ function HomeScreen({ setScreen, setTableNo }) {
             <div style={{ fontSize:14, color:C.muted, fontWeight:"bold", letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>More Options</div>
             {[
               { label:"📱 View & Print QR Codes", screen:"qrcodes", color:C.goldLight },
-              { label:"👥 Manage VIP Groups", screen:"groupadmin", color:"#ccbbff" },
               { label:"💰 Daily Sales Summary", screen:"sales", color:C.goldLight },
               { label:"⚙️ Admin — Manage Menu", screen:"admin", color:C.muted },
             ].map((item,i) => (
@@ -634,83 +657,6 @@ function GroupAdminScreen({ goHome }) {
   );
 }
 
-
-// ── VIPScreen — shows all VIP members like Takeaway slots ──
-function VIPScreen({ setScreen, setTableNo, goHome }) {
-  const [members, setMembers] = useState([]);
-  const [activeIds, setActiveIds] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase.from("groups").select("*")
-        .neq("display_name","__group__").order("group_name").order("display_name");
-      setMembers(data||[]);
-      // Find which VIPs have active orders
-      const { data: orders } = await supabase.from("orders").select("table_no")
-        .like("table_no","GRP-%").not("status","eq","paid");
-      const active = new Set((orders||[]).map(o => o.table_no.split("·")[0]));
-      setActiveIds([...active]);
-      setLoading(false);
-    };
-    load();
-    const ch = supabase.channel("vip-screen-watch")
-      .on("postgres_changes",{event:"*",schema:"public",table:"orders"},load)
-      .on("postgres_changes",{event:"*",schema:"public",table:"groups"},load)
-      .subscribe();
-    return () => supabase.removeChannel(ch);
-  }, []);
-
-  // Group by group_name
-  const grouped = members.reduce((acc,m) => {
-    if (!acc[m.group_name]) acc[m.group_name] = [];
-    acc[m.group_name].push(m);
-    return acc;
-  }, {});
-
-  return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
-      <div style={{ fontSize:40, marginBottom:6 }}>👥</div>
-      <div style={{ fontSize:24, fontWeight:"bold", color:"#e8c77a", marginBottom:4 }}>VIP Members</div>
-      <div style={{ fontSize:12, color:"#a07060", letterSpacing:3, textTransform:"uppercase", marginBottom:20 }}>Select a member to order</div>
-
-      {/* Legend */}
-      <div style={{ display:"flex", gap:16, fontSize:12, marginBottom:16 }}>
-        <span style={{ color:"#ccbbff" }}>⬜ Available</span>
-        <span style={{ color:C.gold }}>🟡 Active order</span>
-      </div>
-
-      {loading ? <div style={{ color:"#a07060" }}>Loading...</div> : Object.keys(grouped).length === 0 ? (
-        <div style={{ color:"#a07060", textAlign:"center" }}>
-          <div style={{ fontSize:14, marginBottom:8 }}>No VIP members yet</div>
-          <div style={{ fontSize:12 }}>Add members from ••• More Options → Manage VIP Groups</div>
-        </div>
-      ) : Object.entries(grouped).map(([groupName, gMembers]) => (
-        <div key={groupName} style={{ width:"100%", maxWidth:460, marginBottom:20 }}>
-          <div style={{ fontSize:12, color:"#9a7aff", letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:"bold" }}>
-            {groupName}
-          </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
-            {gMembers.map(m => {
-              const isActive = activeIds.includes(m.id);
-              return (
-                <button key={m.id} onClick={() => { setTableNo(m.id); setScreen("tablet"); }}
-                  style={btn({ background:isActive?"#3a2a00":"#1a1a3a", border:`2px solid ${isActive?C.gold:"#7a6aff"}`, color:isActive?C.gold:"#ccbbff", padding:"16px 8px", fontSize:14, fontWeight:"bold", borderRadius:14, position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:4 })}>
-                  {isActive && <div style={{ position:"absolute", top:6, right:6, width:8, height:8, borderRadius:"50%", background:C.gold }} />}
-                  <span style={{ fontSize:20 }}>👤</span>
-                  <span>{m.display_name}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-
-      <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"10px 28px", fontSize:13, marginTop:8 })}>← Back</button>
-    </div>
-  );
-}
-
 function TakeawayScreen({ setScreen, setTableNo, goHome }) {
   const [activeSlots, setActiveSlots] = useState([]);
 
@@ -845,19 +791,8 @@ function AdminScreen({ goHome }) {
   };
   const toggleAvailable = async (item) => { await supabase.from("menu_items").update({ is_available: item.is_available===false }).eq("id", item.id); fetchItems(); };
 
-  if (!authed) return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:20 }}>
-      <div style={{ fontSize:32 }}>⚙️</div>
-      <div style={{ fontSize:20, color:C.goldLight, fontWeight:"bold" }}>Admin Login</div>
-      <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:320 }}>
-        <input type="password" placeholder="Enter password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key==="Enter" && handleLogin()}
-          style={{ background:C.panel, border:`1px solid ${pwError?"#cc4444":C.gold}`, color:C.text, padding:"12px 16px", borderRadius:8, fontSize:15, fontFamily:"Georgia,serif" }} />
-        {pwError && <div style={{ color:"#ff7777", fontSize:12, textAlign:"center" }}>Wrong password</div>}
-        <button onClick={handleLogin} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:14, fontSize:15, fontWeight:"bold" })}>Login</button>
-        <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:10, fontSize:13 })}>← Back</button>
-      </div>
-    </div>
-  );
+  // Admin password removed — home screen PIN is sufficient protection
+  useEffect(() => { if (!authed) setAuthed(true); }, []);
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
@@ -2353,7 +2288,7 @@ function exportExcel(orders, selectedDate, charge) {
 }
 
 function SalesScreen({ goHome }) {
-  const STAFF_PIN = localStorage.getItem("staff_pin") || "Jack@126";
+  const SALES_PW = "hotolounge2026";
   const [pinOk, setPinOk] = useState(false);
   const [pinVal, setPinVal] = useState("");
   const [pinErr, setPinErr] = useState(false);
@@ -2363,14 +2298,14 @@ function SalesScreen({ goHome }) {
       <div style={{ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:16, padding:32, width:"100%", maxWidth:320, textAlign:"center" }}>
         <div style={{ fontSize:28, marginBottom:8 }}>🔐</div>
         <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:6 }}>Sales Access</div>
-        <div style={{ fontSize:13, color:C.muted, marginBottom:20 }}>Enter staff PIN to view sales</div>
+        <div style={{ fontSize:13, color:C.muted, marginBottom:20 }}>Enter password to view sales</div>
         <input type="password" value={pinVal} autoFocus
           onChange={e=>{setPinVal(e.target.value);setPinErr(false);}}
-          onKeyDown={e=>e.key==="Enter"&&(pinVal===STAFF_PIN?setPinOk(true):setPinErr(true))}
-          placeholder="Enter PIN"
-          style={{ width:"100%", background:C.bg, border:`2px solid ${pinErr?"#cc4444":C.gold}`, color:C.text, padding:"12px 16px", borderRadius:10, fontSize:20, fontFamily:"Georgia,serif", textAlign:"center", letterSpacing:4, boxSizing:"border-box", marginBottom:8 }} />
-        {pinErr && <div style={{ color:"#ff7777", fontSize:13, marginBottom:8 }}>Wrong PIN</div>}
-        <button onClick={()=>pinVal===STAFF_PIN?setPinOk(true):setPinErr(true)}
+          onKeyDown={e=>e.key==="Enter"&&(pinVal===SALES_PW?setPinOk(true):setPinErr(true))}
+          placeholder="Enter password"
+          style={{ width:"100%", background:C.bg, border:`2px solid ${pinErr?"#cc4444":C.gold}`, color:C.text, padding:"12px 16px", borderRadius:10, fontSize:16, fontFamily:"Georgia,serif", textAlign:"center", boxSizing:"border-box", marginBottom:8 }} />
+        {pinErr && <div style={{ color:"#ff7777", fontSize:13, marginBottom:8 }}>Wrong password</div>}
+        <button onClick={()=>pinVal===SALES_PW?setPinOk(true):setPinErr(true)}
           style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:14, fontSize:15, fontWeight:"bold", marginTop:8 })}>
           Unlock ✓
         </button>
