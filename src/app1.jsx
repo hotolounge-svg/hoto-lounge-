@@ -1332,6 +1332,22 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   }[lang];
   const [addonModal, setAddonModal] = useState(null); // {item, selectedAddons:[]}
   const [itemModal, setItemModal] = useState(null); // {item, qty, note, selectedAddons, freeDrink}
+  const [showScrollHint, setShowScrollHint] = useState(false); // bouncing down-arrow on item modal
+  const itemScrollRef = useRef(null);
+  // Decide whether the down-arrow hint should show: only when content overflows AND not yet at bottom
+  const updateScrollHint = () => {
+    const el = itemScrollRef.current;
+    if (!el) { setShowScrollHint(false); return; }
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+    const hasOverflow = el.scrollHeight - el.clientHeight > 24;
+    setShowScrollHint(hasOverflow && !atBottom);
+  };
+  // Re-check whenever the item modal opens or its selections change height
+  useEffect(() => {
+    if (!itemModal) return;
+    const id = setTimeout(updateScrollHint, 60); // wait for render/layout
+    return () => clearTimeout(id);
+  }, [itemModal]);
   const [editRequestModal, setEditRequestModal] = useState(null); // {orderId, request}
   const [cartEditModal, setCartEditModal] = useState(null); // {cartKey, note, name}
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1761,7 +1777,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             const canAdd = !soldOut && (!item.addon_required || itemModal.selectedAddons.length > 0);
             return (
               <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.65)", zIndex:1000, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={() => setItemModal(null)}>
-                <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:520, height:"min(92vh, 680px)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+                <div onClick={e => e.stopPropagation()} style={{ position:"relative", background:"#fff", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:520, height:"min(92vh, 680px)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
                   {/* Big photo / emoji */}
                   <div style={{ position:"relative", flexShrink:0 }}>
@@ -1780,7 +1796,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                   </div>
 
                   {/* Content - scrollable */}
-                  <div style={{ flex:1, overflowY:"auto", padding:"20px 20px 0", WebkitOverflowScrolling:"touch" }}>
+                  <div ref={itemScrollRef} onScroll={updateScrollHint} style={{ flex:1, overflowY:"auto", padding:"20px 20px 0", WebkitOverflowScrolling:"touch" }}>
                     {/* Name + price */}
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
                       <div style={{ fontSize:22, fontWeight:"bold", color:T.text, flex:1, lineHeight:1.3, paddingRight:12 }}>{item.name}</div>
@@ -1850,6 +1866,24 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                         style={{ width:"100%", border:`1.5px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, resize:"none", boxSizing:"border-box", outline:"none" }} />
                     </div>
                   </div>
+
+                  {/* Bouncing scroll hint — auto-hides at bottom */}
+                  <div style={{
+                    position:"absolute", left:"50%", transform:"translateX(-50%)",
+                    bottom:90, pointerEvents:"none", zIndex:5,
+                    opacity: showScrollHint ? 1 : 0,
+                    transition:"opacity 0.25s ease",
+                  }}>
+                    <div style={{
+                      width:38, height:38, borderRadius:"50%",
+                      background:"rgba(255,255,255,0.92)", boxShadow:"0 2px 10px rgba(0,0,0,0.18)",
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      animation:"hlBounce 1.2s ease-in-out infinite",
+                    }}>
+                      <span style={{ fontSize:20, color:T.brown, lineHeight:1 }}>⌄</span>
+                    </div>
+                  </div>
+                  <style>{`@keyframes hlBounce {0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}`}</style>
 
                   {/* Qty + Add button sticky bottom - never moves */}
                   <div style={{ padding:"16px 20px", paddingBottom:"max(20px, calc(12px + env(safe-area-inset-bottom)))", borderTop:`1px solid ${T.border}`, background:"#fff", flexShrink:0, display:"flex", alignItems:"center", gap:16 }}>
