@@ -261,6 +261,28 @@ async function downloadQR(url, label) {
 // ── GroupWrapper — shows table picker then TabletScreen ──
 function GroupWrapper({ tableNo: initialTableNo }) {
   const [finalTableNo, setFinalTableNo] = useState(null);
+  const [checking, setChecking] = useState(true);
+
+  // If admin already started an order for this VIP, skip the table picker
+  // and jump straight into the existing order.
+  useEffect(() => {
+    const baseId = String(initialTableNo).split("·")[0]; // GRP-{id}
+    const checkExisting = async () => {
+      const { data } = await supabase.from("orders").select("table_no")
+        .like("table_no", `${baseId}%`).not("status","eq","paid").limit(1);
+      if (data && data.length) setFinalTableNo(data[0].table_no);
+      setChecking(false);
+    };
+    checkExisting();
+  }, [initialTableNo]);
+
+  if (checking) {
+    return (
+      <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", alignItems:"center", justifyContent:"center", color:"#a07060", fontFamily:"Georgia,serif", fontSize:14 }}>
+        Loading…
+      </div>
+    );
+  }
   if (!finalTableNo) return <GroupScreen tableNo={initialTableNo} setTableNo={setFinalTableNo} />;
   return <TabletScreen tableNo={finalTableNo} isStaff={false} goHome={() => setFinalTableNo(null)} />;
 }
@@ -654,6 +676,18 @@ function VIPScreen({ setScreen, setTableNo, goHome }) {
   const [members, setMembers] = useState([]);
   const [activeIds, setActiveIds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pickedMember, setPickedMember] = useState(null); // { tno } when a member is chosen but table not yet picked
+
+  // After a member is picked (with no active order), show the table picker.
+  // Once a table is chosen, hand off to the tablet ordering screen.
+  if (pickedMember) {
+    return (
+      <GroupScreen
+        tableNo={pickedMember.tno}
+        setTableNo={(finalId) => { setTableNo(finalId); setScreen("tablet"); }}
+      />
+    );
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -709,11 +743,16 @@ function VIPScreen({ setScreen, setTableNo, goHome }) {
               const isActive = activeIds.includes(m.id);
               return (
                 <button key={m.id} onClick={async () => {
-                    // Check for active orders to get the correct table_no
+                    // Check for an active order to get the correct table_no
                     const { data } = await supabase.from("orders").select("table_no")
                       .like("table_no", `GRP-${m.id}%`).not("status","eq","paid").limit(1);
-                    const tno = data&&data.length ? data[0].table_no : `GRP-${m.id}`;
-                    setTableNo(tno); setScreen("tablet");
+                    if (data && data.length) {
+                      // Existing order → continue it directly (table already chosen)
+                      setTableNo(data[0].table_no); setScreen("tablet");
+                    } else {
+                      // New order → ask which table first, like the VIP phone flow
+                      setPickedMember({ tno: `GRP-${m.id}` });
+                    }
                   }}
                   style={btn({ background:isActive?"#3a2a00":"#1a1a3a", border:`2px solid ${isActive?C.gold:"#7a6aff"}`, color:isActive?C.gold:"#ccbbff", padding:"16px 8px", fontSize:14, fontWeight:"bold", borderRadius:14, position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:4 })}>
                   {isActive && <div style={{ position:"absolute", top:6, right:6, width:8, height:8, borderRadius:"50%", background:C.gold }} />}
