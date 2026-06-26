@@ -199,32 +199,6 @@ async function downloadQR(url, label) {
 // ── GroupWrapper — shows table picker then TabletScreen ──
 function GroupWrapper({ tableNo: initialTableNo }) {
   const [finalTableNo, setFinalTableNo] = useState(null);
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    const checkActiveOrders = async () => {
-      // Check if VIP has any unpaid orders — if yes skip table picker
-      const { data } = await supabase.from("orders").select("id,table_no")
-        .like("table_no", `${initialTableNo}%`)
-        .not("status","eq","paid")
-        .limit(1);
-      if (data && data.length > 0) {
-        // Has active unpaid orders — use same table_no they had before
-        setFinalTableNo(data[0].table_no);
-      }
-      setChecking(false);
-    };
-    checkActiveOrders();
-  }, [initialTableNo]);
-
-  if (checking) return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif" }}>
-      <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:40, marginBottom:12 }}>☕</div>
-        <div style={{ color:"#e8c77a", fontSize:16 }}>Loading...</div>
-      </div>
-    </div>
-  );
   if (!finalTableNo) return <GroupScreen tableNo={initialTableNo} setTableNo={setFinalTableNo} />;
   return <TabletScreen tableNo={finalTableNo} isStaff={false} goHome={() => setFinalTableNo(null)} />;
 }
@@ -496,18 +470,33 @@ function GroupAdminScreen({ goHome }) {
         {qrTarget && (
           <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}
             onClick={()=>setQrTarget(null)}>
-            <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:20, padding:28, textAlign:"center", maxWidth:320, width:"90%" }}>
-              <div style={{ fontSize:18, fontWeight:"bold", color:"#1a1208", marginBottom:4 }}>👤 {qrTarget.name}</div>
-              <div style={{ fontSize:12, color:"#888", marginBottom:16 }}>Scan or save this QR</div>
+            <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:20, padding:24, textAlign:"center", maxWidth:340, width:"92%" }}>
+              <div style={{ fontSize:18, fontWeight:"bold", color:"#1a1208", marginBottom:2 }}>👤 {qrTarget.name}</div>
+              <div style={{ fontSize:12, color:"#888", marginBottom:14 }}>Scan or share this QR</div>
               <img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrTarget.url)}&bgcolor=ffffff&color=000000&margin=10`}
-                style={{ width:240, height:240, borderRadius:8 }} alt="QR" />
-              <div style={{ fontSize:11, color:"#aaa", marginTop:8, wordBreak:"break-all" }}>{qrTarget.url}</div>
-              <button onClick={()=>downloadQR(qrTarget.url, qrTarget.name)}
-                style={{ fontFamily:"Georgia,serif", cursor:"pointer", display:"block", width:"100%", marginTop:14, background:"#c8973a", color:"#fff", padding:"11px 0", borderRadius:10, fontWeight:"bold", fontSize:14, border:"none" }}>
-                ⬇️ Download QR
-              </button>
+                style={{ width:220, height:220, borderRadius:8, border:"2px solid #e0d0c0" }} alt="QR" />
+              {/* Clickable link */}
+              <a href={qrTarget.url} target="_blank" rel="noreferrer"
+                style={{ display:"block", fontSize:11, color:"#c8973a", marginTop:8, marginBottom:14, wordBreak:"break-all", textDecoration:"underline" }}>
+                {qrTarget.url}
+              </a>
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                <button onClick={()=>downloadQR(qrTarget.url, qrTarget.name)}
+                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"#c8973a", color:"#fff", padding:"11px 0", borderRadius:10, fontWeight:"bold", fontSize:14, border:"none" }}>
+                  ⬇️ Download QR
+                </button>
+                <a href={`https://wa.me/?text=${encodeURIComponent("Hi "+qrTarget.name+"! Here is your personal Hoto Lounge menu QR — tap to open: "+qrTarget.url)}`}
+                  target="_blank" rel="noreferrer"
+                  style={{ display:"block", background:"#25D366", color:"#fff", padding:"11px 0", borderRadius:10, fontWeight:"bold", fontSize:14, textDecoration:"none" }}>
+                  💬 Send to VIP via WhatsApp
+                </a>
+                <button onClick={()=>{ navigator.clipboard?.writeText(qrTarget.url); alert("Link copied!"); }}
+                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"#f0f0f0", color:"#333", padding:"9px 0", borderRadius:10, fontWeight:"bold", fontSize:13, border:"none" }}>
+                  🔗 Copy Link
+                </button>
+              </div>
               <button onClick={()=>setQrTarget(null)}
-                style={{ fontFamily:"Georgia,serif", cursor:"pointer", marginTop:8, background:"transparent", border:"none", color:"#aaa", fontSize:13 }}>Close</button>
+                style={{ fontFamily:"Georgia,serif", cursor:"pointer", marginTop:10, background:"transparent", border:"none", color:"#aaa", fontSize:13 }}>Close</button>
             </div>
           </div>
         )}
