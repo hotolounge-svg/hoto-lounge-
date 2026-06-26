@@ -469,6 +469,8 @@ function GroupAdminScreen({ goHome }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ groupName:"", members:"" });
+  const [addMode, setAddMode] = useState("new"); // "new" = create group, "existing" = add member to a group
+  const [existingSlug, setExistingSlug] = useState(""); // selected group slug when adding to existing
   const [saving, setSaving] = useState(false);
   const [qrTarget, setQrTarget] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); // {msg, onConfirm}
@@ -494,9 +496,37 @@ function GroupAdminScreen({ goHome }) {
 
   const save = async () => {
     setFormError("");
-    if (form.groupName.trim().length < 3) { setFormError("Group name must be at least 3 letters"); return; }
     const members = form.members.split(",").map(m=>m.trim()).filter(Boolean);
     const tooShort = members.filter(m => m.length < 3);
+
+    if (addMode === "existing") {
+      // Adding member(s) to an already-created group
+      if (!existingSlug) { setFormError("Please select a group"); return; }
+      if (members.length === 0) { setFormError("Enter at least one member name"); return; }
+      if (tooShort.length > 0) {
+        setFormError(`These names are too short (need 3+ letters): ${tooShort.join(", ")}`);
+        return;
+      }
+      const grp = grouped[existingSlug];
+      if (!grp) { setFormError("Group not found — refresh and try again"); return; }
+      setSaving(true);
+      const rows = members.map(name => ({
+        id: `${existingSlug}-${name.toLowerCase().replace(/\s+/g,"-")}`,
+        display_name: name,
+        group_name: grp.name,
+        group_slug: existingSlug,
+      }));
+      await supabase.from("groups").upsert(rows);
+      setForm({ groupName:"", members:"" });
+      setFormError("");
+      setSaving(false);
+      await load(false);
+      showToast(members.length > 1 ? `${members.length} members added` : "Member added");
+      return;
+    }
+
+    // addMode === "new" — create a brand new group
+    if (form.groupName.trim().length < 3) { setFormError("Group name must be at least 3 letters"); return; }
     if (tooShort.length > 0) {
       setFormError(`These names are too short (need 3+ letters): ${tooShort.join(", ")}`);
       return;
@@ -560,19 +590,48 @@ function GroupAdminScreen({ goHome }) {
         <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
       </div>
       <div style={{ padding:16, maxWidth:600, margin:"0 auto" }}>
-        {/* Create form */}
+        {/* Create / Add form */}
         <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:16, marginBottom:20 }}>
-          <div style={{ fontSize:14, color:C.gold, fontWeight:"bold", marginBottom:12 }}>➕ Create New Group</div>
-          <input value={form.groupName} onChange={e=>{setForm(p=>({...p,groupName:e.target.value}));setFormError("");}}
-            placeholder="Group name (e.g. Kopi Gang)"
-            style={{ width:"100%", background:C.bg, border:`1px solid ${formError?"#cc4444":C.border}`, color:C.text, padding:"10px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }} />
-          <input value={form.members} onChange={e=>{setForm(p=>({...p,members:e.target.value}));setFormError("");}}
-            placeholder="Member names, comma separated (optional — VIPs can self-register)"
-            style={{ width:"100%", background:C.bg, border:`1px solid ${formError?"#cc4444":C.border}`, color:C.text, padding:"10px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }} />
+          {/* Mode toggle */}
+          <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+            {[["new","➕ Create New Group"],["existing","👤 Add to Existing"]].map(([key,label]) => (
+              <button key={key} onClick={() => { setAddMode(key); setFormError(""); }}
+                style={btn({ flex:1, background: addMode===key ? `linear-gradient(135deg,${C.gold},#a07020)` : "transparent",
+                  border:`1px solid ${addMode===key ? C.gold : C.border}`, color: addMode===key ? C.dark : C.muted,
+                  padding:"9px 0", fontSize:13, fontWeight:"bold", borderRadius:8 })}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {addMode === "new" ? (
+            <>
+              <input value={form.groupName} onChange={e=>{setForm(p=>({...p,groupName:e.target.value}));setFormError("");}}
+                placeholder="Group name (e.g. Kopi Gang)"
+                style={{ width:"100%", background:C.bg, border:`1px solid ${formError?"#cc4444":C.border}`, color:C.text, padding:"10px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }} />
+              <input value={form.members} onChange={e=>{setForm(p=>({...p,members:e.target.value}));setFormError("");}}
+                placeholder="Member names, comma separated (optional — VIPs can self-register)"
+                style={{ width:"100%", background:C.bg, border:`1px solid ${formError?"#cc4444":C.border}`, color:C.text, padding:"10px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }} />
+            </>
+          ) : (
+            <>
+              <select value={existingSlug} onChange={e=>{setExistingSlug(e.target.value);setFormError("");}}
+                style={{ width:"100%", background:C.bg, border:`1px solid ${formError&&!existingSlug?"#cc4444":C.border}`, color:existingSlug?C.text:C.muted, padding:"10px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }}>
+                <option value="">— Select a group —</option>
+                {Object.values(grouped).map(g => (
+                  <option key={g.slug} value={g.slug} style={{ color:"#000" }}>{g.name}</option>
+                ))}
+              </select>
+              <input value={form.members} onChange={e=>{setForm(p=>({...p,members:e.target.value}));setFormError("");}}
+                placeholder="New member name(s), comma separated"
+                style={{ width:"100%", background:C.bg, border:`1px solid ${formError?"#cc4444":C.border}`, color:C.text, padding:"10px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:10 }} />
+            </>
+          )}
+
           {formError && <div style={{ color:"#ff7777", fontSize:13, marginBottom:10 }}>{formError}</div>}
           <button onClick={save} disabled={saving}
             style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"11px 0", fontSize:15, fontWeight:"bold", width:"100%", borderRadius:10 })}>
-            {saving?"Saving...":"✓ Create Group & Generate QRs"}
+            {saving ? "Saving..." : addMode==="new" ? "✓ Create Group & Generate QRs" : "✓ Add Member"}
           </button>
         </div>
 
