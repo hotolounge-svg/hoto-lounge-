@@ -387,7 +387,14 @@ function GroupAdminScreen({ goHome }) {
     setGroups(data||[]);
     setLoading(false);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    // Realtime — auto-update when new VIP registers via self-register link
+    const ch = supabase.channel("groups-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"groups" }, () => load())
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
 
   const save = async () => {
     if (!form.groupName.trim()) return;
