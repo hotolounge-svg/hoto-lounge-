@@ -199,6 +199,32 @@ async function downloadQR(url, label) {
 // ── GroupWrapper — shows table picker then TabletScreen ──
 function GroupWrapper({ tableNo: initialTableNo }) {
   const [finalTableNo, setFinalTableNo] = useState(null);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const checkActiveOrders = async () => {
+      // Check if VIP has any unpaid orders — if yes skip table picker
+      const { data } = await supabase.from("orders").select("id,table_no")
+        .like("table_no", `${initialTableNo}%`)
+        .not("status","eq","paid")
+        .limit(1);
+      if (data && data.length > 0) {
+        // Has active unpaid orders — use same table_no they had before
+        setFinalTableNo(data[0].table_no);
+      }
+      setChecking(false);
+    };
+    checkActiveOrders();
+  }, [initialTableNo]);
+
+  if (checking) return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif" }}>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontSize:40, marginBottom:12 }}>☕</div>
+        <div style={{ color:"#e8c77a", fontSize:16 }}>Loading...</div>
+      </div>
+    </div>
+  );
   if (!finalTableNo) return <GroupScreen tableNo={initialTableNo} setTableNo={setFinalTableNo} />;
   return <TabletScreen tableNo={finalTableNo} isStaff={false} goHome={() => setFinalTableNo(null)} />;
 }
