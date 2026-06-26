@@ -95,6 +95,19 @@ export default function App() {
   return (
     <div style={{ fontFamily:"Georgia,serif", background:C.bg, minHeight:"100vh", color:C.text }}>
 
+      {screen === "home" && !pinUnlocked && !new URLSearchParams(window.location.search).get("join") && !new URLSearchParams(window.location.search).get("group") && !new URLSearchParams(window.location.search).get("page") && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:16, padding:32, width:"100%", maxWidth:320, textAlign:"center" }}>
+            <div style={{ fontSize:28, marginBottom:8 }}>🔐</div>
+            <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:20 }}>Staff Access</div>
+            <input type="password" value={pinInput} onChange={e => { setPinInput(e.target.value); setPinError(false); }} onKeyDown={e => e.key==="Enter" && submitPin()}
+              placeholder="Enter PIN" autoFocus
+              style={{ width:"100%", background:C.bg, border:`2px solid ${pinError?"#cc4444":C.gold}`, color:C.text, padding:"12px 16px", borderRadius:10, fontSize:20, fontFamily:"Georgia,serif", textAlign:"center", letterSpacing:4, boxSizing:"border-box", marginBottom:8 }} />
+            {pinError && <div style={{ color:"#ff7777", fontSize:13, marginBottom:8 }}>Wrong PIN</div>}
+            <button onClick={submitPin} style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:14, fontSize:15, fontWeight:"bold", marginTop:8 })}>Unlock ✓</button>
+          </div>
+        </div>
+      )}
       {screen === "home"    && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} />}
       {screen === "group"      && <GroupWrapper  tableNo={tableNo} />}
       {screen === "groupadmin" && <GroupAdminScreen goHome={() => setScreen("home")} />}
@@ -768,7 +781,7 @@ function TakeawayScreen({ setScreen, setTableNo, goHome }) {
 }
 
 function AdminScreen({ goHome }) {
-  const [authed, setAuthed] = useState(false);
+  const [authed, setAuthed] = useState(true); // no password needed
   const [toast, setToast] = useState(null);
   const [deleteModal, setDeleteModal] = useState(null); // {id, name}
   const showToast = (msg, type="success") => {
@@ -799,8 +812,7 @@ function AdminScreen({ goHome }) {
     setLoading(false);
     requestAnimationFrame(() => { if (scrollEl) scrollEl.scrollTop = scrollTop; });
   };
-  useEffect(() => { setAuthed(true); }, []);
-  useEffect(() => { if (authed) fetchItems(); }, [authed]);
+  useEffect(() => { fetchItems(); }, []);
 
   const handleLogin = () => { setAuthed(true); };
   const openAdd = () => {
