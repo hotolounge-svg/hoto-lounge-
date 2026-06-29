@@ -1740,12 +1740,12 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                                     return parseFloat(usePromo ? a.promo_price : (a.price||0));
                                   }));
                                   return promo && effMin < normalMin
-                                    ? <span><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", marginRight:4 }}>RM {normalMin.toFixed(2)}</span><span style={{ color:"#e65100" }}>RM {effMin.toFixed(2)}+</span></span>
+                                    ? <span style={{ display:"flex", flexDirection:"column", lineHeight:1.1 }}><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", fontSize:10 }}>RM {normalMin.toFixed(2)}</span><span style={{ color:"#e65100" }}>RM {effMin.toFixed(2)}+</span></span>
                                     : `RM ${effMin.toFixed(2)}+`;
                                 }
                                 const usePromo = promo && item.promo_price && parseFloat(item.promo_price) > 0;
                                 return usePromo
-                                  ? <span><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", marginRight:4 }}>RM {parseFloat(item.price).toFixed(2)}</span><span style={{ color:"#e65100" }}>RM {parseFloat(item.promo_price).toFixed(2)}</span></span>
+                                  ? <span style={{ display:"flex", flexDirection:"column", lineHeight:1.1 }}><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", fontSize:10 }}>RM {parseFloat(item.price).toFixed(2)}</span><span style={{ color:"#e65100" }}>RM {parseFloat(item.promo_price).toFixed(2)}</span></span>
                                   : `RM ${parseFloat(item.price).toFixed(2)}`;
                               })()}
                             </div>
