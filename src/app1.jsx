@@ -1731,9 +1731,23 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:"auto" }}>
                             {/* Price */}
                             <div style={{ fontSize:13, fontWeight:"bold", color:T.brown, flexShrink:0 }}>
-                              {item.addon_required && item.addons && item.addons.length > 0
-                                ? `RM ${Math.min(...item.addons.map(a=>parseFloat(a.price||0))).toFixed(2)}+`
-                                : `RM ${parseFloat(item.price).toFixed(2)}`}
+                              {(() => {
+                                const promo = isPromoNow(item);
+                                if (item.addon_required && item.addons && item.addons.length > 0) {
+                                  const normalMin = Math.min(...item.addons.map(a=>parseFloat(a.price||0)));
+                                  const effMin = Math.min(...item.addons.map(a => {
+                                    const usePromo = promo && a.promo_price && parseFloat(a.promo_price) > 0;
+                                    return parseFloat(usePromo ? a.promo_price : (a.price||0));
+                                  }));
+                                  return promo && effMin < normalMin
+                                    ? <span><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", marginRight:4 }}>RM {normalMin.toFixed(2)}</span><span style={{ color:"#e65100" }}>RM {effMin.toFixed(2)}+</span></span>
+                                    : `RM ${effMin.toFixed(2)}+`;
+                                }
+                                const usePromo = promo && item.promo_price && parseFloat(item.promo_price) > 0;
+                                return usePromo
+                                  ? <span><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", marginRight:4 }}>RM {parseFloat(item.price).toFixed(2)}</span><span style={{ color:"#e65100" }}>RM {parseFloat(item.promo_price).toFixed(2)}</span></span>
+                                  : `RM ${parseFloat(item.price).toFixed(2)}`;
+                              })()}
                             </div>
 
                             {soldOut ? null : qty === 0 ? (
