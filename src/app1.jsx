@@ -51,12 +51,13 @@ const getFoodReq = (req) => {
 
 // Check if promo is active right now based on promo_start/promo_end (MYT)
 const isPromoNow = (item) => {
-  if (!item.promo_start || !item.promo_end) return false;
   // Valid if has free drinks, item promo_price, OR addon-level promo_price
   const hasDrinks = item.promo_drinks && item.promo_drinks.length > 0;
   const hasItemPromo = item.promo_price && parseFloat(item.promo_price) > 0;
   const hasAddonPromo = item.addons && item.addons.some(a => a.promo_price && parseFloat(a.promo_price) > 0);
   if (!hasDrinks && !hasItemPromo && !hasAddonPromo) return false;
+  // No time window set → promo is always active
+  if (!item.promo_start || !item.promo_end) return true;
   const myt = new Date(new Date().toLocaleString("en-US", { timeZone:"Asia/Kuala_Lumpur" }));
   const cur = myt.getHours() * 60 + myt.getMinutes();
   const [sh, sm] = item.promo_start.split(":").map(Number);
@@ -916,7 +917,7 @@ function AdminScreen({ goHome }) {
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[] });
+  const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[], promo_label:"" });
   const [uploading, setUploading] = useState(false);
   const [showPwForm, setShowPwForm] = useState(false);
   const [showChargeForm, setShowChargeForm] = useState(false);
@@ -938,11 +939,11 @@ function AdminScreen({ goHome }) {
 
   const handleLogin = () => { setAuthed(true); };
   const openAdd = () => {
-    setForm({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, is_best_seller:false, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[] });
+    setForm({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, is_best_seller:false, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[], promo_label:"" });
     setEditItem(null); setShowForm(true);
   };
   const openEdit = (item) => {
-    setForm({ item_no:item.item_no, name:item.name, category:item.category, price:item.price, description:item.description||"", emoji:item.emoji||"🍽️", image_url:item.image_url||"", is_available:item.is_available!==false, is_best_seller:item.is_best_seller||false, addons:item.addons||[], addon_required:item.addon_required||false, promo_start:item.promo_start||"", promo_end:item.promo_end||"", promo_price:item.promo_price||"", promo_drinks:item.promo_drinks||[] });
+    setForm({ item_no:item.item_no, name:item.name, category:item.category, price:item.price, description:item.description||"", emoji:item.emoji||"🍽️", image_url:item.image_url||"", is_available:item.is_available!==false, is_best_seller:item.is_best_seller||false, addons:item.addons||[], addon_required:item.addon_required||false, promo_start:item.promo_start||"", promo_end:item.promo_end||"", promo_price:item.promo_price||"", promo_drinks:item.promo_drinks||[], promo_label:item.promo_label||"" });
     setEditItem(item); setShowForm(true);
   };
   const handleUpload = async (e) => {
@@ -960,7 +961,7 @@ function AdminScreen({ goHome }) {
     const toMins = (t) => { if (!t) return null; const [h,m] = t.split(":").map(Number); return h*60+m; };
     const s = toMins(form.promo_start); const e = toMins(form.promo_end);
     const promo_active = s !== null && e !== null && nowMins >= s && nowMins < e;
-    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, is_best_seller:form.is_best_seller||false, addons:form.addons||[], addon_required:form.addon_required||false, promo_start:form.promo_start||null, promo_end:form.promo_end||null, promo_price:form.promo_price?parseFloat(form.promo_price):null, promo_drinks:form.promo_drinks||[], promo_active };
+    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, is_best_seller:form.is_best_seller||false, addons:form.addons||[], addon_required:form.addon_required||false, promo_start:form.promo_start||null, promo_end:form.promo_end||null, promo_price:form.promo_price?parseFloat(form.promo_price):null, promo_drinks:form.promo_drinks||[], promo_label:form.promo_label||null, promo_active };
     if (editItem) await supabase.from("menu_items").update(p).eq("id", editItem.id);
     else await supabase.from("menu_items").insert(p);
     setShowForm(false); fetchItems();
@@ -1124,6 +1125,11 @@ function AdminScreen({ goHome }) {
                 <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Happy Hour Price (RM)</div>
                 <input type="number" step="0.50" placeholder="e.g. 10.00" value={form.promo_price} onChange={e => setForm(f=>({...f, promo_price:e.target.value}))}
                   style={{ width:120, background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Promo Label (shown to customer)</div>
+                <input type="text" placeholder="e.g. Lunch Promo, Happy Hour" value={form.promo_label} onChange={e => setForm(f=>({...f, promo_label:e.target.value}))}
+                  style={{ width:200, background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
               </div>
             </div>
             <div style={{ marginBottom:8 }}>
@@ -1441,7 +1447,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       const usePromo = isPromoNow(item) && a.promo_price && parseFloat(a.promo_price) > 0;
       return s + parseFloat(usePromo ? a.promo_price : (a.price||0));
     }, 0);
-    const basePrice = item.addon_required ? 0 : parseFloat(item.price);
+    const basePrice = item.addon_required ? 0 : parseFloat(isPromoNow(item) && item.promo_price && parseFloat(item.promo_price) > 0 ? item.promo_price : item.price);
     const addonNames = selectedAddons.length > 0 ? (item.addon_required ? " " : " +") + selectedAddons.map(a=>a.name).join(" +") : "";
     const cartKey = item.id + (selectedAddons.length > 0 ? "_" + selectedAddons.map(a=>a.name).join("_") : "") + (note ? "_note_"+note.slice(0,20) : "");
     const itemToAdd = { ...item, price: basePrice + addonPrice, name: item.name + addonNames, cartKey, note: note||"" };
@@ -1751,7 +1757,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                             <div style={{ fontSize:10, color:T.green, fontWeight:"bold", marginTop:4 }}>{t.withFreeDrinks}</div>
                           )}
                           {isPromoNow(item) && item.addons && item.addons.some(a => a.promo_price && parseFloat(a.promo_price) > 0) && (
-                            <div style={{ fontSize:10, color:"#e65100", fontWeight:"bold", marginTop:4 }}>{t.happyHour}</div>
+                            <div style={{ fontSize:10, color:"#e65100", fontWeight:"bold", marginTop:4 }}>{item.promo_label || t.happyHour}</div>
                           )}
                         </div>
                       </div>
@@ -1771,7 +1777,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
               const usePromo = isPromoNow(item) && a.promo_price && parseFloat(a.promo_price) > 0;
               return s + parseFloat(usePromo ? a.promo_price : (a.price||0));
             }, 0);
-            const basePrice = item.addon_required ? 0 : parseFloat(item.price);
+            const basePrice = item.addon_required ? 0 : parseFloat(isPromoNow(item) && item.promo_price && parseFloat(item.promo_price) > 0 ? item.promo_price : item.price);
             const unitPrice = basePrice + addonPrice;
             const totalPrice = unitPrice * itemModal.qty;
             const canAdd = !soldOut && (!item.addon_required || itemModal.selectedAddons.length > 0);
@@ -1809,7 +1815,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     {/* Promo badge */}
                     {hasPromo && (
                       <div style={{ background:"#fff8e1", borderRadius:10, padding:"10px 14px", marginBottom:16 }}>
-                        <div style={{ fontSize:14, fontWeight:"bold", color:"#e65100" }}>🎉 {t.breakfastPromo}</div>
+                        <div style={{ fontSize:14, fontWeight:"bold", color:"#e65100" }}>{item.promo_label ? `🎉 ${item.promo_label}` : t.breakfastPromo}</div>
                         <div style={{ fontSize:13, color:"#5a3a00" }}>{t.chooseFree}</div>
                         {item.promo_drinks.map((drink, di) => (
                           <div key={di} onClick={() => setItemModal(m=>({...m, freeDrink:drink}))}
@@ -1846,7 +1852,14 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                                 <span style={{ fontSize:16, color:addon.sold_out?T.muted:T.text, flex:1, minWidth:0 }}>{addon.name}</span>
                               </div>
                               <span style={{ fontSize:14, color:T.brown, fontWeight:"bold", flexShrink:0, marginLeft:8, whiteSpace:"nowrap" }}>
-                                {parseFloat(addon.price||0) > 0 ? `+RM ${parseFloat(addon.price||0).toFixed(2)}` : ""}
+                                {isPromoNow(item) && addon.promo_price && parseFloat(addon.promo_price) > 0 ? (
+                                  <span>
+                                    <span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>+RM {parseFloat(addon.price||0).toFixed(2)}</span>
+                                    <span style={{ color:"#e65100" }}>+RM {parseFloat(addon.promo_price).toFixed(2)}</span>
+                                  </span>
+                                ) : (
+                                  parseFloat(addon.price||0) > 0 ? `+RM ${parseFloat(addon.price||0).toFixed(2)}` : ""
+                                )}
                               </span>
                             </div>
                           );
@@ -2964,8 +2977,11 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
 
   const confirmAddonPicker = () => {
     if (!addonPicker) return;
-    const addonPrice = pickerAddons.reduce((s,a)=>s+parseFloat(a.price||0),0);
-    const basePrice = addonPicker.addon_required ? 0 : parseFloat(addonPicker.price);
+    const addonPrice = pickerAddons.reduce((s,a)=>{
+      const usePromo = isPromoNow(addonPicker) && a.promo_price && parseFloat(a.promo_price) > 0;
+      return s+parseFloat(usePromo ? a.promo_price : (a.price||0));
+    },0);
+    const basePrice = addonPicker.addon_required ? 0 : parseFloat(isPromoNow(addonPicker) && addonPicker.promo_price && parseFloat(addonPicker.promo_price) > 0 ? addonPicker.promo_price : addonPicker.price);
     const totalPrice = basePrice + addonPrice;
     const addonNames = pickerAddons.length > 0 ? " " + pickerAddons.map(a=>a.name).join(" +") : "";
     const cartName = addonPicker.name + addonNames;
