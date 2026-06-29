@@ -1727,8 +1727,16 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                             {item.item_no && <span style={{ color:T.brown, marginRight:4, fontSize:12 }}>{item.item_no}</span>}{item.name}
                           </div>
 
+                          {/* Bottom group: badges above, price+button row pinned to bottom so + aligns across all cards */}
+                          <div style={{ marginTop:"auto" }}>
+                          {isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0 && (
+                            <div style={{ fontSize:10, color:T.green, fontWeight:"bold", marginBottom:4 }}>{t.withFreeDrinks}</div>
+                          )}
+                          {isPromoNow(item) && item.addons && item.addons.some(a => a.promo_price && parseFloat(a.promo_price) > 0) && (
+                            <div style={{ fontSize:10, color:"#e65100", fontWeight:"bold", marginBottom:4 }}>{item.promo_label || t.happyHour}</div>
+                          )}
                           {/* Price + button row */}
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:"auto" }}>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                             {/* Price */}
                             <div style={{ fontSize:13, fontWeight:"bold", color:T.brown, flexShrink:0 }}>
                               {(() => {
@@ -1765,14 +1773,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                               </div>
                             )}
                           </div>
-
-                          {/* Promo badges */}
-                          {isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0 && (
-                            <div style={{ fontSize:10, color:T.green, fontWeight:"bold", marginTop:4 }}>{t.withFreeDrinks}</div>
-                          )}
-                          {isPromoNow(item) && item.addons && item.addons.some(a => a.promo_price && parseFloat(a.promo_price) > 0) && (
-                            <div style={{ fontSize:10, color:"#e65100", fontWeight:"bold", marginTop:4 }}>{item.promo_label || t.happyHour}</div>
-                          )}
+                          </div>
                         </div>
                       </div>
                     );
