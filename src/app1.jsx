@@ -372,29 +372,16 @@ function JoinScreen({ groupSlug, goHome }) {
           <div style={{ fontSize:22, fontWeight:"bold", color:"#e8c77a", marginBottom:4 }}>Welcome, {done.name}!</div>
           <div style={{ fontSize:13, color:"#a07060", marginBottom:20, textAlign:"center" }}>Your personal menu link is ready</div>
 
-          {/* QR — plain image, NOT a link so tapping doesnt navigate */}
-          <div style={{ borderRadius:16, overflow:"hidden", border:"4px solid #c8973a", marginBottom:6 }}>
-            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(done.url)}&bgcolor=ffffff&color=000000&margin=10`}
-              style={{ width:220, height:220, display:"block" }} alt="Your QR" />
-          </div>
-          {isIOS && <div style={{ fontSize:11, color:"#a07060", marginBottom:12, textAlign:"center" }}>👆 Long press QR above → Save to Photos</div>}
-
-          {/* Action buttons */}
+          {/* PRIMARY actions — the link works the same on iPhone & Android */}
           <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:340, marginBottom:24 }}>
             <a href={done.url}
-              style={{ display:"block", background:"linear-gradient(135deg,#c8973a,#a07020)", color:"#1a1208", padding:"14px 0", borderRadius:12, fontWeight:"bold", fontSize:16, textDecoration:"none", textAlign:"center" }}>
+              style={{ display:"block", background:"linear-gradient(135deg,#c8973a,#a07020)", color:"#1a1208", padding:"16px 0", borderRadius:14, fontWeight:"bold", fontSize:17, textDecoration:"none", textAlign:"center" }}>
               🛒 Open My Menu Now
             </a>
-            {!isIOS && (
-              <button onClick={()=>downloadQR(done.url, done.name)}
-                style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#2a3a2a", border:"1.5px solid #5aaa5a", color:"#aaffaa", padding:"13px 0", borderRadius:12, fontWeight:"bold", fontSize:15, width:"100%" }}>
-                ⬇️ Save QR to Phone
-              </button>
-            )}
             <a href={`https://wa.me/?text=${encodeURIComponent("My personal Hoto Lounge menu ("+done.name+") — tap to order: "+done.url)}`}
               target="_blank" rel="noreferrer"
-              style={{ display:"block", background:"#25D366", color:"#fff", padding:"12px 0", borderRadius:12, fontWeight:"bold", fontSize:15, textDecoration:"none", textAlign:"center" }}>
-              💬 Send to Myself via WhatsApp
+              style={{ display:"block", background:"#25D366", color:"#fff", padding:"13px 0", borderRadius:14, fontWeight:"bold", fontSize:15, textDecoration:"none", textAlign:"center" }}>
+              💬 Send Link to Myself (WhatsApp)
             </a>
           </div>
 
@@ -431,6 +418,23 @@ function JoinScreen({ groupSlug, goHome }) {
             <div style={{ fontSize:11, color:"#5a4020", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
               Or just bookmark the link in your browser — also works great!
             </div>
+          </div>
+
+          {/* QR — secondary: for staff to scan or sharing with friends */}
+          <div style={{ width:"100%", maxWidth:340, background:"#1a1208", border:"1px solid #5a4020", borderRadius:16, padding:16, marginTop:20, display:"flex", flexDirection:"column", alignItems:"center" }}>
+            <div style={{ fontSize:13, fontWeight:"bold", color:"#e8c77a", marginBottom:4, textAlign:"center" }}>📷 Your QR Code</div>
+            <div style={{ fontSize:11, color:"#a07060", marginBottom:12, textAlign:"center", lineHeight:1.5 }}>For staff to scan, or to share with friends. To open it yourself, just use the link above.</div>
+            <div style={{ borderRadius:16, overflow:"hidden", border:"4px solid #c8973a", marginBottom:10 }}>
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(done.url)}&bgcolor=ffffff&color=000000&margin=10`}
+                style={{ width:200, height:200, display:"block" }} alt="Your QR" />
+            </div>
+            {isIOS
+              ? <div style={{ fontSize:11, color:"#a07060", textAlign:"center" }}>👆 Long press the QR → Save to Photos</div>
+              : <button onClick={()=>downloadQR(done.url, done.name)}
+                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#2a3a2a", border:"1.5px solid #5aaa5a", color:"#aaffaa", padding:"11px 0", borderRadius:12, fontWeight:"bold", fontSize:14, width:"100%" }}>
+                  ⬇️ Save QR to Phone
+                </button>
+            }
           </div>
         </div>
       </div>
@@ -642,7 +646,7 @@ function GroupAdminScreen({ goHome }) {
             onClick={()=>setQrTarget(null)}>
             <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:20, padding:24, textAlign:"center", maxWidth:340, width:"92%" }}>
               <div style={{ fontSize:18, fontWeight:"bold", color:"#1a1208", marginBottom:2 }}>👤 {qrTarget.name}</div>
-              <div style={{ fontSize:12, color:"#888", marginBottom:14 }}>Scan or share this QR</div>
+              <div style={{ fontSize:12, color:"#888", marginBottom:14 }}>📷 VIP scans this — or send the link (works on any phone)</div>
               <img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrTarget.url)}&bgcolor=ffffff&color=000000&margin=10`}
                 style={{ width:220, height:220, borderRadius:8, border:"2px solid #e0d0c0" }} alt="QR" />
               {/* Clickable link */}
@@ -651,18 +655,18 @@ function GroupAdminScreen({ goHome }) {
                 {qrTarget.url}
               </a>
               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                <button onClick={()=>downloadQR(qrTarget.url, qrTarget.name)}
-                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"#c8973a", color:"#fff", padding:"11px 0", borderRadius:10, fontWeight:"bold", fontSize:14, border:"none" }}>
-                  ⬇️ Download QR
-                </button>
-                <a href={`https://wa.me/?text=${encodeURIComponent("Hi "+qrTarget.name+"! Here is your personal Hoto Lounge menu QR — tap to open: "+qrTarget.url)}`}
+                <a href={`https://wa.me/?text=${encodeURIComponent("Hi "+qrTarget.name+"! Here is your personal Hoto Lounge menu — tap to open: "+qrTarget.url)}`}
                   target="_blank" rel="noreferrer"
-                  style={{ display:"block", background:"#25D366", color:"#fff", padding:"11px 0", borderRadius:10, fontWeight:"bold", fontSize:14, textDecoration:"none" }}>
-                  💬 Send to VIP via WhatsApp
+                  style={{ display:"block", background:"#25D366", color:"#fff", padding:"13px 0", borderRadius:10, fontWeight:"bold", fontSize:15, textDecoration:"none" }}>
+                  💬 Send Link via WhatsApp
                 </a>
                 <button onClick={()=>{ navigator.clipboard?.writeText(qrTarget.url); showToast("Link copied!"); }}
-                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"#f0f0f0", color:"#333", padding:"9px 0", borderRadius:10, fontWeight:"bold", fontSize:13, border:"none" }}>
+                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"#f0f0f0", color:"#333", padding:"11px 0", borderRadius:10, fontWeight:"bold", fontSize:14, border:"none" }}>
                   🔗 Copy Link
+                </button>
+                <button onClick={()=>downloadQR(qrTarget.url, qrTarget.name)}
+                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"transparent", color:"#c8973a", padding:"9px 0", borderRadius:10, fontWeight:"bold", fontSize:13, border:"1px solid #c8973a" }}>
+                  ⬇️ Download QR (for printing / scanning)
                 </button>
               </div>
               <button onClick={()=>setQrTarget(null)}
