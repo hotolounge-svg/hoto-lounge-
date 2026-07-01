@@ -21,16 +21,25 @@ const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts", "Add-ons"];
 const DRINK_CATEGORIES = ["Beverage", "Desserts"];
 const FOOD_CATEGORIES = ["Food & Snacks", "Promo", "Add-ons"];
 
-// Staff dark theme
-const C = { bg:"#2a1f10", panel:"#3d2c18", border:"#5a4020", gold:"#c8973a", goldLight:"#e8c77a", muted:"#c0a060", text:"#fff8ee", dark:"#1a1208" };
-const btn = (x={}) => ({ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:8, transition:"all 0.2s", ...x });
+// Staff dark theme — deep espresso & gilded gold
+const C = {
+  bg:"#231708", panel:"#34240f", border:"#5f4522", gold:"#d4a544", goldLight:"#f2d79a",
+  muted:"#c3a566", text:"#fff8ee", dark:"#160e05",
+  goldGrad:"linear-gradient(135deg,#f2d79a,#d4a544 52%,#a9761f)",
+  panelGrad:"linear-gradient(160deg,#3a2811,#2a1c0c)",
+  shadow:"0 10px 34px rgba(0,0,0,0.5)",
+  glow:"0 0 26px rgba(212,165,68,0.22)"
+};
+const btn = (x={}) => ({ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:10, letterSpacing:0.3, transition:"all 0.22s ease", ...x });
 
-// Customer bright theme
+// Customer bright theme — warm ivory & antique gold
 const T = {
-  bg:"#f5f0eb", panel:"#ffffff", border:"#e0d8d0",
-  brown:"#c8973a", text:"#1a1a1a", muted:"#888888",
-  green:"#c8973a", greenBg:"#fff8ed", red:"#c62828",
-  orange:"#e65100", shadow:"0 2px 8px rgba(0,0,0,0.1)"
+  bg:"#efe7db", panel:"#ffffff", border:"#e6ddce",
+  brown:"#b4842a", text:"#1c1712", muted:"#8a7e6d",
+  green:"#b4842a", greenBg:"#fbf3e2", red:"#c62828",
+  orange:"#e65100",
+  shadow:"0 8px 26px rgba(70,48,12,0.13)",
+  goldGrad:"linear-gradient(135deg,#e6c463,#b4842a)"
 };
 
 // Helper to extract drink/food parts from special_request
@@ -94,7 +103,20 @@ export default function App() {
     if (j) { setTableNo(`JOIN-${j}`); setScreen("join"); }
   }, []);
   return (
-    <div style={{ fontFamily:"Georgia,serif", background:C.bg, minHeight:"100vh", color:C.text }}>
+    <div style={{ fontFamily:"Georgia,serif", background:`radial-gradient(1200px 620px at 50% -12%, rgba(212,165,68,0.11), transparent 62%), ${C.bg}`, minHeight:"100vh", color:C.text }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,600&display=swap');
+        *{ text-rendering:optimizeLegibility; -webkit-font-smoothing:antialiased; }
+        .hl-title{ font-family:'Playfair Display', Georgia, serif !important; }
+        .hl-gold{
+          background:linear-gradient(135deg,#f2d79a,#d4a544 52%,#a9761f);
+          -webkit-background-clip:text; background-clip:text;
+          -webkit-text-fill-color:transparent; color:#d4a544;
+        }
+        ::-webkit-scrollbar{ width:10px; height:10px; }
+        ::-webkit-scrollbar-thumb{ background:linear-gradient(#c8973a,#8a6420); border-radius:8px; }
+        ::-webkit-scrollbar-track{ background:rgba(0,0,0,0.18); }
+      `}</style>
 
       {screen === "home" && !pinUnlocked && !new URLSearchParams(window.location.search).get("join") && !new URLSearchParams(window.location.search).get("group") && !new URLSearchParams(window.location.search).get("page") && (
         <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -130,10 +152,14 @@ function HomeScreen({ setScreen, setTableNo }) {
   return (
     <div style={{ minHeight:"100vh", background:C.bg, overflowY:"auto" }}>
       {/* Header */}
-      <div style={{ background:`linear-gradient(160deg,#1a0808,#2c1a0e)`, padding:"28px 20px 20px", textAlign:"center", borderBottom:`1px solid ${C.border}` }}>
-        <div style={{ fontSize:44 }}>☕</div>
-        <div style={{ fontSize:26, color:C.goldLight, fontWeight:"bold", letterSpacing:2, marginTop:4 }}>{CAFE_NAME}</div>
-        <div style={{ fontSize:11, color:C.muted, letterSpacing:4, textTransform:"uppercase", marginTop:2 }}>Ordering System</div>
+      <div style={{ background:`radial-gradient(600px 240px at 50% 0%, rgba(212,165,68,0.16), transparent 70%), linear-gradient(160deg,#1a0808,#2c1a0e)`, padding:"40px 20px 28px", textAlign:"center", borderBottom:`2px solid ${C.gold}`, boxShadow:C.glow }}>
+        <div style={{ fontSize:52, filter:"drop-shadow(0 3px 10px rgba(212,165,68,0.4))" }}>☕</div>
+        <div className="hl-title hl-gold" style={{ fontSize:38, fontWeight:800, letterSpacing:3, marginTop:8, lineHeight:1.1 }}>{CAFE_NAME}</div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:12, marginTop:10 }}>
+          <span style={{ height:1, width:44, background:`linear-gradient(90deg,transparent,${C.gold})` }} />
+          <span style={{ fontSize:11, color:C.goldLight, letterSpacing:5, textTransform:"uppercase" }}>Ordering System</span>
+          <span style={{ height:1, width:44, background:`linear-gradient(90deg,${C.gold},transparent)` }} />
+        </div>
       </div>
 
       <div style={{ padding:"20px 16px 32px", maxWidth:480, margin:"0 auto", display:"flex", flexDirection:"column", gap:16 }}>
@@ -590,8 +616,8 @@ function GroupAdminScreen({ goHome }) {
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"Georgia,serif" }}>
-      <div style={{ background:C.panel, borderBottom:`2px solid ${C.gold}`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold" }}>👥 Group Members</div>
+      <div style={{ background:C.panelGrad, borderBottom:`2px solid ${C.gold}`, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 18px rgba(0,0,0,0.35)" }}>
+        <div className="hl-title" style={{ fontSize:21, color:C.goldLight, fontWeight:700, letterSpacing:0.5 }}>👥 Group Members</div>
         <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
       </div>
       <div style={{ padding:16, maxWidth:600, margin:"0 auto" }}>
@@ -1022,8 +1048,8 @@ function AdminScreen({ goHome }) {
           </div>
         </div>
       )}
-      <div style={{ background:C.panel, borderBottom:`2px solid ${C.gold}`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold" }}>⚙️ Menu Management</div>
+      <div style={{ background:C.panelGrad, borderBottom:`2px solid ${C.gold}`, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 18px rgba(0,0,0,0.35)" }}>
+        <div className="hl-title" style={{ fontSize:21, color:C.goldLight, fontWeight:700, letterSpacing:0.5 }}>⚙️ Menu Management</div>
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={openAdd} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>+ Add Item</button>
           <button onClick={() => setShowPwForm(s=>!s)} style={btn({ background:showPwForm?"#2d6a2d":"transparent", border:`1px solid ${showPwForm?"#5aaa5a":C.border}`, color:showPwForm?"#aaffaa":C.muted, padding:"8px 12px", fontSize:13 })}>🔑 Passwords</button>
@@ -1578,12 +1604,12 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden", background:T.bg, fontFamily:"Georgia,serif" }}>
       {/* Header */}
-      <div style={{ background:"linear-gradient(135deg, #2a1010, #1a0808)", padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0, borderBottom:"2px solid #c8973a" }}>
+      <div style={{ background:"radial-gradient(500px 160px at 20% 0%, rgba(212,165,68,0.18), transparent 70%), linear-gradient(135deg, #2a1010, #1a0808)", padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0, borderBottom:"2px solid #c8973a", boxShadow:"0 4px 18px rgba(0,0,0,0.35)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           {isStaff && <button onClick={goHome} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.4)", color:"#fff", borderRadius:8, padding:"6px 12px", fontSize:13 }}>← Back</button>}
           <div>
-            <div style={{ fontSize:18, fontWeight:"bold", color:"#fff" }}>☕ {CAFE_NAME}</div>
-            <div style={{ fontSize:13, color:"#ffe099" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo).toUpperCase() : `TABLE ${tableNo}`}</div>
+            <div className="hl-title hl-gold" style={{ fontSize:24, fontWeight:800, letterSpacing:1.5, lineHeight:1.1 }}>☕ {CAFE_NAME}</div>
+            <div style={{ fontSize:12, color:"#ffe099", letterSpacing:3, textTransform:"uppercase", marginTop:2 }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo).toUpperCase() : `TABLE ${tableNo}`}</div>
           </div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -2229,8 +2255,8 @@ function QRScreen({ goHome }) {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
-      <div style={{ background:C.panel, borderBottom:`2px solid ${C.gold}`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold" }}>📱 QR Codes for Tables</div>
+      <div style={{ background:C.panelGrad, borderBottom:`2px solid ${C.gold}`, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 18px rgba(0,0,0,0.35)" }}>
+        <div className="hl-title" style={{ fontSize:21, color:C.goldLight, fontWeight:700, letterSpacing:0.5 }}>📱 QR Codes for Tables</div>
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={() => window.print()} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>🖨️ Print All</button>
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
@@ -2372,9 +2398,9 @@ function KitchenScreen({ goHome }) {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
-      <div style={{ background:C.panel, borderBottom:`2px solid ${C.gold}`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+      <div style={{ background:C.panelGrad, borderBottom:`2px solid ${C.gold}`, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 18px rgba(0,0,0,0.35)" }}>
         <div>
-          <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold" }}>🍳 Kitchen Screen — Food Only</div>
+          <div className="hl-title" style={{ fontSize:21, color:C.goldLight, fontWeight:700, letterSpacing:0.5 }}>🍳 Kitchen Screen — Food Only</div>
           <div style={{ fontSize:11, color:"#ff4444" }}>🔴 Live — updates instantly</div>
         </div>
         <div style={{ display:"flex", gap:10 }}>
@@ -2615,8 +2641,8 @@ function SalesScreen({ goHome }) {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
-      <div style={{ background:C.panel, borderBottom:`2px solid ${C.gold}`, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold" }}>💰 Daily Sales Summary</div>
+      <div style={{ background:C.panelGrad, borderBottom:`2px solid ${C.gold}`, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 18px rgba(0,0,0,0.35)" }}>
+        <div className="hl-title" style={{ fontSize:21, color:C.goldLight, fontWeight:700, letterSpacing:0.5 }}>💰 Daily Sales Summary</div>
         <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
       </div>
       <div style={{ padding:16, overflowY:"auto", flex:1 }}>
