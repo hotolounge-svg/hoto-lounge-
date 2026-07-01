@@ -146,15 +146,17 @@ export default function App() {
       `}</style>
 
       {screen === "home" && !pinUnlocked && !new URLSearchParams(window.location.search).get("join") && !new URLSearchParams(window.location.search).get("group") && !new URLSearchParams(window.location.search).get("page") && (
-        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(35,24,10,0.5)", WebkitBackdropFilter:"blur(4px)", backdropFilter:"blur(4px)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}>
-          <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:18, padding:32, width:"100%", maxWidth:320, textAlign:"center", boxShadow:"0 20px 60px rgba(40,28,10,0.35)" }}>
-            <div style={{ fontSize:32, marginBottom:8 }}>🔐</div>
-            <div className="hl-title" style={{ fontSize:19, color:C.text, fontWeight:700, marginBottom:20 }}>Staff Access</div>
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(43,51,70,0.55)", WebkitBackdropFilter:"blur(4px)", backdropFilter:"blur(4px)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#ffffff", border:"1px solid #d6dbe2", borderRadius:18, padding:32, width:"100%", maxWidth:320, textAlign:"center", boxShadow:"0 20px 60px rgba(43,51,70,0.35)", fontFamily:"Georgia,serif" }}>
+            <div style={{ width:56, height:56, margin:"0 auto 14px", borderRadius:16, background:"#eef1f6", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <Icon name="lock" size={26} color="#394c76" />
+            </div>
+            <div className="hl-title" style={{ fontSize:19, color:"#2b3346", fontWeight:700, marginBottom:20 }}>Staff Access</div>
             <input type="password" value={pinInput} onChange={e => { setPinInput(e.target.value); setPinError(false); }} onKeyDown={e => e.key==="Enter" && submitPin()}
               placeholder="Enter PIN" autoFocus
-              style={{ width:"100%", background:"#fbf9f5", border:`2px solid ${pinError?"#c62828":C.gold}`, color:C.text, padding:"12px 16px", borderRadius:10, fontSize:20, fontFamily:"Georgia,serif", textAlign:"center", letterSpacing:4, boxSizing:"border-box", marginBottom:8, outline:"none" }} />
+              style={{ width:"100%", background:"#f4f6f9", border:`2px solid ${pinError?"#c62828":"#394c76"}`, color:"#2b3346", padding:"12px 16px", borderRadius:10, fontSize:20, fontFamily:"Georgia,serif", textAlign:"center", letterSpacing:4, boxSizing:"border-box", marginBottom:8, outline:"none" }} />
             {pinError && <div style={{ color:"#c62828", fontSize:13, marginBottom:8, fontWeight:600 }}>Wrong PIN</div>}
-            <button onClick={submitPin} style={btn({ width:"100%", background:C.goldGrad, border:"none", color:"#fff", padding:13, fontSize:15, fontWeight:"bold", marginTop:8, boxShadow:"0 3px 10px rgba(138,98,24,0.3)" })}>Unlock ✓</button>
+            <button onClick={submitPin} style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"linear-gradient(150deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:13, fontSize:15, fontWeight:"bold", marginTop:8, borderRadius:10, boxShadow:"0 4px 12px rgba(57,76,118,0.3)" }}>Unlock ✓</button>
           </div>
         </div>
       )}
@@ -174,34 +176,71 @@ export default function App() {
   );
 }
 
+// Inline SVG icons (FontAwesome/Feather-style) — recolor via the `color` prop
+function Icon({ name, size=24, color="currentColor", stroke=1.8, style }) {
+  const paths = {
+    utensils: <><path d="M6 3v5a2 2 0 0 0 4 0V3"/><path d="M8 8v13"/><path d="M17 3c-1.7 1.3-2.3 4.2-2.3 6.3H17"/><path d="M17 9.3V21"/></>,
+    bag: <><path d="M6 2 3 6.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.2L18 2z"/><path d="M3 6.2h18"/><path d="M16 10.2a4 4 0 0 1-8 0"/></>,
+    users: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>,
+    hat: <><path d="M6 13.5V20h12v-6.5"/><path d="M6 13.8a3.5 3.5 0 0 1-1-6.9A4 4 0 0 1 12 4.6a4 4 0 0 1 7 2.3 3.5 3.5 0 0 1-1 6.9"/><path d="M9.5 20v-4M14.5 20v-4"/></>,
+    card: <><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/></>,
+    coffee: <><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4z"/><path d="M6 1.5v2.5M10 1.5v2.5M14 1.5v2.5"/></>,
+    chevron: <path d="M9 6l6 6-6 6"/>,
+    grid: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></>,
+    chart: <><path d="M6 20v-5"/><path d="M12 20V9"/><path d="M18 20V5"/></>,
+    sliders: <><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></>,
+    dots: <><circle cx="5" cy="12" r="1.6" fill={color} stroke="none"/><circle cx="12" cy="12" r="1.6" fill={color} stroke="none"/><circle cx="19" cy="12" r="1.6" fill={color} stroke="none"/></>,
+    lock: <><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+      strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" style={style} aria-hidden="true">
+      {paths[name] || null}
+    </svg>
+  );
+}
+
+// Home page palette — slate blue / grey (self-contained; other pages unaffected)
+const HP = { bg:"#e8ecef", card:"#ffffff", line:"#d6dbe2", navy:"#394c76", navy2:"#4a5f92", grey:"#8c8c8c", ink:"#2b3346", tint:"#eef1f6" };
+
 function HomeScreen({ setScreen, setTableNo }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const hCard = { background:HP.card, border:`1px solid ${HP.line}`, borderRadius:18, boxShadow:"0 6px 22px rgba(57,76,118,0.08)", overflow:"hidden" };
+  const hLabel = { fontSize:11, color:HP.grey, fontWeight:700, letterSpacing:2.5, textTransform:"uppercase" };
   return (
-    <div style={{ minHeight:"100vh", background:C.bg, overflowY:"auto" }}>
+    <div style={{ minHeight:"100vh", background:HP.bg, overflowY:"auto", fontFamily:"Georgia,serif" }}>
       {/* Header */}
-      <div style={{ background:"radial-gradient(700px 240px at 50% 0%, rgba(180,132,42,0.10), transparent 70%), linear-gradient(180deg,#ffffff,#f6efe0)", padding:"40px 20px 28px", textAlign:"center", borderBottom:`2px solid ${C.gold}`, boxShadow:C.shadow }}>
-        <div style={{ fontSize:52, filter:"drop-shadow(0 3px 8px rgba(180,132,42,0.3))" }}>☕</div>
-        <div className="hl-title" style={{ fontSize:38, fontWeight:800, letterSpacing:3, marginTop:8, lineHeight:1.1, color:"#8a6218" }}>{CAFE_NAME}</div>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:12, marginTop:10 }}>
-          <span style={{ height:1, width:44, background:`linear-gradient(90deg,transparent,${C.gold})` }} />
-          <span style={{ fontSize:11, color:C.goldLight, letterSpacing:5, textTransform:"uppercase" }}>Ordering System</span>
-          <span style={{ height:1, width:44, background:`linear-gradient(90deg,${C.gold},transparent)` }} />
+      <div style={{ background:`linear-gradient(150deg,${HP.navy},#2c3b5e)`, padding:"38px 20px 30px", textAlign:"center", boxShadow:"0 6px 22px rgba(57,76,118,0.25)" }}>
+        <div style={{ width:64, height:64, margin:"0 auto 12px", borderRadius:18, background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <Icon name="coffee" size={32} color="#e8ecef" stroke={1.7} />
+        </div>
+        <div className="hl-title" style={{ fontSize:34, fontWeight:800, letterSpacing:2, color:"#ffffff", lineHeight:1.1 }}>{CAFE_NAME}</div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:12, marginTop:12 }}>
+          <span style={{ height:1, width:40, background:"linear-gradient(90deg,transparent,rgba(232,236,239,0.6))" }} />
+          <span style={{ fontSize:11, color:"#c3cad8", letterSpacing:5, textTransform:"uppercase" }}>Ordering System</span>
+          <span style={{ height:1, width:40, background:"linear-gradient(90deg,rgba(232,236,239,0.6),transparent)" }} />
         </div>
       </div>
 
       <div style={{ padding:"30px 18px 44px", maxWidth:460, margin:"0 auto", display:"flex", flexDirection:"column", gap:22 }}>
 
         {/* Dine In */}
-        <div style={uiCard()}>
-          <div style={{ padding:"18px 18px 12px" }}>
-            <Crest label="🪑 Dine In" sub="Select a table to begin" />
+        <div style={hCard}>
+          <div style={{ padding:"18px 20px 8px", display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ width:40, height:40, borderRadius:12, background:HP.navy, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <Icon name="utensils" size={20} color="#ffffff" />
+            </div>
+            <div>
+              <div className="hl-title" style={{ fontSize:18, fontWeight:700, color:HP.ink }}>Dine In</div>
+              <div style={{ fontSize:12, color:HP.grey, marginTop:1 }}>Select a table to begin</div>
+            </div>
           </div>
-          <div style={{ padding:"4px 16px 20px" }}>
+          <div style={{ padding:"12px 16px 20px" }}>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10 }}>
               {TABLES.map(tnum => (
                 <button key={tnum} onClick={() => { setTableNo(tnum); setScreen("tablet"); }}
                   className="hl-title"
-                  style={btn({ background:"linear-gradient(160deg,#fbf3e0,#f4e7c8)", border:`1.5px solid ${C.gold}`, color:"#8a6218", padding:"16px 0", fontSize:20, fontWeight:700, borderRadius:12, boxShadow:"0 2px 8px rgba(180,132,42,0.15)" })}>
+                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:HP.card, border:`1.5px solid ${HP.line}`, color:HP.navy, padding:"15px 0", fontSize:19, fontWeight:700, borderRadius:12, transition:"all 0.15s", boxShadow:"0 1px 3px rgba(57,76,118,0.08)" }}>
                   {tnum}
                 </button>
               ))}
@@ -212,64 +251,72 @@ function HomeScreen({ setScreen, setTableNo }) {
         {/* Takeaway + VIP */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           {[
-            { onClick:()=>setScreen("takeaway"), icon:"🥡", label:"Takeaway", grad:"linear-gradient(155deg,#eaf4f7,#d6e9ef)", border:"#7fb3c4", color:"#1e6076" },
-            { onClick:()=>setScreen("vipscreen"), icon:"👥", label:"VIP", grad:"linear-gradient(155deg,#efeaf9,#e2d8f3)", border:"#a690e0", color:"#5a3fa0" },
+            { onClick:()=>setScreen("takeaway"), name:"bag", label:"Takeaway" },
+            { onClick:()=>setScreen("vipscreen"), name:"users", label:"VIP" },
           ].map(b => (
             <button key={b.label} onClick={b.onClick}
-              style={btn({ background:b.grad, border:`1.5px solid ${b.border}`, color:b.color, padding:"26px 0", borderRadius:16, display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:C.shadow })}>
-              <span style={{ fontSize:34 }}>{b.icon}</span>
-              <span style={{ fontSize:13, fontWeight:700, letterSpacing:3, textTransform:"uppercase" }}>{b.label}</span>
+              style={{ fontFamily:"Georgia,serif", cursor:"pointer", ...hCard, padding:"22px 0", display:"flex", flexDirection:"column", alignItems:"center", gap:12, transition:"all 0.15s" }}>
+              <div style={{ width:52, height:52, borderRadius:"50%", background:HP.tint, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Icon name={b.name} size={26} color={HP.navy} />
+              </div>
+              <span style={{ fontSize:13, fontWeight:700, letterSpacing:2, textTransform:"uppercase", color:HP.ink }}>{b.label}</span>
             </button>
           ))}
         </div>
 
         {/* Staff */}
-        <div style={uiCard()}>
-          <div style={{ padding:"16px 18px 12px" }}>
-            <Crest label="Staff" color={C.muted} />
-          </div>
-          <div style={{ ...goldRule, margin:"0 18px" }} />
-          <button onClick={() => setScreen("kitchen")}
-            style={btn({ width:"100%", background:"linear-gradient(90deg,rgba(212,165,68,0.16),transparent)", border:"none", borderLeft:`3px solid ${C.gold}`, color:C.goldLight, padding:"18px 20px", fontSize:16, fontWeight:700, borderRadius:0, textAlign:"left", display:"flex", justifyContent:"space-between", alignItems:"center" })}>
-            <span>🍳 Kitchen Screen</span>
-            <span style={{ fontSize:11, color:C.muted, letterSpacing:1.5, textTransform:"uppercase" }}>Food orders ›</span>
-          </button>
-          <div style={{ ...goldRule, margin:"0 18px" }} />
-          <button onClick={() => setScreen("cashier")}
-            style={btn({ width:"100%", background:"linear-gradient(90deg,rgba(90,170,90,0.14),transparent)", border:"none", borderLeft:"3px solid #4c9a4c", color:"#2d7a2d", padding:"18px 20px", fontSize:16, fontWeight:700, borderRadius:0, textAlign:"left", display:"flex", justifyContent:"space-between", alignItems:"center" })}>
-            <span>💳 Cashier Screen</span>
-            <span style={{ fontSize:11, color:C.muted, letterSpacing:1.5, textTransform:"uppercase" }}>Drinks + Payment ›</span>
-          </button>
+        <div style={hCard}>
+          <div style={{ padding:"14px 20px 10px" }}><span style={hLabel}>Staff</span></div>
+          {[
+            { onClick:()=>setScreen("kitchen"), name:"hat", label:"Kitchen Screen", sub:"Food orders" },
+            { onClick:()=>setScreen("cashier"), name:"card", label:"Cashier Screen", sub:"Drinks + Payment" },
+          ].map(s => (
+            <button key={s.label} onClick={s.onClick}
+              style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"transparent", border:"none", borderTop:`1px solid ${HP.line}`, padding:"15px 20px", display:"flex", alignItems:"center", gap:14, textAlign:"left" }}>
+              <div style={{ width:38, height:38, borderRadius:10, background:HP.tint, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <Icon name={s.name} size={19} color={HP.navy} />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:15, fontWeight:700, color:HP.ink }}>{s.label}</div>
+                <div style={{ fontSize:11, color:HP.grey, letterSpacing:0.5 }}>{s.sub}</div>
+              </div>
+              <Icon name="chevron" size={18} color={HP.grey} />
+            </button>
+          ))}
         </div>
 
         {/* More button */}
         <button onClick={() => setMoreOpen(true)}
-          style={btn({ width:"100%", background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"15px 0", fontSize:12, letterSpacing:3, textTransform:"uppercase", borderRadius:14 })}>
-          ••• More Options
+          style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"transparent", border:`1px solid ${HP.line}`, color:HP.grey, padding:"14px 0", fontSize:12, letterSpacing:2, textTransform:"uppercase", borderRadius:14, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+          <Icon name="dots" size={18} color={HP.grey} /> More Options
         </button>
 
       </div>
 
       {/* More options modal */}
       {moreOpen && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(30,20,8,0.5)", WebkitBackdropFilter:"blur(4px)", backdropFilter:"blur(4px)", zIndex:9999, display:"flex", alignItems:"flex-end", justifyContent:"center" }}
+        <div style={{ position:"fixed", inset:0, background:"rgba(43,51,70,0.45)", WebkitBackdropFilter:"blur(4px)", backdropFilter:"blur(4px)", zIndex:9999, display:"flex", alignItems:"flex-end", justifyContent:"center" }}
           onClick={() => setMoreOpen(false)}>
-          <div onClick={e=>e.stopPropagation()} style={{ background:C.panelGrad, borderTop:`2px solid ${C.gold}`, borderRadius:"22px 22px 0 0", width:"100%", maxWidth:460, padding:"18px 18px 34px", boxShadow:"0 -12px 40px rgba(70,52,22,0.28)" }}>
-            <div style={{ width:44, height:4, background:C.border, borderRadius:4, margin:"0 auto 18px" }} />
-            <div style={{ marginBottom:18 }}><Crest label="More Options" color={C.muted} /></div>
+          <div onClick={e=>e.stopPropagation()} style={{ background:HP.card, borderTop:`3px solid ${HP.navy}`, borderRadius:"22px 22px 0 0", width:"100%", maxWidth:460, padding:"18px 18px 34px", boxShadow:"0 -12px 40px rgba(43,51,70,0.25)" }}>
+            <div style={{ width:44, height:4, background:HP.line, borderRadius:4, margin:"0 auto 18px" }} />
+            <div style={{ marginBottom:14, textAlign:"center" }}><span style={hLabel}>More Options</span></div>
             {[
-              { label:"📱 View & Print QR Codes", screen:"qrcodes", color:C.goldLight },
-              { label:"👥 Manage VIP Groups", screen:"groupadmin", color:"#6a4fbf" },
-              { label:"💰 Daily Sales Summary", screen:"sales", color:C.goldLight },
-              { label:"⚙️ Admin — Manage Menu", screen:"admin", color:C.muted },
-            ].map((item,i) => (
+              { name:"grid", label:"View & Print QR Codes", screen:"qrcodes" },
+              { name:"users", label:"Manage VIP Groups", screen:"groupadmin" },
+              { name:"chart", label:"Daily Sales Summary", screen:"sales" },
+              { name:"sliders", label:"Admin — Manage Menu", screen:"admin" },
+            ].map(item => (
               <button key={item.screen} onClick={() => { setMoreOpen(false); setScreen(item.screen); }}
-                style={btn({ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:item.color, padding:"15px 20px", fontSize:15, fontWeight:700, borderRadius:14, textAlign:"left", marginBottom:10 })}>
+                style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"#f4f6f9", border:`1px solid ${HP.line}`, color:HP.ink, padding:"13px 16px", fontSize:15, fontWeight:600, borderRadius:14, textAlign:"left", marginBottom:10, display:"flex", alignItems:"center", gap:14 }}>
+                <div style={{ width:34, height:34, borderRadius:9, background:HP.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  <Icon name={item.name} size={18} color={HP.navy} />
+                </div>
                 {item.label}
+                <span style={{ marginLeft:"auto", display:"flex" }}><Icon name="chevron" size={16} color={HP.grey} /></span>
               </button>
             ))}
             <button onClick={() => setMoreOpen(false)}
-              style={btn({ width:"100%", background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"13px 0", fontSize:12, letterSpacing:2, textTransform:"uppercase", borderRadius:14 })}>
+              style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"transparent", border:`1px solid ${HP.line}`, color:HP.grey, padding:"12px 0", fontSize:12, letterSpacing:2, textTransform:"uppercase", borderRadius:14, marginTop:2 }}>
               Cancel
             </button>
           </div>
