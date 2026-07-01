@@ -15,7 +15,7 @@ const TW_SLOTS = Array.from({length:20},(_,i)=>`TW-${String(i+1).padStart(2,"0")
 const isTakeaway = (t) => String(t).startsWith("TW-");
 const isGroup = (t) => String(t).startsWith("GRP-");
 const groupDisplayName = (t) => { const s = String(t).split("·")[0].replace(/^GRP-/,"").replace(/-/g," "); return s.charAt(0).toUpperCase()+s.slice(1); };
-const takeawayLabel = (t) => `🥡 Takeaway ${t}`;
+const takeawayLabel = (t) => `Takeaway ${t}`;
 const CAFE_NAME = "HOTO LOUNGE";
 const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts", "Add-ons"];
 const DRINK_CATEGORIES = ["Beverage", "Desserts"];
@@ -1240,7 +1240,7 @@ function AdminScreen({ goHome }) {
                 </div>
                 <button onClick={() => setForm(f=>({...f,addons:f.addons.map((a,i)=>i===ai?{...a,sold_out:!a.sold_out}:a)}))}
                   style={addon.sold_out ? aChip({ background:A.redSoft, color:A.red, border:"1px solid #eecaca" }) : aChip({ background:A.greenSoft, color:A.green, border:"1px solid #c7e3c9" })}>
-                  {addon.sold_out?"❌ Out":"✅ In"}
+                  {addon.sold_out?"Out":"In"}
                 </button>
                 <button onClick={() => setForm(f=>({...f,addons:f.addons.filter((_,i)=>i!==ai)}))}
                   style={aChip({ background:"#fff", border:`1px solid ${A.line}`, color:A.red })}>✕</button>
@@ -1252,7 +1252,7 @@ function AdminScreen({ goHome }) {
               <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:12, flexWrap:"wrap" }}>
                 <button onClick={() => setForm(f=>({...f, addon_required:!f.addon_required}))}
                   style={form.addon_required ? aChip({ background:A.green, color:"#fff", border:"none" }) : aChip({ background:"#fff", color:A.sub, border:`1px solid ${A.line}` })}>
-                  {form.addon_required ? "✅ Must Select One" : "⬜ Optional (multi-select)"}
+                  {form.addon_required ? "Must Select One" : "Optional (multi-select)"}
                 </button>
                 <span style={{ fontSize:11, color:A.sub }}>e.g. beer brand = Must Select One</span>
               </div>
@@ -2573,12 +2573,12 @@ function KitchenScreen({ goHome }) {
                       <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
                       <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                     </div>
-                    {item.is_takeaway && <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold", letterSpacing:0.5 }}>TAKEAWAY</div>}
-                    {item.note && <div style={{ fontSize:12, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"4px 8px", marginTop:3 }}>📝 {item.note}</div>}
+                    {item.is_takeaway && <div style={{ display:"inline-block", background:"#394c76", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold", letterSpacing:0.5 }}>TAKEAWAY</div>}
+                    {item.note && <div style={{ fontSize:12, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"4px 8px", marginTop:3 }}>{item.note}</div>}
                   </div>
                 ))}
                 {getFoodReq(order.special_request) && (
-                  <div style={{ background:"#eef1f6", border:"1px solid #394c7633", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>📝 {getFoodReq(order.special_request)}</div>
+                  <div style={{ background:"#eef1f6", border:"1px solid #394c7633", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>{getFoodReq(order.special_request)}</div>
                 )}
               </div>
               <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"flex-end" }}>
@@ -2624,7 +2624,7 @@ function KitchenScreen({ goHome }) {
                 {liveOrder.order_seq && <span style={{ background:C.gold, color:"#fff", borderRadius:6, padding:"3px 10px", fontSize:16, fontWeight:"bold" }}>#{liveOrder.order_seq}</span>}
                 <div className="hl-title" style={{ fontSize:28, fontWeight:800, color:C.goldLight }}>{isTakeaway(liveOrder.table_no) ? takeawayLabel(liveOrder.table_no) : `Table ${liveOrder.table_no}`}</div>
               </div>
-              <div style={{ fontSize:13, color:C.muted }}>🍳 Food Order · {liveOrder.time}</div>
+              <div style={{ fontSize:13, color:C.muted }}>Food Order · {liveOrder.time}</div>
             </div>
             <button onClick={() => setKitchenDetailModal(null)}
               style={btn({ background:"#eef1f6", border:`1px solid ${C.border}`, color:C.muted, width:46, height:46, fontSize:22, borderRadius:50 })}>✕</button>
@@ -2641,15 +2641,15 @@ function KitchenScreen({ goHome }) {
                   <div style={{ fontSize:28, fontWeight:"bold", color:C.gold }}>×{item.qty}</div>
                 </div>
                 {item.is_takeaway && (
-                  <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:10, padding:"8px 16px", marginTop:10, fontSize:16, fontWeight:"bold", letterSpacing:1 }}>TAKEAWAY — Pack separately</div>
+                  <div style={{ display:"inline-block", background:"#394c76", color:"#fff", borderRadius:10, padding:"8px 16px", marginTop:10, fontSize:16, fontWeight:"bold", letterSpacing:1 }}>TAKEAWAY — Pack separately</div>
                 )}
                 {item.note && (
-                  <div style={{ fontSize:16, color:"#394c76", background:"#eef1f6", borderRadius:8, padding:"10px 14px", marginTop:10 }}>📝 {item.note}</div>
+                  <div style={{ fontSize:16, color:"#394c76", background:"#eef1f6", borderRadius:8, padding:"10px 14px", marginTop:10 }}>{item.note}</div>
                 )}
               </div>
             ))}
             {getFoodReq(liveOrder.special_request) && (
-              <div style={{ fontSize:16, color:C.gold, background:"#eef1f6", borderRadius:10, padding:"12px 16px", marginTop:8 }}>📝 {getFoodReq(liveOrder.special_request)}</div>
+              <div style={{ fontSize:16, color:C.gold, background:"#eef1f6", borderRadius:10, padding:"12px 16px", marginTop:8 }}>{getFoodReq(liveOrder.special_request)}</div>
             )}
           </div>
 
@@ -2661,7 +2661,7 @@ function KitchenScreen({ goHome }) {
                 ✓ Mark as Done
               </button>
             ) : (
-              <div style={{ textAlign:"center", color:"#394c76", fontSize:18, fontWeight:"bold", padding:"14px 0" }}>✅ Already Done</div>
+              <div style={{ textAlign:"center", color:"#394c76", fontSize:18, fontWeight:"bold", padding:"14px 0" }}>Already Done</div>
             )}
           </div>
         </div>
@@ -2887,7 +2887,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
         style={{ background:hasPending?"#eef1f6":"#eef1f6", padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}>
         <div className="hl-title" style={{ fontSize:20, fontWeight:800, color:hasPending?C.goldLight:"#394c76" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
         <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-          {data.pending.length>0 && <span style={{ background:"#e3e7f0", color:C.goldLight, borderRadius:6, padding:"3px 10px", fontSize:12, fontWeight:700 }}>⏳ {data.pending.length} pending</span>}
+          {data.pending.length>0 && <span style={{ background:"#e3e7f0", color:C.goldLight, borderRadius:6, padding:"3px 10px", fontSize:12, fontWeight:700 }}>{data.pending.length} pending</span>}
           {data.done.length>0 && <span style={{ background:"#eef1f6", color:"#394c76", borderRadius:6, padding:"3px 10px", fontSize:12, fontWeight:700 }}>✅ {data.done.length} done</span>}
           <span style={{ color:C.muted, fontSize:16, marginLeft:4 }}>↗</span>
         </div>
@@ -2909,7 +2909,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
       {/* DRINKS */}
       {(cardTab==="drinks" || cardTab==="all") && (
         <div style={{ padding:"14px 16px", borderBottom: cardTab==="all" ? `2px solid ${C.border}` : "none" }}>
-          {cardTab==="all" && <div style={{ fontSize:11, color:"#394c76", fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:10 }}>☕ Drinks</div>}
+          {cardTab==="all" && <div style={{ fontSize:11, color:"#394c76", fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:10 }}>Drinks</div>}
           {drinkOrders.length===0
             ? <div style={{ fontSize:13, color:C.border, fontStyle:"italic", padding:"8px 0" }}>No drinks ordered</div>
             : drinkOrders.map((order, oi) => {
@@ -2927,13 +2927,13 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                           </span>
                           <span style={{ color:"#394c76", fontWeight:"bold", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                         </div>
-                        {item.is_takeaway && <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold" }}>TAKEAWAY</div>}
-                        {item.note && <div style={{ fontSize:12, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"3px 8px", marginTop:3 }}>📝 {item.note}</div>}
+                        {item.is_takeaway && <div style={{ display:"inline-block", background:"#394c76", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold" }}>TAKEAWAY</div>}
+                        {item.note && <div style={{ fontSize:12, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"3px 8px", marginTop:3 }}>{item.note}</div>}
                       </div>
                     ))}
-                    {getDrinkReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#eef1f6", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getDrinkReq(order.special_request)}</div>}
+                    {getDrinkReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#eef1f6", borderRadius:6, padding:"6px 10px", marginTop:6 }}>{getDrinkReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
-                      <span style={{ fontSize:13, color:isPending?C.gold:"#394c76", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Pending":"✅ Served"} · {order.time}</span>
+                      <span style={{ fontSize:13, color:isPending?C.gold:"#394c76", fontWeight:"bold", flex:1 }}>{isPending?"Pending":"Served"} · {order.time}</span>
                       {isPending && <>
                         <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:100 })}>✓ Done</button>
                         <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
@@ -2949,7 +2949,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
       {/* FOOD */}
       {(cardTab==="food" || cardTab==="all") && (
         <div style={{ padding:"14px 16px", background:"#faf8f3", borderBottom:`1px solid ${C.border}` }}>
-          {cardTab==="all" && <div style={{ fontSize:11, color:C.muted, fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:10 }}>🍳 Food (Kitchen)</div>}
+          {cardTab==="all" && <div style={{ fontSize:11, color:C.muted, fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:10 }}>Food (Kitchen)</div>}
           {foodOrders.length===0
             ? <div style={{ fontSize:13, color:C.border, fontStyle:"italic", padding:"8px 0" }}>No food ordered</div>
             : foodOrders.map((order, oi) => {
@@ -2966,13 +2966,13 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                           </span>
                           <span style={{ color:isPending?C.muted:"#394c76", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                         </div>
-                        {item.is_takeaway && <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold" }}>TAKEAWAY</div>}
-                        {item.note && <div style={{ fontSize:12, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"3px 8px", marginTop:3 }}>📝 {item.note}</div>}
+                        {item.is_takeaway && <div style={{ display:"inline-block", background:"#394c76", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold" }}>TAKEAWAY</div>}
+                        {item.note && <div style={{ fontSize:12, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"3px 8px", marginTop:3 }}>{item.note}</div>}
                       </div>
                     ))}
-                    {getFoodReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#eef1f6", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getFoodReq(order.special_request)}</div>}
+                    {getFoodReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#eef1f6", borderRadius:6, padding:"6px 10px", marginTop:6 }}>{getFoodReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
-                      <span style={{ fontSize:13, color:isPending?C.gold:"#394c76", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Kitchen preparing":"✅ Served"} · {order.time}</span>
+                      <span style={{ fontSize:13, color:isPending?C.gold:"#394c76", fontWeight:"bold", flex:1 }}>{isPending?"Kitchen preparing":"Served"} · {order.time}</span>
                       {isPending && (
                         <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:110 })}>✕ Cancel</button>
                       )}
@@ -3012,7 +3012,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
         <div>
           <div style={{ fontSize:26, fontWeight:"bold", color:hasPending?C.goldLight:"#394c76" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
           <div style={{ fontSize:13, color:C.muted, marginTop:2 }}>
-            {pending.length > 0 && <span style={{ color:C.gold, marginRight:12 }}>⏳ {pending.length} pending</span>}
+            {pending.length > 0 && <span style={{ color:C.gold, marginRight:12 }}>{pending.length} pending</span>}
             {done.length > 0 && <span style={{ color:"#394c76" }}>✅ {done.length} done</span>}
           </div>
         </div>
@@ -3045,7 +3045,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
                     <span style={{ color:C.muted, fontSize:13 }}>{isDrink?"☕":"🍳"} · {order.time}</span>
                   </div>
                   <span style={{ background:isPending?"#394c76":"#394c76", color:"#fff", borderRadius:8, padding:"3px 10px", fontSize:12, fontWeight:"bold" }}>
-                    {isPending?"⏳ Pending":"✅ Served"}
+                    {isPending?"Pending":"Served"}
                   </span>
                 </div>
                 {order.items.map((item, ii) => (
@@ -3058,12 +3058,12 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
                       <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                     </div>
                     <div style={{ color:"#394c76", fontSize:15, marginTop:2 }}>RM {(item.price*item.qty).toFixed(2)}</div>
-                    {item.is_takeaway && <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:4, fontSize:12, fontWeight:"bold" }}>TAKEAWAY</div>}
-                    {item.note && <div style={{ fontSize:13, color:"#394c76", background:"#eef1f6", borderRadius:8, padding:"5px 10px", marginTop:5 }}>📝 {item.note}</div>}
+                    {item.is_takeaway && <div style={{ display:"inline-block", background:"#394c76", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:4, fontSize:12, fontWeight:"bold" }}>TAKEAWAY</div>}
+                    {item.note && <div style={{ fontSize:13, color:"#394c76", background:"#eef1f6", borderRadius:8, padding:"5px 10px", marginTop:5 }}>{item.note}</div>}
                   </div>
                 ))}
                 {order.special_request && (
-                  <div style={{ fontSize:13, color:C.gold, background:"#eef1f6", borderRadius:8, padding:"7px 10px", marginTop:6 }}>📝 {order.special_request}</div>
+                  <div style={{ fontSize:13, color:C.gold, background:"#eef1f6", borderRadius:8, padding:"7px 10px", marginTop:6 }}>{order.special_request}</div>
                 )}
                 {isPending && (
                   <div style={{ display:"flex", gap:10, marginTop:12 }}>
@@ -3301,11 +3301,11 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
               <div key={order.id} style={{ background:order.status==="pending"?"#eef1f6":"#eef1f6",border:`2px solid ${order.status==="pending"?C.gold:"#394c76"}`,borderRadius:14,padding:14,marginBottom:12 }}>
                 <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
                   <span style={{ background:order.status==="pending"?"#394c76":"#394c76",color:"#fff",borderRadius:8,padding:"3px 10px",fontSize:12,fontWeight:"bold" }}>
-                    {order.status==="pending"?"⏳ Pending":"✅ Served"}
+                    {order.status==="pending"?"Pending":"Served"}
                   </span>
                   <button onClick={()=>cancelExistingOrder(order.id)}
-                    style={btn({ background:"#fbeaea",border:"1px solid #e6c3c3",color:"#c0392b",padding:"6px 12px",fontSize:12,fontWeight:"bold",borderRadius:8 })}>
-                    🗑️ Remove Order
+                    style={btn({ background:"#fbeaea",border:"1px solid #e6c3c3",color:"#c0392b",padding:"6px 12px",fontSize:12,fontWeight:"bold",borderRadius:8,display:"flex",alignItems:"center",gap:6 })}>
+                    <Icon name="trash" size={13} color="#c0392b" /> Remove Order
                   </button>
                 </div>
                 {order.items.map((item,ii)=>{
@@ -3331,7 +3331,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                           <div style={{ display:"flex",alignItems:"center",gap:6,marginTop:2 }}>
                             <span style={{ color:C.gold,fontSize:12 }}>RM {parseFloat(item.price).toFixed(2)} each</span>
                             <button onClick={()=>setEditingPrice({orderId:order.id,itemIdx:ii,price:item.price})}
-                              style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,padding:"1px 6px",fontSize:10,borderRadius:5 })}>✏️ price</button>
+                              style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,padding:"1px 6px",fontSize:10,borderRadius:5 })}>price</button>
                           </div>
                         )}
                       </div>
@@ -3356,23 +3356,23 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                       </div>
                     ) : (
                       <div style={{ marginTop:4,display:"flex",alignItems:"center",gap:8 }}>
-                        {item.note && <span style={{ color:C.muted,fontSize:12 }}>📝 {item.note}</span>}
+                        {item.note && <span style={{ color:C.muted,fontSize:12 }}>{item.note}</span>}
                         <button onClick={()=>setEditingNote({orderId:order.id,itemIdx:ii,note:item.note||""})}
                           style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,padding:"2px 8px",fontSize:11,borderRadius:6 })}>
-                          {item.note?"✏️ note":"➕ note"}
+                          {item.note?"edit note":"add note"}
                         </button>
                       </div>
                     )}
                     {/* Takeaway toggle */}
                     <div onClick={()=>updateExistingTakeaway(order,ii,!item.is_takeaway)}
                       style={{ display:"inline-flex",alignItems:"center",gap:8,marginTop:6,cursor:"pointer",userSelect:"none",
-                        background:item.is_takeaway?"#3a1a00":"transparent",
-                        border:`1.5px solid ${item.is_takeaway?"#e65100":C.border}`,
+                        background:item.is_takeaway?"#eef1f6":"transparent",
+                        border:`1.5px solid ${item.is_takeaway?"#394c76":C.border}`,
                         borderRadius:8,padding:"5px 10px",transition:"all 0.15s" }}>
-                      <div style={{ width:18,height:18,borderRadius:5,border:`2px solid ${item.is_takeaway?"#e65100":C.muted}`,background:item.is_takeaway?"#e65100":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                      <div style={{ width:18,height:18,borderRadius:5,border:`2px solid ${item.is_takeaway?"#394c76":C.muted}`,background:item.is_takeaway?"#394c76":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
                         {item.is_takeaway && <span style={{ color:"#fff",fontSize:11,fontWeight:"bold",lineHeight:1 }}>✓</span>}
                       </div>
-                      <span style={{ fontSize:12,color:item.is_takeaway?"#e65100":C.muted,fontWeight:item.is_takeaway?"bold":"normal" }}>🥡 Takeaway</span>
+                      <span style={{ fontSize:12,color:item.is_takeaway?"#394c76":C.muted,fontWeight:item.is_takeaway?"bold":"normal",display:"flex",alignItems:"center",gap:5 }}><Icon name="bag" size={12} color={item.is_takeaway?"#394c76":C.muted} /> Takeaway</span>
                     </div>
                   </div>
                   );
@@ -3437,17 +3437,17 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                     </div>
                     <div onClick={()=>setCart(prev=>prev.map((it,idx)=>idx===i?{...it,is_takeaway:!it.is_takeaway}:it))}
                       style={{ display:"inline-flex",alignItems:"center",gap:6,marginTop:5,cursor:"pointer",userSelect:"none",
-                        background:item.is_takeaway?"#3a1a00":"transparent",
-                        border:`1.5px solid ${item.is_takeaway?"#e65100":C.border}`,
+                        background:item.is_takeaway?"#eef1f6":"transparent",
+                        border:`1.5px solid ${item.is_takeaway?"#394c76":C.border}`,
                         borderRadius:7,padding:"4px 9px",transition:"all 0.15s" }}>
-                      <div style={{ width:16,height:16,borderRadius:4,border:`2px solid ${item.is_takeaway?"#e65100":C.muted}`,background:item.is_takeaway?"#e65100":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                      <div style={{ width:16,height:16,borderRadius:4,border:`2px solid ${item.is_takeaway?"#394c76":C.muted}`,background:item.is_takeaway?"#394c76":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
                         {item.is_takeaway && <span style={{ color:"#fff",fontSize:10,fontWeight:"bold",lineHeight:1 }}>✓</span>}
                       </div>
-                      <span style={{ fontSize:11,color:item.is_takeaway?"#e65100":C.muted,fontWeight:item.is_takeaway?"bold":"normal" }}>🥡 Takeaway</span>
+                      <span style={{ fontSize:11,color:item.is_takeaway?"#394c76":C.muted,fontWeight:item.is_takeaway?"bold":"normal",display:"flex",alignItems:"center",gap:5 }}><Icon name="bag" size={11} color={item.is_takeaway?"#394c76":C.muted} /> Takeaway</span>
                     </div>
                   </div>
                 ))}
-                <div style={{ fontSize:12,color:C.muted,marginTop:10,marginBottom:4 }}>📝 Special request (optional)</div>
+                <div style={{ fontSize:12,color:C.muted,marginTop:10,marginBottom:4 }}>Special request (optional)</div>
                 <input value={cartNote} onChange={e=>setCartNote(e.target.value)}
                   placeholder="e.g. no sugar, less ice, extra spicy..."
                   style={{ width:"100%",background:C.bg,border:`1px solid ${C.border}`,color:C.text,padding:"7px 10px",borderRadius:8,fontSize:14,fontFamily:"Georgia,serif",boxSizing:"border-box",outline:"none" }} />
@@ -4044,7 +4044,7 @@ function CashierScreen({ goHome }) {
                   border:`2px solid ${isSelected?(hasPend?C.gold:"#394c76"):(hasPend?"#5a4a20":"#2a4a2a")}`,
                   color:isSelected?(hasPend?C.goldLight:"#394c76"):(hasPend?C.muted:"#394c76"),
                   padding:"10px 18px", fontSize:14, fontWeight:isSelected?"bold":"normal", minHeight:44 })}>
-                T{tno} {hasPend?"⏳":"✅"}
+                T{tno} <span style={{ display:"inline-block", width:7, height:7, borderRadius:"50%", background:hasPend?"#c8973a":"#394c76", marginLeft:2, verticalAlign:"middle" }} />
               </button>
             );
           })}
