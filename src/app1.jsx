@@ -93,7 +93,7 @@ const isPromoNow = (item) => {
 };
 
 function QRCode({ url, size=160 }) {
-  const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&bgcolor=2c1a0e&color=e8c77a&margin=10`;
+  const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=394c76&margin=10`;
   return <img src={src} alt="QR" style={{ width:size, height:size, borderRadius:8 }} />;
 }
 
@@ -542,7 +542,7 @@ function JoinScreen({ groupSlug, goHome }) {
 
           {/* QR — secondary: for staff to scan or sharing with friends */}
           <div style={{ width:"100%", maxWidth:340, background:"#f4f6f9", border:"1px solid #e5ded1", borderRadius:16, padding:16, marginTop:20, display:"flex", flexDirection:"column", alignItems:"center" }}>
-            <div style={{ fontSize:13, fontWeight:"bold", color:"#394c76", marginBottom:4, textAlign:"center" }}>📷 Your QR Code</div>
+            <div style={{ fontSize:13, fontWeight:"bold", color:"#394c76", marginBottom:4, textAlign:"center" }}>Your QR Code</div>
             <div style={{ fontSize:11, color:"#8c8c8c", marginBottom:12, textAlign:"center", lineHeight:1.5 }}>For staff to scan, or to share with friends. To open it yourself, just use the link above.</div>
             <div style={{ borderRadius:16, overflow:"hidden", border:"4px solid #394c76", marginBottom:10 }}>
               <img src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(done.url)}&bgcolor=ffffff&color=000000&margin=10`}
@@ -812,8 +812,7 @@ function GroupAdminScreen({ goHome }) {
           <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", zIndex:9998, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
             onClick={()=>setConfirmModal(null)}>
             <div onClick={e=>e.stopPropagation()} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:16, padding:24, maxWidth:320, width:"100%", textAlign:"center" }}>
-              <div style={{ fontSize:24, marginBottom:12 }}>⚠️</div>
-              <div style={{ fontSize:15, color:C.text, marginBottom:20, lineHeight:1.6 }}>{confirmModal.msg}</div>
+              <div style={{ fontSize:16, color:C.text, marginTop:6, marginBottom:20, lineHeight:1.6, fontWeight:600 }}>{confirmModal.msg}</div>
               <div style={{ display:"flex", gap:10 }}>
                 <button onClick={()=>setConfirmModal(null)}
                   style={btn({ flex:1, background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"10px 0", borderRadius:10, fontSize:14 })}>
@@ -1110,7 +1109,7 @@ function AdminScreen({ goHome }) {
   const A = {
     bg:"#e8ecef", panel:"#ffffff", line:"#d6dbe2", text:"#2b3346", sub:"#8c8c8c",
     gold:"#394c76", goldText:"#394c76", goldSoft:"#eef1f6",
-    green:"#2e7d32", greenSoft:"#e8f4e9", red:"#c62828", redSoft:"#fbe9e9",
+    green:"#394c76", greenSoft:"#eef1f6", red:"#c62828", redSoft:"#fbe9e9",
     shadow:"0 6px 22px rgba(57,76,118,0.10)"
   };
   const aInput = { width:"100%", background:"#f4f6f9", border:`1px solid ${A.line}`, color:A.text, padding:"10px 12px", borderRadius:9, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", outline:"none" };
@@ -1123,8 +1122,8 @@ function AdminScreen({ goHome }) {
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:A.bg, color:A.text, fontFamily:"Georgia,serif" }}>
       {toast && (
-        <div style={{ position:"fixed", top:24, left:"50%", transform:"translateX(-50%)", zIndex:99999, background:toast.type==="error"?"#c62828":"#2e7d32", color:"#fff", padding:"14px 28px", borderRadius:12, fontSize:14, fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:"0 4px 20px rgba(0,0,0,0.4)", display:"flex", alignItems:"center", gap:10, minWidth:280, textAlign:"center", justifyContent:"center" }}>
-          {toast.type==="error" ? "❌" : "✅"} {toast.msg}
+        <div style={{ position:"fixed", top:24, left:"50%", transform:"translateX(-50%)", zIndex:99999, background:toast.type==="error"?"#c62828":"#394c76", color:"#fff", padding:"14px 28px", borderRadius:12, fontSize:14, fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:"0 6px 22px rgba(57,76,118,0.3)", display:"flex", alignItems:"center", gap:10, minWidth:280, textAlign:"center", justifyContent:"center" }}>
+          {toast.msg}
         </div>
       )}
       {deleteModal && (
@@ -1138,7 +1137,7 @@ function AdminScreen({ goHome }) {
               <div style={{ fontSize:14, color:"#333", fontFamily:"Georgia,serif", textAlign:"center", marginBottom:6 }}>
                 Are you sure you want to delete:
               </div>
-              <div style={{ fontSize:15, fontWeight:"bold", color:"#c62828", fontFamily:"Georgia,serif", textAlign:"center", marginBottom:16, padding:"10px 14px", background:"#fff3f3", borderRadius:10 }}>
+              <div style={{ fontSize:15, fontWeight:"bold", color:"#c62828", fontFamily:"Georgia,serif", textAlign:"center", marginBottom:16, padding:"10px 14px", background:"#fbeaea", borderRadius:10 }}>
                 {deleteModal.name}
               </div>
               <div style={{ fontSize:12, color:"#999", textAlign:"center", marginBottom:20, fontFamily:"Georgia,serif" }}>
@@ -1239,7 +1238,7 @@ function AdminScreen({ goHome }) {
                     style={{ ...aInput, width:92, padding:"8px 10px", fontSize:13, background:A.goldSoft, border:`1px solid ${A.gold}`, color:A.goldText }} />
                 </div>
                 <button onClick={() => setForm(f=>({...f,addons:f.addons.map((a,i)=>i===ai?{...a,sold_out:!a.sold_out}:a)}))}
-                  style={addon.sold_out ? aChip({ background:A.redSoft, color:A.red, border:"1px solid #eecaca" }) : aChip({ background:A.greenSoft, color:A.green, border:"1px solid #c7e3c9" })}>
+                  style={addon.sold_out ? aChip({ background:A.redSoft, color:A.red, border:"1px solid #eecaca" }) : aChip({ background:A.greenSoft, color:A.green, border:"1px solid #cbd3e0" })}>
                   {addon.sold_out?"Out":"In"}
                 </button>
                 <button onClick={() => setForm(f=>({...f,addons:f.addons.filter((_,i)=>i!==ai)}))}
@@ -1259,7 +1258,7 @@ function AdminScreen({ goHome }) {
             )}
           </div>
           <div style={{ marginTop:18, background:"#f4f6f9", border:`1px solid ${A.line}`, borderRadius:14, padding:16 }}>
-            <div style={{ fontSize:13, color:A.goldText, marginBottom:14, fontWeight:700 }}>⏰ Time-Based Promo <span style={{ color:A.sub, fontWeight:400 }}>(optional)</span></div>
+            <div style={{ fontSize:13, color:A.goldText, marginBottom:14, fontWeight:700 }}>Time-Based Promo <span style={{ color:A.sub, fontWeight:400 }}>(optional)</span></div>
             <div style={{ display:"flex", gap:12, alignItems:"flex-end", flexWrap:"wrap", marginBottom:14 }}>
               <div>
                 <div style={aLabel}>Promo Start</div>
@@ -1296,12 +1295,12 @@ function AdminScreen({ goHome }) {
                 style={aGhost({ border:`1px dashed ${A.gold}`, color:A.goldText, padding:"8px 14px", fontSize:12 })}>+ Add Free Drink Option</button>
             </div>
             <div style={{ fontSize:11, color:A.sub, lineHeight:1.5 }}>
-              💡 Happy Hour Price auto-switches during promo time · Free Drinks: customer picks a free drink when adding this item
+              Happy Hour Price auto-switches during promo time · Free Drinks: customer picks a free drink when adding this item
             </div>
           </div>
           <div style={{ display:"flex", gap:10, marginTop:20, justifyContent:"flex-end" }}>
             <button onClick={() => setShowForm(false)} style={aGhost({ padding:"11px 22px" })}>Cancel</button>
-            <button onClick={handleSave} style={aPrimary({ padding:"11px 30px", fontSize:14 })}>{editItem ? "Save Changes" : "Add Item"} ✓</button>
+            <button onClick={handleSave} style={aPrimary({ padding:"11px 30px", fontSize:14 })}>{editItem ? "Save Changes" : "Add Item"}</button>
           </div>
         </div>
         </div>
@@ -1309,7 +1308,7 @@ function AdminScreen({ goHome }) {
       <div ref={scrollRef} style={{ flex:1, padding:18, overflowY:"auto" }}>
         {showChargeForm && (
           <div style={{ background:A.panel, border:`1px solid ${A.line}`, borderRadius:14, padding:20, marginBottom:20, boxShadow:A.shadow }}>
-            <div className="hl-title" style={{ fontSize:16, color:A.text, fontWeight:700, marginBottom:16 }}>💰 Service Charge Settings</div>
+            <div className="hl-title" style={{ fontSize:16, color:A.text, fontWeight:700, marginBottom:16 }}>Service Charge Settings</div>
             <div style={{ display:"flex", gap:14, alignItems:"flex-end", flexWrap:"wrap" }}>
               <div>
                 <div style={aLabel}>Service Charge (%)</div>
@@ -1318,33 +1317,33 @@ function AdminScreen({ goHome }) {
                   style={{ ...aInput, width:110, fontSize:16, fontWeight:700 }} />
               </div>
               <button onClick={() => { localStorage.setItem("service_charge", chargeVal); setShowChargeForm(false); }}
-                style={aPrimary()}>Save ✓</button>
+                style={aPrimary()}>Save</button>
               <button onClick={() => setShowChargeForm(false)}
                 style={aGhost()}>Cancel</button>
             </div>
-            <div style={{ fontSize:11, color:A.sub, marginTop:12 }}>💡 Set to 0 for no service charge. Current: {parseFloat(localStorage.getItem("service_charge")||"10")}%</div>
+            <div style={{ fontSize:11, color:A.sub, marginTop:12 }}>Set to 0 for no service charge. Current: {parseFloat(localStorage.getItem("service_charge")||"10")}%</div>
           </div>
         )}
         {showPwForm && (
           <div style={{ background:A.panel, border:`1px solid ${A.line}`, borderRadius:14, padding:20, marginBottom:20, boxShadow:A.shadow }}>
-            <div className="hl-title" style={{ fontSize:16, color:A.text, fontWeight:700, marginBottom:16 }}>🔑 Change Passwords</div>
+            <div className="hl-title" style={{ fontSize:16, color:A.text, fontWeight:700, marginBottom:16 }}>Change Passwords</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(260px,1fr))", gap:16 }}>
               <div style={{ background:"#f4f6f9", border:`1px solid ${A.line}`, borderRadius:12, padding:16 }}>
-                <div style={{ fontSize:13, color:A.text, marginBottom:10, fontWeight:700 }}>🔐 Staff Home PIN</div>
+                <div style={{ fontSize:13, color:A.text, marginBottom:10, fontWeight:700 }}>Staff Home PIN</div>
                 <input type="password" placeholder="New PIN" value={newStaffPin} onChange={e=>setNewStaffPin(e.target.value)}
                   style={{ ...aInput, marginBottom:10 }} />
                 <button onClick={() => { if(newStaffPin){ localStorage.setItem("staff_pin", newStaffPin); setNewStaffPin(""); showToast("Staff PIN updated! Reload page to apply."); }}}
                   style={aPrimary({ width:"100%" })}>Save PIN</button>
               </div>
               <div style={{ background:"#f4f6f9", border:`1px solid ${A.line}`, borderRadius:12, padding:16 }}>
-                <div style={{ fontSize:13, color:A.text, marginBottom:10, fontWeight:700 }}>⚙️ Admin Password</div>
+                <div style={{ fontSize:13, color:A.text, marginBottom:10, fontWeight:700 }}>Admin Password</div>
                 <input type="password" placeholder="New Password" value={newAdminPw} onChange={e=>setNewAdminPw(e.target.value)}
                   style={{ ...aInput, marginBottom:10 }} />
                 <button onClick={() => { if(newAdminPw){ localStorage.setItem("admin_pw", newAdminPw); setNewAdminPw(""); showToast("Admin password updated! Reload page to apply."); }}}
                   style={aPrimary({ width:"100%" })}>Save Password</button>
               </div>
             </div>
-            <div style={{ fontSize:11, color:A.sub, marginTop:12 }}>💡 Passwords saved on this device. Reload page after changing.</div>
+            <div style={{ fontSize:11, color:A.sub, marginTop:12 }}>Passwords saved on this device. Reload page after changing.</div>
           </div>
         )}
         {loading ? <div style={{ color:A.sub, textAlign:"center", padding:40 }}>Loading…</div> :
@@ -2530,7 +2529,7 @@ function KitchenScreen({ goHome }) {
           <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="hat" size={19} color="#fff" /></div>
           <div>
             <div className="hl-title" style={{ fontSize:19, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Kitchen Screen</div>
-            <div style={{ fontSize:11, color:"#aeb8cc", display:"flex", alignItems:"center", gap:5 }}><span style={{ width:7, height:7, borderRadius:"50%", background:"#4caf50", display:"inline-block" }} /> Live — updates instantly</div>
+            <div style={{ fontSize:11, color:"#aeb8cc", display:"flex", alignItems:"center", gap:5 }}><span style={{ width:7, height:7, borderRadius:"50%", background:"#ffffff", display:"inline-block" }} /> Live — updates instantly</div>
           </div>
         </div>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
@@ -2551,7 +2550,7 @@ function KitchenScreen({ goHome }) {
       </div>
       <div style={{ flex:1, padding:16, overflowY:"auto" }}>
         <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:700 }}>Pending Food ({pending.length})</div>
-        {pending.length===0 && <div style={{ color:C.muted, textAlign:"center", padding:40 }}>All clear! ✅</div>}
+        {pending.length===0 && <div style={{ color:C.muted, textAlign:"center", padding:40 }}>All clear!</div>}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(260px,1fr))", gap:14, marginBottom:24 }}>
           {pending.map(order => (
             <div key={order.id} onClick={() => setKitchenDetailModal(order.id)}
@@ -2582,7 +2581,7 @@ function KitchenScreen({ goHome }) {
                 )}
               </div>
               <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"flex-end" }}>
-                <button onClick={e => { e.stopPropagation(); markDone(order.id); }} style={btn({ background:C.goldGrad, border:"none", color:C.dark, padding:"8px 20px", fontSize:14, fontWeight:"bold" })}>Done ✓</button>
+                <button onClick={e => { e.stopPropagation(); markDone(order.id); }} style={btn({ background:C.goldGrad, border:"none", color:C.dark, padding:"8px 20px", fontSize:14, fontWeight:"bold" })}>Done</button>
               </div>
             </div>
           ))}
@@ -2658,7 +2657,7 @@ function KitchenScreen({ goHome }) {
             {liveOrder.status === "pending" ? (
               <button onClick={() => { markDone(liveOrder.id); setKitchenDetailModal(null); }}
                 style={btn({ width:"100%", background:C.goldGrad, border:"none", color:"#fff", padding:"16px 0", fontSize:20, fontWeight:"bold", borderRadius:14, boxShadow:"0 4px 12px rgba(138,98,24,0.3)" })}>
-                ✓ Mark as Done
+                Mark as Done
               </button>
             ) : (
               <div style={{ textAlign:"center", color:"#394c76", fontSize:18, fontWeight:"bold", padding:"14px 0" }}>Already Done</div>
@@ -2723,9 +2722,9 @@ function SalesScreen({ goHome }) {
 
   if (!pinOk) return (
     <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif" }}>
-      <div style={{ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:16, padding:32, width:"100%", maxWidth:320, textAlign:"center" }}>
-        <div style={{ fontSize:28, marginBottom:8 }}>🔐</div>
-        <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:6 }}>Sales Access</div>
+      <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:18, padding:32, width:"100%", maxWidth:320, textAlign:"center", boxShadow:C.shadow }}>
+        <div style={{ width:56, height:56, margin:"0 auto 14px", borderRadius:16, background:"#eef1f6", display:"flex", alignItems:"center", justifyContent:"center" }}><Icon name="lock" size={26} color="#394c76" /></div>
+        <div className="hl-title" style={{ fontSize:18, color:C.text, fontWeight:700, marginBottom:6 }}>Sales Access</div>
         <div style={{ fontSize:13, color:C.muted, marginBottom:20 }}>Enter password to view sales</div>
         <input type="password" value={pinVal} autoFocus
           onChange={e=>{setPinVal(e.target.value);setPinErr(false);}}
@@ -2888,7 +2887,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
         <div className="hl-title" style={{ fontSize:20, fontWeight:800, color:hasPending?C.goldLight:"#394c76" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
         <div style={{ display:"flex", gap:6, alignItems:"center" }}>
           {data.pending.length>0 && <span style={{ background:"#e3e7f0", color:C.goldLight, borderRadius:6, padding:"3px 10px", fontSize:12, fontWeight:700 }}>{data.pending.length} pending</span>}
-          {data.done.length>0 && <span style={{ background:"#eef1f6", color:"#394c76", borderRadius:6, padding:"3px 10px", fontSize:12, fontWeight:700 }}>✅ {data.done.length} done</span>}
+          {data.done.length>0 && <span style={{ background:"#eef1f6", color:"#394c76", borderRadius:6, padding:"3px 10px", fontSize:12, fontWeight:700 }}>{data.done.length} done</span>}
           <span style={{ color:C.muted, fontSize:16, marginLeft:4 }}>↗</span>
         </div>
       </div>
@@ -2935,7 +2934,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#394c76", fontWeight:"bold", flex:1 }}>{isPending?"Pending":"Served"} · {order.time}</span>
                       {isPending && <>
-                        <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:100 })}>✓ Done</button>
+                        <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:100 })}>Done</button>
                         <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
                       </>}
                     </div>
@@ -3006,18 +3005,21 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
   const [detailTab, setDetailTab] = useState("drinks");
   const ordersToShow = detailTab === "drinks" ? drinkOrders : detailTab === "food" ? foodOrders : allOrders;
   return (
-    <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.95)", zIndex:9000, display:"flex", flexDirection:"column" }}>
+    <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:C.bg, zIndex:9000, display:"flex", flexDirection:"column" }}>
       {/* Header */}
-      <div style={{ background:hasPending?"#eef1f6":"#eef1f6", padding:"14px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${hasPending?C.gold:"#394c76"}`, flexShrink:0 }}>
-        <div>
-          <div style={{ fontSize:26, fontWeight:"bold", color:hasPending?C.goldLight:"#394c76" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
-          <div style={{ fontSize:13, color:C.muted, marginTop:2 }}>
-            {pending.length > 0 && <span style={{ color:C.gold, marginRight:12 }}>{pending.length} pending</span>}
-            {done.length > 0 && <span style={{ color:"#394c76" }}>✅ {done.length} done</span>}
+      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"14px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0, boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:38, height:38, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name={isTakeaway(tableNo)?"bag":"utensils"} size={19} color="#fff" /></div>
+          <div>
+            <div className="hl-title" style={{ fontSize:22, fontWeight:800, color:"#fff" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
+            <div style={{ fontSize:12, color:"#aeb8cc", marginTop:2 }}>
+              {pending.length > 0 && <span style={{ marginRight:12 }}>{pending.length} pending</span>}
+              {done.length > 0 && <span>{done.length} done</span>}
+            </div>
           </div>
         </div>
         <button onClick={() => setTableDetailModal(null)}
-          style={btn({ background:"rgba(255,255,255,0.1)", border:`1px solid ${C.border}`, color:"#fff", width:46, height:46, fontSize:22, borderRadius:50 })}>✕</button>
+          style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", width:44, height:44, fontSize:20, borderRadius:50 })}>✕</button>
       </div>
 
       {/* Tabs */}
@@ -3042,7 +3044,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                     {order.order_seq && <span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"2px 8px", fontSize:13, fontWeight:"bold" }}>#{order.order_seq}</span>}
-                    <span style={{ color:C.muted, fontSize:13 }}>{isDrink?"☕":"🍳"} · {order.time}</span>
+                    <span style={{ color:C.muted, fontSize:13, display:"flex", alignItems:"center", gap:6 }}><Icon name={isDrink?"coffee":"hat"} size={13} color={C.muted} /> {order.time}</span>
                   </div>
                   <span style={{ background:isPending?"#394c76":"#394c76", color:"#fff", borderRadius:8, padding:"3px 10px", fontSize:12, fontWeight:"bold" }}>
                     {isPending?"Pending":"Served"}
@@ -3068,7 +3070,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
                 {isPending && (
                   <div style={{ display:"flex", gap:10, marginTop:12 }}>
                     <button onClick={() => markOrderDone(order.id)}
-                      style={btn({ flex:1, background:"#394c76", border:"none", color:"#fff", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✓ Mark Done</button>
+                      style={btn({ flex:1, background:"#394c76", border:"none", color:"#fff", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>Mark Done</button>
                     <button onClick={() => cancelOrder(order.id)}
                       style={btn({ flex:1, background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✕ Cancel</button>
                   </div>
@@ -3323,7 +3325,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                               onChange={e=>setEditingPrice(p=>({...p,price:e.target.value}))}
                               style={{ width:70,background:C.bg,border:`1px solid ${C.gold}`,color:C.text,padding:"3px 6px",borderRadius:6,fontSize:13,outline:"none" }} />
                             <button onClick={()=>updateExistingPrice(order,ii,editingPrice.price)}
-                              style={btn({ background:C.gold,border:"none",color:C.dark,padding:"3px 8px",fontSize:11,fontWeight:"bold",borderRadius:6 })}>✅</button>
+                              style={btn({ background:C.gold,border:"none",color:"#fff",padding:"4px 9px",fontSize:11,fontWeight:"bold",borderRadius:6,display:"flex",alignItems:"center" })}><Icon name="check" size={13} color="#fff" stroke={2.5} /></button>
                             <button onClick={()=>setEditingPrice(null)}
                               style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,padding:"3px 6px",fontSize:11,borderRadius:6 })}>✕</button>
                           </div>
@@ -3350,7 +3352,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                           placeholder="e.g. no sugar, less ice..."
                           style={{ flex:1,background:C.bg,border:`1px solid ${C.gold}`,color:C.text,padding:"6px 10px",borderRadius:8,fontSize:13,outline:"none" }} />
                         <button onClick={()=>updateExistingNote(order,ii,editingNote.note)}
-                          style={btn({ background:C.gold,border:"none",color:C.dark,padding:"6px 12px",fontSize:12,fontWeight:"bold",borderRadius:8 })}>✅</button>
+                          style={btn({ background:C.gold,border:"none",color:"#fff",padding:"6px 11px",fontSize:12,fontWeight:"bold",borderRadius:8,display:"flex",alignItems:"center" })}><Icon name="check" size={14} color="#fff" stroke={2.5} /></button>
                         <button onClick={()=>setEditingNote(null)}
                           style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,padding:"6px 10px",fontSize:12,borderRadius:8 })}>✕</button>
                       </div>
@@ -3370,7 +3372,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                         border:`1.5px solid ${item.is_takeaway?"#394c76":C.border}`,
                         borderRadius:8,padding:"5px 10px",transition:"all 0.15s" }}>
                       <div style={{ width:18,height:18,borderRadius:5,border:`2px solid ${item.is_takeaway?"#394c76":C.muted}`,background:item.is_takeaway?"#394c76":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-                        {item.is_takeaway && <span style={{ color:"#fff",fontSize:11,fontWeight:"bold",lineHeight:1 }}>✓</span>}
+                        {item.is_takeaway && <Icon name="check" size={12} color="#fff" stroke={2.6} />}
                       </div>
                       <span style={{ fontSize:12,color:item.is_takeaway?"#394c76":C.muted,fontWeight:item.is_takeaway?"bold":"normal",display:"flex",alignItems:"center",gap:5 }}><Icon name="bag" size={12} color={item.is_takeaway?"#394c76":C.muted} /> Takeaway</span>
                     </div>
@@ -3441,7 +3443,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                         border:`1.5px solid ${item.is_takeaway?"#394c76":C.border}`,
                         borderRadius:7,padding:"4px 9px",transition:"all 0.15s" }}>
                       <div style={{ width:16,height:16,borderRadius:4,border:`2px solid ${item.is_takeaway?"#394c76":C.muted}`,background:item.is_takeaway?"#394c76":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-                        {item.is_takeaway && <span style={{ color:"#fff",fontSize:10,fontWeight:"bold",lineHeight:1 }}>✓</span>}
+                        {item.is_takeaway && <Icon name="check" size={11} color="#fff" stroke={2.6} />}
                       </div>
                       <span style={{ fontSize:11,color:item.is_takeaway?"#394c76":C.muted,fontWeight:item.is_takeaway?"bold":"normal",display:"flex",alignItems:"center",gap:5 }}><Icon name="bag" size={11} color={item.is_takeaway?"#394c76":C.muted} /> Takeaway</span>
                     </div>
@@ -3454,7 +3456,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
               </div>
               <button onClick={saveNewItems} disabled={saving}
                 style={btn({ width:"100%",background:C.goldGrad,border:"none",color:C.dark,padding:"16px 0",fontSize:15,fontWeight:"bold",borderRadius:12 })}>
-                {saving?"Saving…":`✅ Send to Kitchen — RM ${cartTotal.toFixed(2)} (${cart.reduce((s,i)=>s+i.qty,0)} items)`}
+                {saving?"Saving…":`Send to Kitchen — RM ${cartTotal.toFixed(2)} (${cart.reduce((s,i)=>s+i.qty,0)} items)`}
               </button>
             </div>
           )}
@@ -3482,7 +3484,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                   }} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",marginBottom:8,borderRadius:10,border:`2px solid ${selected?C.gold:C.border}`,background:selected?"#eef1f6":C.bg,cursor:"pointer" }}>
                     <div style={{ display:"flex",alignItems:"center",gap:10 }}>
                       <div style={{ width:22,height:22,borderRadius:addonPicker.addon_required?11:5,border:`2px solid ${selected?C.gold:C.border}`,background:selected?C.gold:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-                        {selected && <span style={{ color:C.dark,fontSize:13,fontWeight:"bold" }}>✓</span>}
+                        {selected && <Icon name="check" size={14} color="#fff" stroke={2.6} />}
                       </div>
                       <span style={{ color:C.text,fontSize:14 }}>{addon.name}</span>
                     </div>
@@ -3498,7 +3500,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                 {addonPicker.addon_required && pickerAddons.length===0 ? "Please select one ↑" : (() => {
                   const addonTotal = pickerAddons.reduce((s,a)=>s+parseFloat(a.price||0),0);
                   const base = addonPicker.addon_required ? 0 : parseFloat(addonPicker.price);
-                  return `✅ Add to Cart — RM ${(base+addonTotal).toFixed(2)}`;
+                  return `Add to Cart — RM ${(base+addonTotal).toFixed(2)}`;
                 })()}
               </button>
             </div>
@@ -3876,9 +3878,9 @@ function CashierScreen({ goHome }) {
                       placeholder={`e.g. ${Math.ceil(rounded/5)*5}.00`}
                       style={{ width:"100%", border:"2px solid #394c76", borderRadius:8, padding:"10px 14px", fontSize:22, textAlign:"right", boxSizing:"border-box", color:"#1a1a1a" }} />
                     {cash >= rounded && (
-                      <div style={{ marginTop:8, background:"#e8f5e9", borderRadius:8, padding:"10px 14px", display:"flex", justifyContent:"space-between" }}>
-                        <span style={{ color:"#2e7d32", fontSize:14, fontWeight:"bold", fontFamily:"Georgia,serif" }}>Change</span>
-                        <span style={{ color:"#2e7d32", fontSize:22, fontWeight:"bold", fontFamily:"Georgia,serif" }}>RM {change.toFixed(2)}</span>
+                      <div style={{ marginTop:8, background:"#eef1f6", borderRadius:8, padding:"10px 14px", display:"flex", justifyContent:"space-between" }}>
+                        <span style={{ color:"#394c76", fontSize:14, fontWeight:"bold", fontFamily:"Georgia,serif" }}>Change</span>
+                        <span style={{ color:"#394c76", fontSize:22, fontWeight:"bold", fontFamily:"Georgia,serif" }}>RM {change.toFixed(2)}</span>
                       </div>
                     )}
                   </div>
@@ -3969,9 +3971,8 @@ function CashierScreen({ goHome }) {
               </div>
 
               {/* Warning */}
-              <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"#fff3e0", borderRadius:10, marginBottom:16 }}>
-                <span style={{ fontSize:18 }}>⚠️</span>
-                <span style={{ fontSize:12, color:"#e65100", fontFamily:"Georgia,serif", lineHeight:1.4 }}>This will print the receipt and <strong>clear the table</strong>. Cannot be undone!</span>
+              <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"#eef1f6", borderRadius:10, marginBottom:16, border:"1px solid #d6dbe2" }}>
+                <span style={{ fontSize:12, color:"#394c76", fontFamily:"Georgia,serif", lineHeight:1.4 }}>This will print the receipt and <strong>clear the table</strong>. Cannot be undone!</span>
               </div>
 
               {/* Buttons */}
@@ -3999,7 +4000,7 @@ function CashierScreen({ goHome }) {
           <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="card" size={19} color="#fff" /></div>
           <div>
             <div className="hl-title" style={{ fontSize:18, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Cashier</div>
-            <div style={{ fontSize:11, color:"#aeb8cc", display:"flex", alignItems:"center", gap:5 }}><span style={{ width:7, height:7, borderRadius:"50%", background:"#4caf50", display:"inline-block" }} /> Live — updates instantly</div>
+            <div style={{ fontSize:11, color:"#aeb8cc", display:"flex", alignItems:"center", gap:5 }}><span style={{ width:7, height:7, borderRadius:"50%", background:"#ffffff", display:"inline-block" }} /> Live — updates instantly</div>
           </div>
         </div>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
@@ -4061,7 +4062,7 @@ function CashierScreen({ goHome }) {
                   {waiterCalls.map(c => (
                     <div key={c.table_no} style={{ background:"#eef1f6", border:"1.5px solid #394c76", borderRadius:10, padding:"10px 16px", display:"flex", alignItems:"center", gap:12 }}>
                       <div><div style={{ fontWeight:"bold", color:"#394c76", fontSize:15 }}>Table {c.table_no}</div><div style={{ fontSize:11, color:C.muted }}>{c.time}</div></div>
-                      <button onClick={() => dismissWaiter(c.table_no)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"6px 12px", fontSize:12, fontWeight:"bold" })}>Done ✓</button>
+                      <button onClick={() => dismissWaiter(c.table_no)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"6px 12px", fontSize:12, fontWeight:"bold" })}>Done</button>
                     </div>
                   ))}
                 </div>
