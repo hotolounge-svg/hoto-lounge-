@@ -1029,10 +1029,22 @@ function AdminScreen({ goHome }) {
   };
   const toggleAvailable = async (item) => { await supabase.from("menu_items").update({ is_available: item.is_available===false }).eq("id", item.id); fetchItems(); };
 
-
+  // ── Admin light theme (self-contained; global dark C untouched) ──
+  const A = {
+    bg:"#f3efe8", panel:"#ffffff", line:"#e5ded1", text:"#231b11", sub:"#736753",
+    gold:"#a9761f", goldText:"#8a6218", goldSoft:"#f6ecd6",
+    green:"#2e7d32", greenSoft:"#e8f4e9", red:"#c62828", redSoft:"#fbe9e9",
+    shadow:"0 4px 16px rgba(70,52,22,0.10)"
+  };
+  const aInput = { width:"100%", background:"#fbf9f5", border:`1px solid ${A.line}`, color:A.text, padding:"10px 12px", borderRadius:9, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", outline:"none" };
+  const aLabel = { fontSize:11, color:A.sub, marginBottom:5, fontWeight:600, letterSpacing:0.4 };
+  const aPrimary = (x={}) => ({ fontFamily:"Georgia,serif", cursor:"pointer", border:"none", background:"linear-gradient(135deg,#c19a3f,#8a6218)", color:"#fff", padding:"10px 20px", fontSize:13, fontWeight:700, borderRadius:10, letterSpacing:0.3, boxShadow:"0 3px 10px rgba(138,98,24,0.28)", ...x });
+  const aGhost = (x={}) => ({ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:`1px solid ${A.line}`, color:A.sub, padding:"9px 16px", fontSize:13, fontWeight:600, borderRadius:10, ...x });
+  const aToggle = { fontFamily:"Georgia,serif", cursor:"pointer", padding:"8px 16px", fontSize:13, fontWeight:700, borderRadius:9 };
+  const aChip = (x={}) => ({ fontFamily:"Georgia,serif", cursor:"pointer", padding:"7px 13px", fontSize:12, fontWeight:700, borderRadius:8, ...x });
 
   return (
-    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
+    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:A.bg, color:A.text, fontFamily:"Georgia,serif" }}>
       {toast && (
         <div style={{ position:"fixed", top:24, left:"50%", transform:"translateX(-50%)", zIndex:99999, background:toast.type==="error"?"#c62828":"#2e7d32", color:"#fff", padding:"14px 28px", borderRadius:12, fontSize:14, fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:"0 4px 20px rgba(0,0,0,0.4)", display:"flex", alignItems:"center", gap:10, minWidth:280, textAlign:"center", justifyContent:"center" }}>
           {toast.type==="error" ? "❌" : "✅"} {toast.msg}
@@ -1057,11 +1069,11 @@ function AdminScreen({ goHome }) {
               </div>
               <div style={{ display:"flex", gap:10 }}>
                 <button onClick={() => setDeleteModal(null)}
-                  style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"13px 0", fontSize:14, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
+                  style={{ flex:1, background:"#f2ede4", border:"1px solid #e0d8ca", color:"#5a5145", padding:"11px 0", fontSize:14, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
                   Cancel
                 </button>
                 <button onClick={confirmDelete}
-                  style={{ flex:1, background:"linear-gradient(135deg,#c62828,#8b0000)", border:"none", color:"#fff", padding:"13px 0", fontSize:14, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:"0 4px 12px rgba(198,40,40,0.4)" }}>
+                  style={{ flex:1, background:"linear-gradient(135deg,#d33,#a11)", border:"none", color:"#fff", padding:"11px 0", fontSize:14, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:"0 4px 12px rgba(198,40,40,0.35)" }}>
                   🗑️ Delete
                 </button>
               </div>
@@ -1069,218 +1081,226 @@ function AdminScreen({ goHome }) {
           </div>
         </div>
       )}
-      <div style={{ background:C.panelGrad, borderBottom:`2px solid ${C.gold}`, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 18px rgba(0,0,0,0.35)" }}>
-        <div className="hl-title" style={{ fontSize:21, color:C.goldLight, fontWeight:700, letterSpacing:0.5 }}>⚙️ Menu Management</div>
-        <div style={{ display:"flex", gap:10 }}>
-          <button onClick={openAdd} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>+ Add Item</button>
-          <button onClick={() => setShowPwForm(s=>!s)} style={btn({ background:showPwForm?"#2d6a2d":"transparent", border:`1px solid ${showPwForm?"#5aaa5a":C.border}`, color:showPwForm?"#aaffaa":C.muted, padding:"8px 12px", fontSize:13 })}>🔑 Passwords</button>
-          <button onClick={() => setShowChargeForm(s=>!s)} style={btn({ background:showChargeForm?"#4a3010":"transparent", border:`1px solid ${showChargeForm?C.gold:C.border}`, color:showChargeForm?C.goldLight:C.muted, padding:"8px 12px", fontSize:13 })}>💰 Charges</button>
-          <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"8px 12px", fontSize:13 })}>← Back</button>
+      <div style={{ background:A.panel, borderBottom:`2px solid ${A.gold}`, padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 2px 12px rgba(70,52,22,0.08)", position:"sticky", top:0, zIndex:50, flexWrap:"wrap", gap:10 }}>
+        <div className="hl-title" style={{ fontSize:22, color:A.text, fontWeight:700, letterSpacing:0.3 }}>⚙️ Menu <span style={{ color:A.gold }}>Management</span></div>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+          <button onClick={openAdd} style={aPrimary()}>+ Add Item</button>
+          <button onClick={() => setShowPwForm(s=>!s)} style={showPwForm ? aGhost({ background:A.goldSoft, border:`1px solid ${A.gold}`, color:A.goldText }) : aGhost()}>🔑 Passwords</button>
+          <button onClick={() => setShowChargeForm(s=>!s)} style={showChargeForm ? aGhost({ background:A.goldSoft, border:`1px solid ${A.gold}`, color:A.goldText }) : aGhost()}>💰 Charges</button>
+          <button onClick={goHome} style={aGhost()}>← Back</button>
         </div>
       </div>
       {showForm && (
-        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.75)", zIndex:2000, display:"flex", alignItems:"flex-start", justifyContent:"center", overflowY:"auto", padding:"20px 0" }}>
-        <div style={{ background:"#0a0804", border:`2px solid ${C.gold}`, borderRadius:16, padding:20, width:"100%", maxWidth:900, margin:"auto", position:"relative" }}>
-          <button onClick={() => setShowForm(false)} style={{ position:"absolute", top:12, right:12, background:"transparent", border:"none", color:C.muted, fontSize:24, cursor:"pointer", fontFamily:"Georgia,serif" }}>✕</button>
-          <div style={{ fontSize:16, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>{editItem ? "Edit Item" : "Add New Item"}</div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:12 }}>
+        <div style={{ position:"fixed", inset:0, background:"rgba(30,20,8,0.5)", WebkitBackdropFilter:"blur(3px)", backdropFilter:"blur(3px)", zIndex:2000, display:"flex", alignItems:"flex-start", justifyContent:"center", overflowY:"auto", padding:"24px 12px" }}>
+        <div style={{ background:A.panel, border:`1px solid ${A.line}`, borderRadius:18, padding:24, width:"100%", maxWidth:900, margin:"auto", position:"relative", boxShadow:"0 24px 70px rgba(0,0,0,0.35)" }}>
+          <button onClick={() => setShowForm(false)} style={{ position:"absolute", top:14, right:14, background:"#f2ede4", border:"none", color:A.sub, fontSize:19, cursor:"pointer", fontFamily:"Georgia,serif", width:36, height:36, borderRadius:50 }}>✕</button>
+          <div className="hl-title" style={{ fontSize:20, color:A.text, fontWeight:700, marginBottom:18 }}>{editItem ? "Edit Item" : "Add New Item"}</div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:14 }}>
             {[["Item No.","item_no","e.g. A1"],["Item Name","name","e.g. Latte"],["Price (RM)","price","e.g. 8.00"],["Emoji","emoji","e.g. ☕"],["Description","description","Short description"]].map(([label,key,ph]) => (
               <div key={key}>
-                <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>{label}</div>
+                <div style={aLabel}>{label}</div>
                 <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]:e.target.value }))} placeholder={ph} type={key==="price"?"number":"text"} step={key==="price"?"0.10":undefined}
-                  style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box" }} />
+                  style={aInput} />
               </div>
             ))}
             <div>
-              <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Category</div>
+              <div style={aLabel}>Category</div>
               <select value={form.category} onChange={e => setForm(f => ({ ...f, category:e.target.value }))}
-                style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box" }}>
+                style={{ ...aInput, cursor:"pointer" }}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-              <div style={{ fontSize:11, color:C.muted }}>Availability</div>
+            <div style={{ display:"flex", flexDirection:"column", justifyContent:"flex-end", gap:6 }}>
+              <div style={aLabel}>Availability</div>
               <button onClick={() => setForm(f => ({ ...f, is_available:!f.is_available }))}
-                style={btn({ background:form.is_available?"#2d6a2d":"#6a2d2d", border:`1px solid ${form.is_available?"#5aaa5a":"#cc4444"}`, color:form.is_available?"#aaffaa":"#ff7777", padding:"6px 16px", fontSize:13, fontWeight:"bold" })}>
+                style={form.is_available
+                  ? { ...aToggle, background:A.green, color:"#fff", border:"none" }
+                  : { ...aToggle, background:A.redSoft, color:A.red, border:"1px solid #e6b8b8" }}>
                 {form.is_available ? "✅ Available" : "❌ Sold Out"}
               </button>
             </div>
-            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-              <div style={{ fontSize:11, color:C.muted }}>Best Seller</div>
+            <div style={{ display:"flex", flexDirection:"column", justifyContent:"flex-end", gap:6 }}>
+              <div style={aLabel}>Best Seller</div>
               <button onClick={() => setForm(f => ({ ...f, is_best_seller:!f.is_best_seller }))}
-                style={btn({ background:form.is_best_seller?"#8a0008":"transparent", border:`1px solid ${form.is_best_seller?"#e8000d":C.border}`, color:form.is_best_seller?"#fff":C.muted, padding:"6px 16px", fontSize:13, fontWeight:"bold" })}>
-                {form.is_best_seller ? "👍 BEST SELLER ON" : "⬜ Best Seller OFF"}
+                style={form.is_best_seller
+                  ? { ...aToggle, background:"#c0392b", color:"#fff", border:"none" }
+                  : { ...aToggle, background:"#fff", color:A.sub, border:`1px solid ${A.line}` }}>
+                {form.is_best_seller ? "👍 Best Seller ON" : "⬜ Best Seller OFF"}
               </button>
             </div>
           </div>
-          <div style={{ marginTop:14 }}>
-            <div style={{ fontSize:11, color:C.muted, marginBottom:6 }}>Food Image</div>
+          <div style={{ marginTop:18 }}>
+            <div style={aLabel}>Food Image</div>
             <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
-              {form.image_url && <img src={form.image_url} alt="preview" style={{ width:80, height:80, objectFit:"cover", borderRadius:10, border:`1px solid ${C.gold}` }} />}
-              <button onClick={() => fileRef.current.click()} style={btn({ background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:"8px 16px", fontSize:13 })}>{uploading ? "Uploading..." : "📷 Upload Image"}</button>
+              {form.image_url && <img src={form.image_url} alt="preview" style={{ width:80, height:80, objectFit:"cover", borderRadius:12, border:`1px solid ${A.line}` }} />}
+              <button onClick={() => fileRef.current.click()} style={aGhost({ border:`1px solid ${A.gold}`, color:A.goldText })}>{uploading ? "Uploading..." : "📷 Upload Image"}</button>
               <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleUpload} />
-              {form.image_url && <button onClick={() => setForm(f => ({ ...f, image_url:"" }))} style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"8px 12px", fontSize:12 })}>Remove</button>}
+              {form.image_url && <button onClick={() => setForm(f => ({ ...f, image_url:"" }))} style={aChip({ background:A.redSoft, color:A.red, border:"1px solid #eecaca" })}>Remove</button>}
             </div>
           </div>
           {/* Add-ons section */}
-          <div style={{ marginTop:16 }}>
-            <div style={{ fontSize:13, color:C.muted, marginBottom:8, fontWeight:"bold" }}>➕ Add-ons (optional extras customer can select)</div>
+          <div style={{ marginTop:22, background:"#faf7f1", border:`1px solid ${A.line}`, borderRadius:14, padding:16 }}>
+            <div style={{ fontSize:13, color:A.text, marginBottom:12, fontWeight:700 }}>➕ Add-ons <span style={{ color:A.sub, fontWeight:400 }}>(optional extras customer can select)</span></div>
             {(form.addons||[]).map((addon, ai) => (
-              <div key={ai} style={{ display:"flex", gap:8, alignItems:"center", marginBottom:8, flexWrap:"wrap" }}>
-                <input value={addon.name} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],name:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="e.g. Tiger Beer"
-                  style={{ flex:2, minWidth:120, background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"7px 12px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
-                <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-                  <div style={{ fontSize:10, color:C.muted }}>Normal Price</div>
-                  <input value={addon.price} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],price:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="RM" type="number" step="0.50"
-                    style={{ width:90, background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"7px 10px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
+              <div key={ai} style={{ display:"flex", gap:8, alignItems:"flex-end", marginBottom:10, flexWrap:"wrap" }}>
+                <div style={{ flex:2, minWidth:120 }}>
+                  <div style={{ fontSize:10, color:A.sub, marginBottom:3 }}>Name</div>
+                  <input value={addon.name} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],name:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="e.g. Tiger Beer"
+                    style={{ ...aInput, padding:"8px 11px", fontSize:13 }} />
                 </div>
-                <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-                  <div style={{ fontSize:10, color:"#e8c77a" }}>Happy Hour Price</div>
+                <div>
+                  <div style={{ fontSize:10, color:A.sub, marginBottom:3 }}>Normal Price</div>
+                  <input value={addon.price} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],price:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="RM" type="number" step="0.50"
+                    style={{ ...aInput, width:92, padding:"8px 10px", fontSize:13 }} />
+                </div>
+                <div>
+                  <div style={{ fontSize:10, color:A.goldText, marginBottom:3, fontWeight:600 }}>Happy Hour</div>
                   <input value={addon.promo_price||""} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],promo_price:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="optional" type="number" step="0.50"
-                    style={{ width:90, background:"#1a1208", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 10px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
+                    style={{ ...aInput, width:92, padding:"8px 10px", fontSize:13, background:A.goldSoft, border:`1px solid ${A.gold}`, color:A.goldText }} />
                 </div>
                 <button onClick={() => setForm(f=>({...f,addons:f.addons.map((a,i)=>i===ai?{...a,sold_out:!a.sold_out}:a)}))}
-                  style={btn({ background:addon.sold_out?"#6a2d2d":"transparent", border:`1px solid ${addon.sold_out?"#cc4444":C.border}`, color:addon.sold_out?"#ff7777":C.muted, padding:"6px 10px", fontSize:12, fontWeight:"bold" })}>
-                  {addon.sold_out?"❌ Out":"✅"}
+                  style={addon.sold_out ? aChip({ background:A.redSoft, color:A.red, border:"1px solid #eecaca" }) : aChip({ background:A.greenSoft, color:A.green, border:"1px solid #c7e3c9" })}>
+                  {addon.sold_out?"❌ Out":"✅ In"}
                 </button>
                 <button onClick={() => setForm(f=>({...f,addons:f.addons.filter((_,i)=>i!==ai)}))}
-                  style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"6px 10px", fontSize:13 })}>✕</button>
+                  style={aChip({ background:"#fff", border:`1px solid ${A.line}`, color:A.red })}>✕</button>
               </div>
             ))}
             <button onClick={() => setForm(f=>({...f,addons:[...(f.addons||[]),{name:"",price:""}]}))}
-              style={btn({ background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 16px", fontSize:13 })}>+ Add Option</button>
+              style={aGhost({ border:`1px dashed ${A.gold}`, color:A.goldText, padding:"8px 16px" })}>+ Add Option</button>
             {(form.addons||[]).length > 0 && (
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:10 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:12, flexWrap:"wrap" }}>
                 <button onClick={() => setForm(f=>({...f, addon_required:!f.addon_required}))}
-                  style={btn({ background:form.addon_required?"#2d6a2d":"transparent", border:`1px solid ${form.addon_required?"#5aaa5a":C.border}`, color:form.addon_required?"#aaffaa":C.muted, padding:"6px 14px", fontSize:12, fontWeight:"bold" })}>
+                  style={form.addon_required ? aChip({ background:A.green, color:"#fff", border:"none" }) : aChip({ background:"#fff", color:A.sub, border:`1px solid ${A.line}` })}>
                   {form.addon_required ? "✅ Must Select One" : "⬜ Optional (multi-select)"}
                 </button>
-                <span style={{ fontSize:11, color:C.muted }}>e.g. beer brand = Must Select One</span>
+                <span style={{ fontSize:11, color:A.sub }}>e.g. beer brand = Must Select One</span>
               </div>
             )}
           </div>
-          <div style={{ marginTop:16, background:C.panel, border:`1px solid ${C.border}`, borderRadius:10, padding:14 }}>
-            <div style={{ fontSize:13, color:C.goldLight, marginBottom:12, fontWeight:"bold" }}>⏰ Time-Based Promo (optional)</div>
-            <div style={{ display:"flex", gap:12, alignItems:"flex-end", flexWrap:"wrap", marginBottom:12 }}>
+          <div style={{ marginTop:18, background:"#faf7f1", border:`1px solid ${A.line}`, borderRadius:14, padding:16 }}>
+            <div style={{ fontSize:13, color:A.goldText, marginBottom:14, fontWeight:700 }}>⏰ Time-Based Promo <span style={{ color:A.sub, fontWeight:400 }}>(optional)</span></div>
+            <div style={{ display:"flex", gap:12, alignItems:"flex-end", flexWrap:"wrap", marginBottom:14 }}>
               <div>
-                <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Promo Start</div>
+                <div style={aLabel}>Promo Start</div>
                 <input type="time" value={form.promo_start} onChange={e => setForm(f=>({...f, promo_start:e.target.value}))}
-                  style={{ background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+                  style={{ ...aInput, width:140 }} />
               </div>
               <div>
-                <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Promo End</div>
+                <div style={aLabel}>Promo End</div>
                 <input type="time" value={form.promo_end} onChange={e => setForm(f=>({...f, promo_end:e.target.value}))}
-                  style={{ background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+                  style={{ ...aInput, width:140 }} />
               </div>
               <div>
-                <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Happy Hour Price (RM)</div>
+                <div style={aLabel}>Happy Hour Price (RM)</div>
                 <input type="number" step="0.50" placeholder="e.g. 10.00" value={form.promo_price} onChange={e => setForm(f=>({...f, promo_price:e.target.value}))}
-                  style={{ width:120, background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+                  style={{ ...aInput, width:130 }} />
               </div>
               <div>
-                <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>Promo Label (shown to customer)</div>
+                <div style={aLabel}>Promo Label (shown to customer)</div>
                 <input type="text" placeholder="e.g. Lunch Promo, Happy Hour" value={form.promo_label} onChange={e => setForm(f=>({...f, promo_label:e.target.value}))}
-                  style={{ width:200, background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif" }} />
+                  style={{ ...aInput, width:210 }} />
               </div>
             </div>
             <div style={{ marginBottom:8 }}>
-              <div style={{ fontSize:11, color:C.muted, marginBottom:6 }}>Free Drink Options (e.g. for breakfast promo — customer picks one)</div>
+              <div style={aLabel}>Free Drink Options (e.g. for breakfast promo — customer picks one)</div>
               {(form.promo_drinks||[]).map((drink, di) => (
                 <div key={di} style={{ display:"flex", gap:8, alignItems:"center", marginBottom:6 }}>
                   <input value={drink} onChange={e => { const u=[...form.promo_drinks]; u[di]=e.target.value; setForm(f=>({...f,promo_drinks:u})); }} placeholder="e.g. Coffee"
-                    style={{ flex:1, background:"#1a1208", border:`1px solid ${C.border}`, color:C.text, padding:"7px 12px", borderRadius:8, fontSize:13, fontFamily:"Georgia,serif" }} />
+                    style={{ ...aInput, flex:1, padding:"8px 11px", fontSize:13 }} />
                   <button onClick={() => setForm(f=>({...f,promo_drinks:f.promo_drinks.filter((_,i)=>i!==di)}))}
-                    style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"6px 10px", fontSize:13 })}>✕</button>
+                    style={aChip({ background:"#fff", border:`1px solid ${A.line}`, color:A.red })}>✕</button>
                 </div>
               ))}
               <button onClick={() => setForm(f=>({...f,promo_drinks:[...(f.promo_drinks||[]),""]}))}
-                style={btn({ background:C.panel, border:`1px solid ${C.gold}`, color:C.goldLight, padding:"6px 14px", fontSize:12 })}>+ Add Free Drink Option</button>
+                style={aGhost({ border:`1px dashed ${A.gold}`, color:A.goldText, padding:"8px 14px", fontSize:12 })}>+ Add Free Drink Option</button>
             </div>
-            <div style={{ fontSize:11, color:C.muted }}>
-              💡 Happy Hour Price: auto-switches price during promo time · Free Drinks: customer picks a free drink when adding this item
+            <div style={{ fontSize:11, color:A.sub, lineHeight:1.5 }}>
+              💡 Happy Hour Price auto-switches during promo time · Free Drinks: customer picks a free drink when adding this item
             </div>
           </div>
-          <div style={{ display:"flex", gap:10, marginTop:16 }}>
-            <button onClick={() => setShowForm(false)} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"10px 20px", fontSize:13 })}>Cancel</button>
-            <button onClick={handleSave} style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 28px", fontSize:14, fontWeight:"bold" })}>{editItem ? "Save Changes" : "Add Item"} ✓</button>
+          <div style={{ display:"flex", gap:10, marginTop:20, justifyContent:"flex-end" }}>
+            <button onClick={() => setShowForm(false)} style={aGhost({ padding:"11px 22px" })}>Cancel</button>
+            <button onClick={handleSave} style={aPrimary({ padding:"11px 30px", fontSize:14 })}>{editItem ? "Save Changes" : "Add Item"} ✓</button>
           </div>
         </div>
         </div>
       )}
-      <div ref={scrollRef} style={{ flex:1, padding:16, overflowY:"auto" }}>
+      <div ref={scrollRef} style={{ flex:1, padding:18, overflowY:"auto" }}>
         {showChargeForm && (
-          <div style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:12, padding:20, marginBottom:20 }}>
-            <div style={{ fontSize:15, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>💰 Service Charge Settings</div>
-            <div style={{ display:"flex", gap:16, alignItems:"flex-end", flexWrap:"wrap" }}>
+          <div style={{ background:A.panel, border:`1px solid ${A.line}`, borderRadius:14, padding:20, marginBottom:20, boxShadow:A.shadow }}>
+            <div className="hl-title" style={{ fontSize:16, color:A.text, fontWeight:700, marginBottom:16 }}>💰 Service Charge Settings</div>
+            <div style={{ display:"flex", gap:14, alignItems:"flex-end", flexWrap:"wrap" }}>
               <div>
-                <div style={{ fontSize:11, color:C.muted, marginBottom:6 }}>Service Charge (%)</div>
+                <div style={aLabel}>Service Charge (%)</div>
                 <input type="number" step="0.5" min="0" max="20" value={chargeVal}
                   onChange={e => setChargeVal(e.target.value)}
-                  style={{ width:100, background:C.bg, border:`1px solid ${C.gold}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:16, fontFamily:"Georgia,serif" }} />
+                  style={{ ...aInput, width:110, fontSize:16, fontWeight:700 }} />
               </div>
               <button onClick={() => { localStorage.setItem("service_charge", chargeVal); setShowChargeForm(false); }}
-                style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"10px 24px", fontSize:13, fontWeight:"bold" })}>Save ✓</button>
+                style={aPrimary()}>Save ✓</button>
               <button onClick={() => setShowChargeForm(false)}
-                style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"10px 20px", fontSize:13 })}>Cancel</button>
+                style={aGhost()}>Cancel</button>
             </div>
-            <div style={{ fontSize:11, color:C.muted, marginTop:10 }}>💡 Set to 0 for no service charge. Current: {parseFloat(localStorage.getItem("service_charge")||"10")}%</div>
+            <div style={{ fontSize:11, color:A.sub, marginTop:12 }}>💡 Set to 0 for no service charge. Current: {parseFloat(localStorage.getItem("service_charge")||"10")}%</div>
           </div>
         )}
         {showPwForm && (
-          <div style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:12, padding:20, marginBottom:20 }}>
-            <div style={{ fontSize:15, color:C.goldLight, fontWeight:"bold", marginBottom:16 }}>🔑 Change Passwords</div>
+          <div style={{ background:A.panel, border:`1px solid ${A.line}`, borderRadius:14, padding:20, marginBottom:20, boxShadow:A.shadow }}>
+            <div className="hl-title" style={{ fontSize:16, color:A.text, fontWeight:700, marginBottom:16 }}>🔑 Change Passwords</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(260px,1fr))", gap:16 }}>
-              <div style={{ background:"#1a1208", borderRadius:10, padding:16 }}>
-                <div style={{ fontSize:13, color:C.muted, marginBottom:10, fontWeight:"bold" }}>🔐 Staff Home PIN</div>
+              <div style={{ background:"#faf7f1", border:`1px solid ${A.line}`, borderRadius:12, padding:16 }}>
+                <div style={{ fontSize:13, color:A.text, marginBottom:10, fontWeight:700 }}>🔐 Staff Home PIN</div>
                 <input type="password" placeholder="New PIN" value={newStaffPin} onChange={e=>setNewStaffPin(e.target.value)}
-                  style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:8 }} />
+                  style={{ ...aInput, marginBottom:10 }} />
                 <button onClick={() => { if(newStaffPin){ localStorage.setItem("staff_pin", newStaffPin); setNewStaffPin(""); showToast("Staff PIN updated! Reload page to apply."); }}}
-                  style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>Save PIN</button>
+                  style={aPrimary({ width:"100%" })}>Save PIN</button>
               </div>
-              <div style={{ background:"#1a1208", borderRadius:10, padding:16 }}>
-                <div style={{ fontSize:13, color:C.muted, marginBottom:10, fontWeight:"bold" }}>⚙️ Admin Password</div>
+              <div style={{ background:"#faf7f1", border:`1px solid ${A.line}`, borderRadius:12, padding:16 }}>
+                <div style={{ fontSize:13, color:A.text, marginBottom:10, fontWeight:700 }}>⚙️ Admin Password</div>
                 <input type="password" placeholder="New Password" value={newAdminPw} onChange={e=>setNewAdminPw(e.target.value)}
-                  style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, fontFamily:"Georgia,serif", boxSizing:"border-box", marginBottom:8 }} />
+                  style={{ ...aInput, marginBottom:10 }} />
                 <button onClick={() => { if(newAdminPw){ localStorage.setItem("admin_pw", newAdminPw); setNewAdminPw(""); showToast("Admin password updated! Reload page to apply."); }}}
-                  style={btn({ background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>Save Password</button>
+                  style={aPrimary({ width:"100%" })}>Save Password</button>
               </div>
             </div>
-            <div style={{ fontSize:11, color:C.muted, marginTop:12 }}>💡 Passwords saved on this device. Reload page after changing.</div>
+            <div style={{ fontSize:11, color:A.sub, marginTop:12 }}>💡 Passwords saved on this device. Reload page after changing.</div>
           </div>
         )}
-        {loading ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>Loading...</div> :
+        {loading ? <div style={{ color:A.sub, textAlign:"center", padding:40 }}>Loading…</div> :
           CATEGORIES.map(cat => {
             const catItems = items.filter(i => i.category===cat);
             return (
-              <div key={cat} style={{ marginBottom:24 }}>
-                <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>
-                  {cat} ({catItems.length}) — {DRINK_CATEGORIES.includes(cat) ? "☕ Cashier serves" : "🍳 Kitchen prepares"}
+              <div key={cat} style={{ marginBottom:26 }}>
+                <div style={{ fontSize:12, color:A.sub, letterSpacing:1.5, textTransform:"uppercase", marginBottom:12, fontWeight:700 }}>
+                  {cat} <span style={{ color:A.gold }}>({catItems.length})</span> — {DRINK_CATEGORIES.includes(cat) ? "☕ Cashier serves" : "🍳 Kitchen prepares"}
                 </div>
-                {catItems.length===0 && <div style={{ color:C.border, fontSize:13 }}>No items yet</div>}
-                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {catItems.length===0 && <div style={{ color:"#b3a893", fontSize:13, marginBottom:8 }}>No items yet</div>}
+                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                   {catItems.map(item => (
-                    <div key={item.id} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 16px", display:"flex", alignItems:"center", gap:14 }}>
-                      {item.image_url ? <img src={item.image_url} alt={item.name} style={{ width:56, height:56, objectFit:"cover", borderRadius:8, flexShrink:0 }} />
-                        : <div style={{ width:56, height:56, background:"#241508", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, flexShrink:0 }}>{item.emoji}</div>}
-                      <div style={{ flex:1 }}>
+                    <div key={item.id} style={{ background:A.panel, border:`1px solid ${A.line}`, borderRadius:14, padding:"12px 14px", display:"flex", alignItems:"center", gap:14, boxShadow:A.shadow }}>
+                      {item.image_url ? <img src={item.image_url} alt={item.name} style={{ width:58, height:58, objectFit:"cover", borderRadius:10, flexShrink:0 }} />
+                        : <div style={{ width:58, height:58, background:"#f4efe6", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, flexShrink:0 }}>{item.emoji}</div>}
+                      <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                          <span style={{ background:C.gold, color:C.dark, borderRadius:4, padding:"1px 7px", fontSize:11, fontWeight:"bold" }}>#{item.item_no}</span>
-                          <span style={{ fontWeight:"bold", fontSize:14 }}>{item.name}</span>
-                          {item.is_available===false && <span style={{ background:"#6a2d2d", color:"#ff7777", borderRadius:4, padding:"1px 7px", fontSize:11, fontWeight:"bold" }}>SOLD OUT</span>}
+                          <span style={{ background:A.goldSoft, color:A.goldText, borderRadius:5, padding:"2px 8px", fontSize:11, fontWeight:700 }}>#{item.item_no}</span>
+                          <span className="hl-title" style={{ fontWeight:700, fontSize:15, color:A.text }}>{item.name}</span>
+                          {item.is_available===false && <span style={{ background:A.redSoft, color:A.red, borderRadius:5, padding:"2px 8px", fontSize:11, fontWeight:700 }}>SOLD OUT</span>}
                         </div>
-                        <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{item.description}</div>
-                        <div style={{ fontSize:14, color:C.gold, fontWeight:"bold", marginTop:2 }}>RM {parseFloat(item.price).toFixed(2)}</div>
+                        {item.description && <div style={{ fontSize:12, color:A.sub, marginTop:3 }}>{item.description}</div>}
+                        <div style={{ fontSize:14, color:A.goldText, fontWeight:700, marginTop:3 }}>RM {parseFloat(item.price).toFixed(2)}</div>
                       </div>
-                      <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-                        <button onClick={() => toggleAvailable(item)} style={btn({ background:item.is_available!==false?"#2d6a2d":"#6a2d2d", border:`1px solid ${item.is_available!==false?"#5aaa5a":"#cc4444"}`, color:item.is_available!==false?"#aaffaa":"#ff7777", padding:"5px 10px", fontSize:11, fontWeight:"bold" })}>
+                      <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", justifyContent:"flex-end" }}>
+                        <button onClick={() => toggleAvailable(item)}
+                          style={item.is_available!==false ? aChip({ background:A.greenSoft, color:A.green, border:"1px solid #c7e3c9" }) : aChip({ background:A.redSoft, color:A.red, border:"1px solid #eecaca" })}>
                           {item.is_available!==false ? "✅ Available" : "❌ Sold Out"}
                         </button>
                         <button onClick={() => supabase.from("menu_items").update({ is_best_seller:!item.is_best_seller }).eq("id", item.id).then(fetchItems)}
-                          style={btn({ background:item.is_best_seller?"#8a0008":"transparent", border:`1px solid ${item.is_best_seller?"#e8000d":C.border}`, color:item.is_best_seller?"#fff":C.muted, padding:"5px 10px", fontSize:11, fontWeight:"bold" })}>
+                          style={item.is_best_seller ? aChip({ background:"#c0392b", color:"#fff", border:"none" }) : aChip({ background:"#fff", color:A.sub, border:`1px solid ${A.line}` })}>
                           {item.is_best_seller ? "👍 Best Seller" : "⬜ Best Seller"}
                         </button>
-                        <button onClick={() => openEdit(item)} style={btn({ background:"transparent", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"6px 12px", fontSize:12 })}>✏️ Edit</button>
-                        <button onClick={() => handleDelete(item.id)} style={btn({ background:"transparent", border:"1px solid #cc4444", color:"#ff7777", padding:"6px 12px", fontSize:12 })}>🗑️</button>
+                        <button onClick={() => openEdit(item)} style={aChip({ background:"#fff", border:`1px solid ${A.gold}`, color:A.goldText })}>✏️ Edit</button>
+                        <button onClick={() => handleDelete(item.id)} style={aChip({ background:A.redSoft, border:"1px solid #eecaca", color:A.red })}>🗑️</button>
                       </div>
                     </div>
                   ))}
@@ -1989,7 +2009,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                         setItemModal(null);
                       }, 80);
                     }} disabled={!canAdd}
-                      style={{ flex:1, background:canAdd?"linear-gradient(135deg,#c8973a,#a07020)":"#ccc", border:"none", color:canAdd?"#1a1208":"#fff", padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:50, cursor:canAdd?"pointer":"not-allowed", fontFamily:"Georgia,serif", boxShadow:canAdd?"0 4px 12px rgba(138,90,0,0.35)":"none" }}>
+                      style={{ flex:1, background:canAdd?"linear-gradient(135deg,#c8973a,#a07020)":"#e6e0d6", border:"none", color:canAdd?"#1a1208":"#9a9083", padding:"13px 0", fontSize:17, fontWeight:"bold", borderRadius:50, cursor:canAdd?"pointer":"not-allowed", fontFamily:"Georgia,serif", boxShadow:canAdd?"0 4px 12px rgba(138,90,0,0.35)":"none" }}>
                       {!canAdd && item.addon_required ? t.pleaseSelect : `Add to Order — RM ${totalPrice.toFixed(2)}`}
                     </button>
                   </div>
@@ -2175,7 +2195,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           {/* Sticky Place Order button */}
           <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", paddingBottom:"max(28px, calc(12px + env(safe-area-inset-bottom)))", background:"linear-gradient(to top, rgba(245,245,245,1) 60%, rgba(245,245,245,0))" }}>
             <button onClick={placeOrder} disabled={isSubmitting || cartItems.length === 0}
-              style={{ width:"100%", maxWidth:500, display:"block", margin:"0 auto", background:cartItems.length===0?"#ccc":isSubmitting?"#a0836a":"linear-gradient(135deg,#c8973a,#a07020)", border:"none", color:"#1a1208", padding:"18px 0", fontSize:19, fontWeight:"bold", borderRadius:16, cursor:(isSubmitting||cartItems.length===0)?"not-allowed":"pointer", fontFamily:"Georgia,serif", boxShadow:cartItems.length>0?"0 4px 20px rgba(138,90,0,0.4)":"none" }}>
+              style={{ width:"100%", maxWidth:500, display:"block", margin:"0 auto", background:cartItems.length===0?"#e6e0d6":isSubmitting?"#a0836a":"linear-gradient(135deg,#c8973a,#a07020)", border:"none", color:cartItems.length===0?"#9a9083":"#1a1208", padding:"15px 0", fontSize:18, fontWeight:"bold", borderRadius:16, cursor:(isSubmitting||cartItems.length===0)?"not-allowed":"pointer", fontFamily:"Georgia,serif", boxShadow:cartItems.length>0?"0 4px 20px rgba(138,90,0,0.4)":"none" }}>
               {cartItems.length===0 ? "Add items to order" : isSubmitting ? t.placing : `✓ ${t.placeOrder} · RM ${total.toFixed(2)}`}
             </button>
           </div>
