@@ -21,14 +21,14 @@ const CATEGORIES = ["Beverage", "Food & Snacks", "Desserts", "Add-ons"];
 const DRINK_CATEGORIES = ["Beverage", "Desserts"];
 const FOOD_CATEGORIES = ["Food & Snacks", "Promo", "Add-ons"];
 
-// Staff dark theme — deep espresso & gilded gold
+// Staff / admin LIGHT theme — warm ivory & antique gold (customer order page uses T, untouched)
 const C = {
-  bg:"#231708", panel:"#34240f", border:"#5f4522", gold:"#d4a544", goldLight:"#f2d79a",
-  muted:"#c3a566", text:"#fff8ee", dark:"#160e05",
-  goldGrad:"linear-gradient(135deg,#f2d79a,#d4a544 52%,#a9761f)",
-  panelGrad:"linear-gradient(160deg,#3a2811,#2a1c0c)",
-  shadow:"0 10px 34px rgba(0,0,0,0.5)",
-  glow:"0 0 26px rgba(212,165,68,0.22)"
+  bg:"#f3efe8", panel:"#ffffff", border:"#e5ded1", gold:"#b4842a", goldLight:"#8a6218",
+  muted:"#7c7060", text:"#231b11", dark:"#160e05",
+  goldGrad:"linear-gradient(135deg,#c19a3f,#8a6218)",
+  panelGrad:"linear-gradient(180deg,#ffffff,#faf6ee)",
+  shadow:"0 4px 16px rgba(70,52,22,0.10)",
+  glow:"0 2px 14px rgba(180,132,42,0.14)"
 };
 const btn = (x={}) => ({ fontFamily:"Georgia,serif", cursor:"pointer", borderRadius:10, letterSpacing:0.3, transition:"all 0.22s ease", ...x });
 
@@ -137,15 +137,15 @@ export default function App() {
       `}</style>
 
       {screen === "home" && !pinUnlocked && !new URLSearchParams(window.location.search).get("join") && !new URLSearchParams(window.location.search).get("group") && !new URLSearchParams(window.location.search).get("page") && (
-        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}>
-          <div style={{ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:16, padding:32, width:"100%", maxWidth:320, textAlign:"center" }}>
-            <div style={{ fontSize:28, marginBottom:8 }}>🔐</div>
-            <div style={{ fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:20 }}>Staff Access</div>
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(35,24,10,0.5)", WebkitBackdropFilter:"blur(4px)", backdropFilter:"blur(4px)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:18, padding:32, width:"100%", maxWidth:320, textAlign:"center", boxShadow:"0 20px 60px rgba(40,28,10,0.35)" }}>
+            <div style={{ fontSize:32, marginBottom:8 }}>🔐</div>
+            <div className="hl-title" style={{ fontSize:19, color:C.text, fontWeight:700, marginBottom:20 }}>Staff Access</div>
             <input type="password" value={pinInput} onChange={e => { setPinInput(e.target.value); setPinError(false); }} onKeyDown={e => e.key==="Enter" && submitPin()}
               placeholder="Enter PIN" autoFocus
-              style={{ width:"100%", background:C.bg, border:`2px solid ${pinError?"#cc4444":C.gold}`, color:C.text, padding:"12px 16px", borderRadius:10, fontSize:20, fontFamily:"Georgia,serif", textAlign:"center", letterSpacing:4, boxSizing:"border-box", marginBottom:8 }} />
-            {pinError && <div style={{ color:"#ff7777", fontSize:13, marginBottom:8 }}>Wrong PIN</div>}
-            <button onClick={submitPin} style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:14, fontSize:15, fontWeight:"bold", marginTop:8 })}>Unlock ✓</button>
+              style={{ width:"100%", background:"#fbf9f5", border:`2px solid ${pinError?"#c62828":C.gold}`, color:C.text, padding:"12px 16px", borderRadius:10, fontSize:20, fontFamily:"Georgia,serif", textAlign:"center", letterSpacing:4, boxSizing:"border-box", marginBottom:8, outline:"none" }} />
+            {pinError && <div style={{ color:"#c62828", fontSize:13, marginBottom:8, fontWeight:600 }}>Wrong PIN</div>}
+            <button onClick={submitPin} style={btn({ width:"100%", background:C.goldGrad, border:"none", color:"#fff", padding:13, fontSize:15, fontWeight:"bold", marginTop:8, boxShadow:"0 3px 10px rgba(138,98,24,0.3)" })}>Unlock ✓</button>
           </div>
         </div>
       )}
@@ -170,9 +170,9 @@ function HomeScreen({ setScreen, setTableNo }) {
   return (
     <div style={{ minHeight:"100vh", background:C.bg, overflowY:"auto" }}>
       {/* Header */}
-      <div style={{ background:`radial-gradient(600px 240px at 50% 0%, rgba(212,165,68,0.16), transparent 70%), linear-gradient(160deg,#1a0808,#2c1a0e)`, padding:"40px 20px 28px", textAlign:"center", borderBottom:`2px solid ${C.gold}`, boxShadow:C.glow }}>
-        <div style={{ fontSize:52, filter:"drop-shadow(0 3px 10px rgba(212,165,68,0.4))" }}>☕</div>
-        <div className="hl-title hl-gold" style={{ fontSize:38, fontWeight:800, letterSpacing:3, marginTop:8, lineHeight:1.1 }}>{CAFE_NAME}</div>
+      <div style={{ background:"radial-gradient(700px 240px at 50% 0%, rgba(180,132,42,0.10), transparent 70%), linear-gradient(180deg,#ffffff,#f6efe0)", padding:"40px 20px 28px", textAlign:"center", borderBottom:`2px solid ${C.gold}`, boxShadow:C.shadow }}>
+        <div style={{ fontSize:52, filter:"drop-shadow(0 3px 8px rgba(180,132,42,0.3))" }}>☕</div>
+        <div className="hl-title" style={{ fontSize:38, fontWeight:800, letterSpacing:3, marginTop:8, lineHeight:1.1, color:"#8a6218" }}>{CAFE_NAME}</div>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:12, marginTop:10 }}>
           <span style={{ height:1, width:44, background:`linear-gradient(90deg,transparent,${C.gold})` }} />
           <span style={{ fontSize:11, color:C.goldLight, letterSpacing:5, textTransform:"uppercase" }}>Ordering System</span>
@@ -192,7 +192,7 @@ function HomeScreen({ setScreen, setTableNo }) {
               {TABLES.map(tnum => (
                 <button key={tnum} onClick={() => { setTableNo(tnum); setScreen("tablet"); }}
                   className="hl-title"
-                  style={btn({ background:"linear-gradient(160deg,#3a2811,#241708)", border:`1.5px solid ${C.gold}`, color:C.goldLight, padding:"16px 0", fontSize:20, fontWeight:700, borderRadius:12, boxShadow:"inset 0 1px 0 rgba(242,215,154,0.15), 0 2px 8px rgba(0,0,0,0.3)" })}>
+                  style={btn({ background:"linear-gradient(160deg,#fbf3e0,#f4e7c8)", border:`1.5px solid ${C.gold}`, color:"#8a6218", padding:"16px 0", fontSize:20, fontWeight:700, borderRadius:12, boxShadow:"0 2px 8px rgba(180,132,42,0.15)" })}>
                   {tnum}
                 </button>
               ))}
@@ -203,12 +203,12 @@ function HomeScreen({ setScreen, setTableNo }) {
         {/* Takeaway + VIP */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           {[
-            { onClick:()=>setScreen("takeaway"), icon:"🥡", label:"Takeaway", grad:"linear-gradient(155deg,#1e3f4f,#0c1e2c)", border:"#5a9aaa", color:"#bfe6f5" },
-            { onClick:()=>setScreen("vipscreen"), icon:"👥", label:"VIP", grad:"linear-gradient(155deg,#2e1e50,#160b2c)", border:"#9a7aff", color:"#d6c7ff" },
+            { onClick:()=>setScreen("takeaway"), icon:"🥡", label:"Takeaway", grad:"linear-gradient(155deg,#eaf4f7,#d6e9ef)", border:"#7fb3c4", color:"#1e6076" },
+            { onClick:()=>setScreen("vipscreen"), icon:"👥", label:"VIP", grad:"linear-gradient(155deg,#efeaf9,#e2d8f3)", border:"#a690e0", color:"#5a3fa0" },
           ].map(b => (
             <button key={b.label} onClick={b.onClick}
               style={btn({ background:b.grad, border:`1.5px solid ${b.border}`, color:b.color, padding:"26px 0", borderRadius:16, display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:C.shadow })}>
-              <span style={{ fontSize:34, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.4))" }}>{b.icon}</span>
+              <span style={{ fontSize:34 }}>{b.icon}</span>
               <span style={{ fontSize:13, fontWeight:700, letterSpacing:3, textTransform:"uppercase" }}>{b.label}</span>
             </button>
           ))}
@@ -227,7 +227,7 @@ function HomeScreen({ setScreen, setTableNo }) {
           </button>
           <div style={{ ...goldRule, margin:"0 18px" }} />
           <button onClick={() => setScreen("cashier")}
-            style={btn({ width:"100%", background:"linear-gradient(90deg,rgba(90,170,90,0.16),transparent)", border:"none", borderLeft:"3px solid #5aaa5a", color:"#aaffaa", padding:"18px 20px", fontSize:16, fontWeight:700, borderRadius:0, textAlign:"left", display:"flex", justifyContent:"space-between", alignItems:"center" })}>
+            style={btn({ width:"100%", background:"linear-gradient(90deg,rgba(90,170,90,0.14),transparent)", border:"none", borderLeft:"3px solid #4c9a4c", color:"#2d7a2d", padding:"18px 20px", fontSize:16, fontWeight:700, borderRadius:0, textAlign:"left", display:"flex", justifyContent:"space-between", alignItems:"center" })}>
             <span>💳 Cashier Screen</span>
             <span style={{ fontSize:11, color:C.muted, letterSpacing:1.5, textTransform:"uppercase" }}>Drinks + Payment ›</span>
           </button>
@@ -243,14 +243,14 @@ function HomeScreen({ setScreen, setTableNo }) {
 
       {/* More options modal */}
       {moreOpen && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(10,6,2,0.82)", WebkitBackdropFilter:"blur(4px)", backdropFilter:"blur(4px)", zIndex:9999, display:"flex", alignItems:"flex-end", justifyContent:"center" }}
+        <div style={{ position:"fixed", inset:0, background:"rgba(30,20,8,0.5)", WebkitBackdropFilter:"blur(4px)", backdropFilter:"blur(4px)", zIndex:9999, display:"flex", alignItems:"flex-end", justifyContent:"center" }}
           onClick={() => setMoreOpen(false)}>
-          <div onClick={e=>e.stopPropagation()} style={{ background:C.panelGrad, borderTop:`2px solid ${C.gold}`, borderRadius:"22px 22px 0 0", width:"100%", maxWidth:460, padding:"18px 18px 34px", boxShadow:"0 -12px 44px rgba(0,0,0,0.55)" }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:C.panelGrad, borderTop:`2px solid ${C.gold}`, borderRadius:"22px 22px 0 0", width:"100%", maxWidth:460, padding:"18px 18px 34px", boxShadow:"0 -12px 40px rgba(70,52,22,0.28)" }}>
             <div style={{ width:44, height:4, background:C.border, borderRadius:4, margin:"0 auto 18px" }} />
             <div style={{ marginBottom:18 }}><Crest label="More Options" color={C.muted} /></div>
             {[
               { label:"📱 View & Print QR Codes", screen:"qrcodes", color:C.goldLight },
-              { label:"👥 Manage VIP Groups", screen:"groupadmin", color:"#ccbbff" },
+              { label:"👥 Manage VIP Groups", screen:"groupadmin", color:"#6a4fbf" },
               { label:"💰 Daily Sales Summary", screen:"sales", color:C.goldLight },
               { label:"⚙️ Admin — Manage Menu", screen:"admin", color:C.muted },
             ].map((item,i) => (
@@ -501,13 +501,13 @@ function JoinScreen({ groupSlug, goHome }) {
           style={{ width:"100%", background:"#2c1a0e", border:`2px solid ${error?"#cc4444":"#c8973a"}`, color:"#fff", padding:"16px 18px", borderRadius:14, fontSize:18, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"center", marginBottom:8 }} />
         {error && <div style={{ color:"#ff7777", fontSize:13, textAlign:"center", marginBottom:8 }}>{error}</div>}
         <button onClick={register} disabled={saving||name.trim().length<3}
-          style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:name.trim().length>=3?"linear-gradient(135deg,#c8973a,#a07020)":"#3a2a10", border:"none", color:name.trim().length>=3?"#1a1208":"#666", padding:"16px 0", borderRadius:14, fontSize:18, fontWeight:"bold", marginTop:4 }}>
+          style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:name.trim().length>=3?"linear-gradient(135deg,#c8973a,#a07020)":"#efe4cf", border:"none", color:name.trim().length>=3?"#1a1208":"#666", padding:"16px 0", borderRadius:14, fontSize:18, fontWeight:"bold", marginTop:4 }}>
           {saving?"Saving...":"✓ Get My QR Code"}
         </button>
         <div style={{ fontSize:12, color:"#5a4020", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
           Already registered before? Just type your name again — we will find your QR! 😊
         </div>
-        <div style={{ marginTop:20, background:"#1a1208", border:"1px solid #3a2a10", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
+        <div style={{ marginTop:20, background:"#1a1208", border:"1px solid #efe4cf", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
           <div style={{ fontSize:11, color:"#5a4020", marginBottom:4 }}>Lost your shortcut or QR?</div>
           <div style={{ fontSize:12, color:"#a07060", lineHeight:1.6 }}>Type your name above and tap <strong style={{ color:"#c8973a" }}>Get My QR Code</strong> — your personal link will appear again instantly.</div>
         </div>
@@ -882,7 +882,7 @@ function VIPScreen({ setScreen, setTableNo, goHome }) {
                       setPickedMember({ tno: `GRP-${m.id}` });
                     }
                   }}
-                  style={btn({ background:isActive?"#3a2a00":"#1a1a3a", border:`2px solid ${isActive?C.gold:"#7a6aff"}`, color:isActive?C.gold:"#ccbbff", padding:"16px 8px", fontSize:14, fontWeight:"bold", borderRadius:14, position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:4 })}>
+                  style={btn({ background:isActive?"#f6ecd0":"#1a1a3a", border:`2px solid ${isActive?C.gold:"#7a6aff"}`, color:isActive?C.gold:"#ccbbff", padding:"16px 8px", fontSize:14, fontWeight:"bold", borderRadius:14, position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:4 })}>
                   {isActive && <div style={{ position:"absolute", top:6, right:6, width:8, height:8, borderRadius:"50%", background:C.gold }} />}
                   <span style={{ fontSize:20 }}>👤</span>
                   <span>{m.display_name}</span>
@@ -935,7 +935,7 @@ function TakeawayScreen({ setScreen, setTableNo, goHome }) {
             return (
               <button key={slot} onClick={() => { setTableNo(slot); setScreen("tablet"); }}
                 style={btn({ 
-                  background: isActive ? "#3a2a00" : "#1a3a2a",
+                  background: isActive ? "#f6ecd0" : "#1a3a2a",
                   border: `2px solid ${isActive ? C.gold : "#5aaa7a"}`,
                   color: isActive ? C.gold : "#aaffcc",
                   padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:10,
@@ -2455,7 +2455,7 @@ function KitchenScreen({ goHome }) {
             {voiceOn ? "🔊 Voice On" : "🔇 Voice Off"}
           </button>
           {voiceOn && (
-            <button onClick={toggleVoiceLang} style={btn({ background:"#3a2a00", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
+            <button onClick={toggleVoiceLang} style={btn({ background:"#f6ecd0", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
               {voiceLang === "en" ? "🇬🇧 EN" : "🇨🇳 中文"}
             </button>
           )}
@@ -2488,11 +2488,11 @@ function KitchenScreen({ goHome }) {
                       <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                     </div>
                     {item.is_takeaway && <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold", letterSpacing:0.5 }}>🥡 TAKEAWAY</div>}
-                    {item.note && <div style={{ fontSize:12, color:"#ffcc44", background:"#2a1a00", borderRadius:6, padding:"4px 8px", marginTop:3 }}>📝 {item.note}</div>}
+                    {item.note && <div style={{ fontSize:12, color:"#8a6218", background:"#fbf3df", borderRadius:6, padding:"4px 8px", marginTop:3 }}>📝 {item.note}</div>}
                   </div>
                 ))}
                 {getFoodReq(order.special_request) && (
-                  <div style={{ background:"#2a1a00", border:"1px solid #c8973a44", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>📝 {getFoodReq(order.special_request)}</div>
+                  <div style={{ background:"#fbf3df", border:"1px solid #c8973a44", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>📝 {getFoodReq(order.special_request)}</div>
                 )}
               </div>
               <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"flex-end" }}>
@@ -2505,9 +2505,9 @@ function KitchenScreen({ goHome }) {
           <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>✅ Done ({done.length})</div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(220px,1fr))", gap:10, marginBottom:20 }}>
             {done.map(o => (
-              <div key={o.id} style={{ background:"#1a2c1a", border:"1px solid #3a6a3a", borderRadius:12, padding:12, opacity:0.8 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#5aaa5a", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
-                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:"#5aaa5a", fontWeight:"bold", marginRight:3 }}>{item.item_no}</span>}{item.name} ×{item.qty}</div>)}
+              <div key={o.id} style={{ background:"#eaf4ea", border:"1px solid #cbe3cb", borderRadius:12, padding:12 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#2d7a2d", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
+                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:"#2d7a2d", fontWeight:"bold", marginRight:3 }}>{item.item_no}</span>}{item.name} ×{item.qty}</div>)}
               </div>
             ))}
           </div>
@@ -2516,9 +2516,9 @@ function KitchenScreen({ goHome }) {
           <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>❌ Cancelled ({cancelled.length})</div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(220px,1fr))", gap:10, marginBottom:20 }}>
             {cancelled.map(o => (
-              <div key={o.id} style={{ background:"#2a1a1a", border:"1px solid #5a2a2a", borderRadius:12, padding:12, opacity:0.7 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#ff7777", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
-                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:"#ff7777", fontWeight:"bold", marginRight:3 }}>{item.item_no}</span>}{item.name} ×{item.qty}</div>)}
+              <div key={o.id} style={{ background:"#fbeaea", border:"1px solid #eecaca", borderRadius:12, padding:12 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#c62828", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
+                {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:"#c62828", fontWeight:"bold", marginRight:3 }}>{item.item_no}</span>}{item.name} ×{item.qty}</div>)}
               </div>
             ))}
           </div>
@@ -2530,18 +2530,18 @@ function KitchenScreen({ goHome }) {
         const liveOrder = [...pending, ...done, ...cancelled].find(o => o.id === kitchenDetailModal);
         if (!liveOrder) return null;
         return (
-        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.95)", zIndex:9000, display:"flex", flexDirection:"column" }}>
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:C.bg, zIndex:9000, display:"flex", flexDirection:"column" }}>
           {/* Header */}
-          <div style={{ background:"#2c1a0e", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${C.gold}`, flexShrink:0 }}>
+          <div style={{ background:C.panel, padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${C.gold}`, flexShrink:0, boxShadow:C.shadow }}>
             <div>
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-                {liveOrder.order_seq && <span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"3px 10px", fontSize:16, fontWeight:"bold" }}>#{liveOrder.order_seq}</span>}
-                <div style={{ fontSize:28, fontWeight:"bold", color:C.goldLight }}>{isTakeaway(liveOrder.table_no) ? takeawayLabel(liveOrder.table_no) : `Table ${liveOrder.table_no}`}</div>
+                {liveOrder.order_seq && <span style={{ background:C.gold, color:"#fff", borderRadius:6, padding:"3px 10px", fontSize:16, fontWeight:"bold" }}>#{liveOrder.order_seq}</span>}
+                <div className="hl-title" style={{ fontSize:28, fontWeight:800, color:C.goldLight }}>{isTakeaway(liveOrder.table_no) ? takeawayLabel(liveOrder.table_no) : `Table ${liveOrder.table_no}`}</div>
               </div>
               <div style={{ fontSize:13, color:C.muted }}>🍳 Food Order · {liveOrder.time}</div>
             </div>
             <button onClick={() => setKitchenDetailModal(null)}
-              style={btn({ background:"rgba(255,255,255,0.1)", border:`1px solid ${C.border}`, color:"#fff", width:46, height:46, fontSize:22, borderRadius:50 })}>✕</button>
+              style={btn({ background:"#f2ede4", border:`1px solid ${C.border}`, color:C.muted, width:46, height:46, fontSize:22, borderRadius:50 })}>✕</button>
           </div>
 
           {/* Items */}
@@ -2558,24 +2558,24 @@ function KitchenScreen({ goHome }) {
                   <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:10, padding:"8px 16px", marginTop:10, fontSize:16, fontWeight:"bold", letterSpacing:1 }}>🥡 TAKEAWAY — Pack separately</div>
                 )}
                 {item.note && (
-                  <div style={{ fontSize:16, color:"#ffcc44", background:"#2a1a00", borderRadius:8, padding:"10px 14px", marginTop:10 }}>📝 {item.note}</div>
+                  <div style={{ fontSize:16, color:"#8a6218", background:"#fbf3df", borderRadius:8, padding:"10px 14px", marginTop:10 }}>📝 {item.note}</div>
                 )}
               </div>
             ))}
             {getFoodReq(liveOrder.special_request) && (
-              <div style={{ fontSize:16, color:C.gold, background:"#2a1a00", borderRadius:10, padding:"12px 16px", marginTop:8 }}>📝 {getFoodReq(liveOrder.special_request)}</div>
+              <div style={{ fontSize:16, color:C.gold, background:"#fbf3df", borderRadius:10, padding:"12px 16px", marginTop:8 }}>📝 {getFoodReq(liveOrder.special_request)}</div>
             )}
           </div>
 
           {/* Done button */}
-          <div style={{ padding:"16px 20px", background:"#0f0a04", borderTop:`2px solid ${C.border}`, flexShrink:0 }}>
+          <div style={{ padding:"16px 20px", background:C.panel, borderTop:`1px solid ${C.border}`, flexShrink:0, boxShadow:"0 -4px 16px rgba(70,52,22,0.08)" }}>
             {liveOrder.status === "pending" ? (
               <button onClick={() => { markDone(liveOrder.id); setKitchenDetailModal(null); }}
-                style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"18px 0", fontSize:20, fontWeight:"bold", borderRadius:14 })}>
+                style={btn({ width:"100%", background:C.goldGrad, border:"none", color:"#fff", padding:"16px 0", fontSize:20, fontWeight:"bold", borderRadius:14, boxShadow:"0 4px 12px rgba(138,98,24,0.3)" })}>
                 ✓ Mark as Done
               </button>
             ) : (
-              <div style={{ textAlign:"center", color:"#5aaa5a", fontSize:18, fontWeight:"bold", padding:"14px 0" }}>✅ Already Done</div>
+              <div style={{ textAlign:"center", color:"#2d7a2d", fontSize:18, fontWeight:"bold", padding:"14px 0" }}>✅ Already Done</div>
             )}
           </div>
         </div>
@@ -2703,7 +2703,7 @@ function SalesScreen({ goHome }) {
           <button onClick={() => { const d=new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split("T")[0]); }}
             style={btn({ background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:"8px 14px", fontSize:18 })}>›</button>
           <button onClick={() => setSelectedDate(new Date().toISOString().split("T")[0])}
-            style={btn({ background:selectedDate===new Date().toISOString().split("T")[0]?"#3d2a00":"transparent", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"8px 14px", fontSize:13, fontWeight:"bold" })}>Today</button>
+            style={btn({ background:selectedDate===new Date().toISOString().split("T")[0]?"#f6ecd0":"transparent", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"8px 14px", fontSize:13, fontWeight:"bold" })}>Today</button>
           {orders.length > 0 && (
             <button onClick={() => exportExcel(orders, selectedDate, charge)}
               style={btn({ background:"#1a3a1a", border:`1px solid #5aaa5a`, color:"#aaffaa", padding:"8px 16px", fontSize:13, fontWeight:"bold", marginLeft:"auto" })}>
@@ -2798,7 +2798,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
         style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}>
         <div style={{ fontSize:22, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
         <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-          {data.pending.length>0 && <span style={{ background:"#3d2a00", color:C.gold, borderRadius:6, padding:"3px 10px", fontSize:12 }}>⏳ {data.pending.length} pending</span>}
+          {data.pending.length>0 && <span style={{ background:"#f6ecd0", color:C.gold, borderRadius:6, padding:"3px 10px", fontSize:12 }}>⏳ {data.pending.length} pending</span>}
           {data.done.length>0 && <span style={{ background:"#1a3a1a", color:"#5aaa5a", borderRadius:6, padding:"3px 10px", fontSize:12 }}>✅ {data.done.length} done</span>}
           <span style={{ color:C.muted, fontSize:16, marginLeft:4 }}>↗</span>
         </div>
@@ -2827,7 +2827,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                 const drinkItems = order.items.filter(i => DRINK_CATEGORIES.includes(i.category));
                 const isPending = order.status==="pending";
                 return (
-                  <div key={oi} style={{ marginBottom:12, paddingBottom:12, borderBottom: oi < drinkOrders.length-1 ? `1px solid #3a2a10` : "none" }}>
+                  <div key={oi} style={{ marginBottom:12, paddingBottom:12, borderBottom: oi < drinkOrders.length-1 ? `1px solid #efe4cf` : "none" }}>
                     {order.order_seq && <div style={{ marginBottom:6 }}><span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:"bold" }}>#{order.order_seq}</span></div>}
                     {drinkItems.map((item, ii) => (
                       <div key={ii} style={{ padding:"8px 0", borderTop: ii>0 ? `1px solid #2a1a08` : "none" }}>
@@ -2839,10 +2839,10 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                           <span style={{ color:"#5aaa5a", fontWeight:"bold", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                         </div>
                         {item.is_takeaway && <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold" }}>🥡 TAKEAWAY</div>}
-                        {item.note && <div style={{ fontSize:12, color:"#ffcc44", background:"#2a1a00", borderRadius:6, padding:"3px 8px", marginTop:3 }}>📝 {item.note}</div>}
+                        {item.note && <div style={{ fontSize:12, color:"#8a6218", background:"#fbf3df", borderRadius:6, padding:"3px 8px", marginTop:3 }}>📝 {item.note}</div>}
                       </div>
                     ))}
-                    {getDrinkReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getDrinkReq(order.special_request)}</div>}
+                    {getDrinkReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#fbf3df", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getDrinkReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Pending":"✅ Served"} · {order.time}</span>
                       {isPending && <>
@@ -2878,10 +2878,10 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                           <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                         </div>
                         {item.is_takeaway && <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold" }}>🥡 TAKEAWAY</div>}
-                        {item.note && <div style={{ fontSize:12, color:"#ffcc44", background:"#2a1a00", borderRadius:6, padding:"3px 8px", marginTop:3 }}>📝 {item.note}</div>}
+                        {item.note && <div style={{ fontSize:12, color:"#8a6218", background:"#fbf3df", borderRadius:6, padding:"3px 8px", marginTop:3 }}>📝 {item.note}</div>}
                       </div>
                     ))}
-                    {getFoodReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getFoodReq(order.special_request)}</div>}
+                    {getFoodReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#fbf3df", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getFoodReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Kitchen preparing":"✅ Served"} · {order.time}</span>
                       {isPending && (
@@ -2905,7 +2905,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
           💳 Collect Payment
         </button>
         <button onClick={() => printReceipt(tableNo, data, null, null, null)}
-          style={btn({ width:"100%", background:"#3a2a10", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"10px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" })}>
+          style={btn({ width:"100%", background:"#efe4cf", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"10px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" })}>
           🖨️ Print Bill (Preview)
         </button>
       </div>
@@ -2970,11 +2970,11 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
                     </div>
                     <div style={{ color:"#aaffaa", fontSize:15, marginTop:2 }}>RM {(item.price*item.qty).toFixed(2)}</div>
                     {item.is_takeaway && <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:4, fontSize:12, fontWeight:"bold" }}>🥡 TAKEAWAY</div>}
-                    {item.note && <div style={{ fontSize:13, color:"#ffcc44", background:"#2a1a00", borderRadius:8, padding:"5px 10px", marginTop:5 }}>📝 {item.note}</div>}
+                    {item.note && <div style={{ fontSize:13, color:"#8a6218", background:"#fbf3df", borderRadius:8, padding:"5px 10px", marginTop:5 }}>📝 {item.note}</div>}
                   </div>
                 ))}
                 {order.special_request && (
-                  <div style={{ fontSize:13, color:C.gold, background:"#2a1a00", borderRadius:8, padding:"7px 10px", marginTop:6 }}>📝 {order.special_request}</div>
+                  <div style={{ fontSize:13, color:C.gold, background:"#fbf3df", borderRadius:8, padding:"7px 10px", marginTop:6 }}>📝 {order.special_request}</div>
                 )}
                 {isPending && (
                   <div style={{ display:"flex", gap:10, marginTop:12 }}>
@@ -2997,7 +2997,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
         </div>
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={() => printReceipt(tableNo, liveData, null, null, null)}
-            style={btn({ flex:1, background:"#3a2a10", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"14px 0", fontSize:14, fontWeight:"bold" })}>
+            style={btn({ flex:1, background:"#efe4cf", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"14px 0", fontSize:14, fontWeight:"bold" })}>
             🖨️ Print Bill
           </button>
           <button onClick={() => { setTableDetailModal(null); setPayModal({tableNo, data:liveData, method:"QR DuitNow", cashReceived:""}); }}
@@ -3917,7 +3917,7 @@ function CashierScreen({ goHome }) {
             {voiceOn ? "🔊 Voice" : "🔇 Voice"}
           </button>
           {voiceOn && (
-            <button onClick={toggleVoiceLang} style={btn({ background:"#3a2a00", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"6px 10px", fontSize:11, fontWeight:"bold" })}>
+            <button onClick={toggleVoiceLang} style={btn({ background:"#f6ecd0", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"6px 10px", fontSize:11, fontWeight:"bold" })}>
               {voiceLang === "en" ? "CN 中文" : "🇬🇧 EN"}
             </button>
           )}
@@ -3942,7 +3942,7 @@ function CashierScreen({ goHome }) {
         <div style={{ background:"#110d06", borderBottom:`1px solid ${C.border}`, padding:"10px 16px", display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
           <span style={{ fontSize:12, color:C.muted, marginRight:4, fontWeight:"bold" }}>TABLE:</span>
           <button onClick={() => setSelectedTable(null)}
-            style={btn({ background:selectedTable===null?"#3d2a00":"transparent", border:`2px solid ${selectedTable===null?C.gold:C.border}`,
+            style={btn({ background:selectedTable===null?"#f6ecd0":"transparent", border:`2px solid ${selectedTable===null?C.gold:C.border}`,
               color:selectedTable===null?C.goldLight:C.muted, padding:"10px 18px", fontSize:14, fontWeight:selectedTable===null?"bold":"normal", minHeight:44 })}>
             All
           </button>
@@ -3951,7 +3951,7 @@ function CashierScreen({ goHome }) {
             const isSelected = String(selectedTable)===String(tno);
             return (
               <button key={tno} onClick={() => setSelectedTable(isSelected ? null : tno)}
-                style={btn({ background:isSelected?(hasPend?"#3d2a00":"#1a3a1a"):"transparent",
+                style={btn({ background:isSelected?(hasPend?"#f6ecd0":"#1a3a1a"):"transparent",
                   border:`2px solid ${isSelected?(hasPend?C.gold:"#5aaa5a"):(hasPend?"#5a4a20":"#2a4a2a")}`,
                   color:isSelected?(hasPend?C.goldLight:"#aaffaa"):(hasPend?C.muted:"#5aaa5a"),
                   padding:"10px 18px", fontSize:14, fontWeight:isSelected?"bold":"normal", minHeight:44 })}>
