@@ -108,6 +108,13 @@ export default function App() {
     if (pinInput === STAFF_PIN) { setPinUnlocked(true); }
     else { setPinError(true); setPinInput(""); }
   };
+  // Ensure a proper mobile viewport so staff/admin screens auto-fit phones
+  // (the customer tablet screen manages its own no-zoom viewport separately).
+  useEffect(() => {
+    let vp = document.querySelector("meta[name=viewport]");
+    if (!vp) { vp = document.createElement("meta"); vp.name = "viewport"; document.head.appendChild(vp); }
+    if (screen !== "tablet") vp.content = "width=device-width, initial-scale=1, viewport-fit=cover";
+  }, [screen]);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = parseInt(params.get("table"));
@@ -134,6 +141,8 @@ export default function App() {
         ::-webkit-scrollbar{ width:10px; height:10px; }
         ::-webkit-scrollbar-thumb{ background:linear-gradient(#c8973a,#8a6420); border-radius:8px; }
         ::-webkit-scrollbar-track{ background:rgba(0,0,0,0.18); }
+        html, body { overflow-x:hidden; max-width:100%; }
+        @media (max-width:640px){ .hl-title{ letter-spacing:1px !important; } }
       `}</style>
 
       {screen === "home" && !pinUnlocked && !new URLSearchParams(window.location.search).get("join") && !new URLSearchParams(window.location.search).get("group") && !new URLSearchParams(window.location.search).get("page") && (
@@ -326,7 +335,7 @@ function GroupWrapper({ tableNo: initialTableNo }) {
 
   if (checking) {
     return (
-      <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", alignItems:"center", justifyContent:"center", color:"#a07060", fontFamily:"Georgia,serif", fontSize:14 }}>
+      <div style={{ minHeight:"100vh", background:"linear-gradient(180deg,#ffffff,#f6efe0)", display:"flex", alignItems:"center", justifyContent:"center", color:"#6a5647", fontFamily:"Georgia,serif", fontSize:14 }}>
         Loading…
       </div>
     );
@@ -350,26 +359,26 @@ function GroupScreen({ tableNo, setTableNo, onBack }) {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
+    <div style={{ minHeight:"100vh", background:"linear-gradient(180deg,#ffffff,#f6efe0)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
       <div style={{ fontSize:48, marginBottom:8 }}>👤</div>
-      <div style={{ fontSize:26, fontWeight:"bold", color:"#e8c77a", marginBottom:4 }}>Welcome, {memberName}!</div>
-      <div style={{ fontSize:13, color:"#a07060", letterSpacing:3, textTransform:"uppercase", marginBottom:24 }}>Which table today?</div>
+      <div style={{ fontSize:26, fontWeight:"bold", color:"#8a6218", marginBottom:4 }}>Welcome, {memberName}!</div>
+      <div style={{ fontSize:13, color:"#6a5647", letterSpacing:3, textTransform:"uppercase", marginBottom:24 }}>Which table today?</div>
       {lastTable && (
         <button onClick={() => proceed(parseInt(lastTable))}
-          style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#1a3a1a", border:"2px solid #5aaa5a", color:"#aaffaa", borderRadius:12, padding:"12px 24px", fontSize:15, fontWeight:"bold", marginBottom:16, width:"100%", maxWidth:420 }}>
+          style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#e3f2e3", border:"2px solid #2d7a2d", color:"#2d7a2d", borderRadius:12, padding:"12px 24px", fontSize:15, fontWeight:"bold", marginBottom:16, width:"100%", maxWidth:420 }}>
           📍 Last time: Table {lastTable} — use same?
         </button>
       )}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, width:"100%", maxWidth:420, marginBottom:16 }}>
         {TABLES.map(t => (
           <button key={t} onClick={() => proceed(t)}
-            style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#2a1a0e", border:"2px solid #5a4020", color:"#e8c77a", borderRadius:12, padding:"14px 0", fontSize:16, fontWeight:"bold" }}>
+            style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#f6ecd0", border:"2px solid #5a4020", color:"#8a6218", borderRadius:12, padding:"14px 0", fontSize:16, fontWeight:"bold" }}>
             {t}
           </button>
         ))}
       </div>
       <button onClick={() => proceed(null)}
-        style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"1.5px dashed #5a4020", color:"#a07060", borderRadius:12, padding:"13px 0", fontSize:15, width:"100%", maxWidth:420 }}>
+        style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"1.5px dashed #5a4020", color:"#6a5647", borderRadius:12, padding:"13px 0", fontSize:15, width:"100%", maxWidth:420 }}>
         Skip — No Table
       </button>
       {onBack && (
@@ -413,11 +422,11 @@ function JoinScreen({ groupSlug, goHome }) {
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const isAndroid = /android/i.test(navigator.userAgent);
     return (
-      <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", fontFamily:"Georgia,serif", overflowY:"auto" }}>
+      <div style={{ minHeight:"100vh", background:"linear-gradient(180deg,#ffffff,#f6efe0)", fontFamily:"Georgia,serif", overflowY:"auto" }}>
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"32px 20px 40px" }}>
           <div style={{ fontSize:44, marginBottom:8 }}>🎉</div>
-          <div style={{ fontSize:22, fontWeight:"bold", color:"#e8c77a", marginBottom:4 }}>Welcome, {done.name}!</div>
-          <div style={{ fontSize:13, color:"#a07060", marginBottom:20, textAlign:"center" }}>Your personal menu link is ready</div>
+          <div style={{ fontSize:22, fontWeight:"bold", color:"#8a6218", marginBottom:4 }}>Welcome, {done.name}!</div>
+          <div style={{ fontSize:13, color:"#6a5647", marginBottom:20, textAlign:"center" }}>Your personal menu link is ready</div>
 
           {/* PRIMARY actions — the link works the same on iPhone & Android */}
           <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:340, marginBottom:24 }}>
@@ -433,11 +442,11 @@ function JoinScreen({ groupSlug, goHome }) {
           </div>
 
           {/* Add to Home Screen instructions */}
-          <div style={{ width:"100%", maxWidth:340, background:"#1a1208", border:"1.5px solid #c8973a", borderRadius:16, padding:16 }}>
-            <div style={{ fontSize:14, fontWeight:"bold", color:"#e8c77a", marginBottom:12, textAlign:"center" }}>
+          <div style={{ width:"100%", maxWidth:340, background:"#faf6ee", border:"1.5px solid #d8c091", borderRadius:16, padding:16 }}>
+            <div style={{ fontSize:14, fontWeight:"bold", color:"#8a6218", marginBottom:12, textAlign:"center" }}>
               📲 Best way — Add to Home Screen
             </div>
-            <div style={{ fontSize:12, color:"#a07060", marginBottom:12, textAlign:"center", lineHeight:1.6 }}>
+            <div style={{ fontSize:12, color:"#6a5647", marginBottom:12, textAlign:"center", lineHeight:1.6 }}>
               One tap to open your menu — works like an app icon!
             </div>
             {/* iOS instructions */}
@@ -446,7 +455,7 @@ function JoinScreen({ groupSlug, goHome }) {
                 <div style={{ fontSize:12, color:"#c8973a", fontWeight:"bold", marginBottom:6 }}>🍎 iPhone / iPad:</div>
                 <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                   {["1. Tap the link above to open your menu","2. Tap the Share button at the bottom","3. Scroll down → tap Add to Home Screen","4. Tap Add — done! ✅"].map((s,i) => (
-                    <div key={i} style={{ fontSize:12, color:"#e8c77a", background:"#2a1a0e", borderRadius:8, padding:"6px 10px" }}>{s}</div>
+                    <div key={i} style={{ fontSize:12, color:"#8a6218", background:"#f6ecd0", borderRadius:8, padding:"6px 10px" }}>{s}</div>
                   ))}
                 </div>
               </div>
@@ -457,7 +466,7 @@ function JoinScreen({ groupSlug, goHome }) {
                 <div style={{ fontSize:12, color:"#c8973a", fontWeight:"bold", marginBottom:6 }}>🤖 Android:</div>
                 <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                   {["1. Tap the link above to open your menu","2. Tap the 3 dots at top right of Chrome","3. Tap: Add to Home screen","4. Tap Add — done! ✅"].map((s,i) => (
-                    <div key={i} style={{ fontSize:12, color:"#e8c77a", background:"#2a1a0e", borderRadius:8, padding:"6px 10px" }}>{s}</div>
+                    <div key={i} style={{ fontSize:12, color:"#8a6218", background:"#f6ecd0", borderRadius:8, padding:"6px 10px" }}>{s}</div>
                   ))}
                 </div>
               </div>
@@ -468,17 +477,17 @@ function JoinScreen({ groupSlug, goHome }) {
           </div>
 
           {/* QR — secondary: for staff to scan or sharing with friends */}
-          <div style={{ width:"100%", maxWidth:340, background:"#1a1208", border:"1px solid #5a4020", borderRadius:16, padding:16, marginTop:20, display:"flex", flexDirection:"column", alignItems:"center" }}>
-            <div style={{ fontSize:13, fontWeight:"bold", color:"#e8c77a", marginBottom:4, textAlign:"center" }}>📷 Your QR Code</div>
-            <div style={{ fontSize:11, color:"#a07060", marginBottom:12, textAlign:"center", lineHeight:1.5 }}>For staff to scan, or to share with friends. To open it yourself, just use the link above.</div>
+          <div style={{ width:"100%", maxWidth:340, background:"#faf6ee", border:"1px solid #e5ded1", borderRadius:16, padding:16, marginTop:20, display:"flex", flexDirection:"column", alignItems:"center" }}>
+            <div style={{ fontSize:13, fontWeight:"bold", color:"#8a6218", marginBottom:4, textAlign:"center" }}>📷 Your QR Code</div>
+            <div style={{ fontSize:11, color:"#6a5647", marginBottom:12, textAlign:"center", lineHeight:1.5 }}>For staff to scan, or to share with friends. To open it yourself, just use the link above.</div>
             <div style={{ borderRadius:16, overflow:"hidden", border:"4px solid #c8973a", marginBottom:10 }}>
               <img src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(done.url)}&bgcolor=ffffff&color=000000&margin=10`}
                 style={{ width:200, height:200, display:"block" }} alt="Your QR" />
             </div>
             {isIOS
-              ? <div style={{ fontSize:11, color:"#a07060", textAlign:"center" }}>👆 Long press the QR → Save to Photos</div>
+              ? <div style={{ fontSize:11, color:"#6a5647", textAlign:"center" }}>👆 Long press the QR → Save to Photos</div>
               : <button onClick={()=>downloadQR(done.url, done.name)}
-                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#2a3a2a", border:"1.5px solid #5aaa5a", color:"#aaffaa", padding:"11px 0", borderRadius:12, fontWeight:"bold", fontSize:14, width:"100%" }}>
+                  style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#e6f3ec", border:"1.5px solid #2d7a2d", color:"#2d7a2d", padding:"11px 0", borderRadius:12, fontWeight:"bold", fontSize:14, width:"100%" }}>
                   ⬇️ Save QR to Phone
                 </button>
             }
@@ -489,16 +498,16 @@ function JoinScreen({ groupSlug, goHome }) {
   }
 
   return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
+    <div style={{ minHeight:"100vh", background:"linear-gradient(180deg,#ffffff,#f6efe0)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
       <div style={{ fontSize:48, marginBottom:8 }}>☕</div>
-      <div style={{ fontSize:24, fontWeight:"bold", color:"#e8c77a", marginBottom:4 }}>{groupName || "VIP Group"}</div>
-      <div style={{ fontSize:13, color:"#a07060", letterSpacing:2, textTransform:"uppercase", marginBottom:28 }}>Register your name</div>
+      <div style={{ fontSize:24, fontWeight:"bold", color:"#8a6218", marginBottom:4 }}>{groupName || "VIP Group"}</div>
+      <div style={{ fontSize:13, color:"#6a5647", letterSpacing:2, textTransform:"uppercase", marginBottom:28 }}>Register your name</div>
       <div style={{ width:"100%", maxWidth:360 }}>
         <input value={name} onChange={e=>{setName(e.target.value);setError("");}}
           onKeyDown={e=>e.key==="Enter"&&register()}
           placeholder="Your name (e.g. Ahmad)"
           autoFocus
-          style={{ width:"100%", background:"#2c1a0e", border:`2px solid ${error?"#cc4444":"#c8973a"}`, color:"#fff", padding:"16px 18px", borderRadius:14, fontSize:18, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"center", marginBottom:8 }} />
+          style={{ width:"100%", background:"#fbf9f5", border:`2px solid ${error?"#cc4444":"#c8973a"}`, color:C.text, padding:"16px 18px", borderRadius:14, fontSize:18, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"center", marginBottom:8, outline:"none" }} />
         {error && <div style={{ color:"#ff7777", fontSize:13, textAlign:"center", marginBottom:8 }}>{error}</div>}
         <button onClick={register} disabled={saving||name.trim().length<3}
           style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:name.trim().length>=3?"linear-gradient(135deg,#c8973a,#a07020)":"#efe4cf", border:"none", color:name.trim().length>=3?"#1a1208":"#666", padding:"16px 0", borderRadius:14, fontSize:18, fontWeight:"bold", marginTop:4 }}>
@@ -507,9 +516,9 @@ function JoinScreen({ groupSlug, goHome }) {
         <div style={{ fontSize:12, color:"#5a4020", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
           Already registered before? Just type your name again — we will find your QR! 😊
         </div>
-        <div style={{ marginTop:20, background:"#1a1208", border:"1px solid #efe4cf", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
+        <div style={{ marginTop:20, background:"#faf6ee", border:"1px solid #efe4cf", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
           <div style={{ fontSize:11, color:"#5a4020", marginBottom:4 }}>Lost your shortcut or QR?</div>
-          <div style={{ fontSize:12, color:"#a07060", lineHeight:1.6 }}>Type your name above and tap <strong style={{ color:"#c8973a" }}>Get My QR Code</strong> — your personal link will appear again instantly.</div>
+          <div style={{ fontSize:12, color:"#6a5647", lineHeight:1.6 }}>Type your name above and tap <strong style={{ color:"#c8973a" }}>Get My QR Code</strong> — your personal link will appear again instantly.</div>
         </div>
       </div>
     </div>
@@ -724,7 +733,7 @@ function GroupAdminScreen({ goHome }) {
 
         {/* Toast notification */}
         {toast && (
-          <div style={{ position:"fixed", bottom:30, left:"50%", transform:"translateX(-50%)", background:"#1a3a1a", border:"1.5px solid #5aaa5a", color:"#aaffaa", padding:"10px 24px", borderRadius:12, fontSize:14, fontWeight:"bold", zIndex:9999, pointerEvents:"none", boxShadow:"0 4px 20px rgba(0,0,0,0.4)" }}>
+          <div style={{ position:"fixed", bottom:30, left:"50%", transform:"translateX(-50%)", background:"#e3f2e3", border:"1.5px solid #2d7a2d", color:"#2d7a2d", padding:"10px 24px", borderRadius:12, fontSize:14, fontWeight:"bold", zIndex:9999, pointerEvents:"none", boxShadow:"0 4px 20px rgba(0,0,0,0.4)" }}>
             ✓ {toast}
           </div>
         )}
@@ -742,7 +751,7 @@ function GroupAdminScreen({ goHome }) {
                   Cancel
                 </button>
                 <button onClick={confirmModal.onConfirm}
-                  style={btn({ flex:1, background:"#6a1a1a", border:"none", color:"#ff9999", padding:"10px 0", borderRadius:10, fontSize:14, fontWeight:"bold" })}>
+                  style={btn({ flex:1, background:"#c0392b", border:"none", color:"#fff", padding:"10px 0", borderRadius:10, fontSize:14, fontWeight:"bold" })}>
                   Delete
                 </button>
               </div>
@@ -760,15 +769,15 @@ function GroupAdminScreen({ goHome }) {
                 <div style={{ background:`${C.border}44`, padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <div style={{ fontSize:15, fontWeight:"bold", color:C.goldLight }}>👥 {grp.name}</div>
                   <button onClick={()=>deleteGroup(grp.slug, grp.name)}
-                    style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"4px 10px", fontSize:12, borderRadius:6 })}>Delete Group</button>
+                    style={btn({ background:"#c0392b", border:"none", color:"#fff", padding:"4px 10px", fontSize:12, borderRadius:6 })}>Delete Group</button>
                 </div>
                 {/* Invite link — always visible */}
-                <div style={{ padding:"12px 16px", background:"#1a2a1a", borderTop:`1px solid ${C.border}` }}>
-                  <div style={{ fontSize:11, color:"#5aaa5a", letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>🔗 VIP Self-Register Link</div>
-                  <div style={{ fontSize:11, color:"#aaffaa", fontFamily:"monospace", wordBreak:"break-all", marginBottom:10 }}>{baseUrl}?join={grp.slug}</div>
+                <div style={{ padding:"12px 16px", background:"#eef4ee", borderTop:`1px solid ${C.border}` }}>
+                  <div style={{ fontSize:11, color:"#2d7a2d", letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>🔗 VIP Self-Register Link</div>
+                  <div style={{ fontSize:11, color:"#2d7a2d", fontFamily:"monospace", wordBreak:"break-all", marginBottom:10 }}>{baseUrl}?join={grp.slug}</div>
                   <div style={{ display:"flex", gap:8 }}>
                     <button onClick={()=>{ navigator.clipboard?.writeText(`${baseUrl}?join=${grp.slug}`); showToast("Link copied!"); }}
-                      style={btn({ background:"#1a3a1a", border:`1px solid #5aaa5a`, color:"#aaffaa", padding:"8px 0", fontSize:13, borderRadius:8, flex:1 })}>📋 Copy Link</button>
+                      style={btn({ background:"#e3f2e3", border:`1px solid #2d7a2d`, color:"#2d7a2d", padding:"8px 0", fontSize:13, borderRadius:8, flex:1 })}>📋 Copy Link</button>
                     <a href={`https://wa.me/?text=${encodeURIComponent("Hi! Register your name to order at Hoto Lounge — tap this link, type your name and save your personal QR code: "+baseUrl+"?join="+grp.slug)}`}
                       target="_blank" rel="noreferrer"
                       style={{ display:"block", background:"#25D366", color:"#fff", padding:"8px 0", fontSize:13, borderRadius:8, textDecoration:"none", fontWeight:"bold", flex:1, textAlign:"center" }}>💬 Send WhatsApp</a>
@@ -783,7 +792,7 @@ function GroupAdminScreen({ goHome }) {
                         <button onClick={()=>setQrTarget({ name:m.display_name, url })}
                           style={btn({ background:C.gold, border:"none", color:C.dark, padding:"6px 14px", fontSize:12, fontWeight:"bold", borderRadius:6 })}>📱 Show QR</button>
                         <button onClick={()=>deleteMember(m.id)}
-                          style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"6px 10px", fontSize:12, borderRadius:6 })}>✕</button>
+                          style={btn({ background:"#c0392b", border:"none", color:"#fff", padding:"6px 10px", fontSize:12, borderRadius:6 })}>✕</button>
                       </div>
                     </div>
                   );
@@ -845,25 +854,25 @@ function VIPScreen({ setScreen, setTableNo, goHome }) {
   }
 
   return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#1a0808,#2c1a0e)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
+    <div style={{ minHeight:"100vh", background:"linear-gradient(180deg,#ffffff,#f6efe0)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
       <div style={{ fontSize:40, marginBottom:6 }}>👥</div>
-      <div style={{ fontSize:24, fontWeight:"bold", color:"#e8c77a", marginBottom:4 }}>VIP Members</div>
-      <div style={{ fontSize:12, color:"#a07060", letterSpacing:3, textTransform:"uppercase", marginBottom:20 }}>Select a member to order</div>
+      <div style={{ fontSize:24, fontWeight:"bold", color:"#8a6218", marginBottom:4 }}>VIP Members</div>
+      <div style={{ fontSize:12, color:"#6a5647", letterSpacing:3, textTransform:"uppercase", marginBottom:20 }}>Select a member to order</div>
 
       {/* Legend */}
       <div style={{ display:"flex", gap:16, fontSize:12, marginBottom:16 }}>
-        <span style={{ color:"#ccbbff" }}>⬜ Available</span>
+        <span style={{ color:"#5a3fa0" }}>⬜ Available</span>
         <span style={{ color:C.gold }}>🟡 Active order</span>
       </div>
 
-      {loading ? <div style={{ color:"#a07060" }}>Loading...</div> : Object.keys(grouped).length === 0 ? (
-        <div style={{ color:"#a07060", textAlign:"center" }}>
+      {loading ? <div style={{ color:"#6a5647" }}>Loading...</div> : Object.keys(grouped).length === 0 ? (
+        <div style={{ color:"#6a5647", textAlign:"center" }}>
           <div style={{ fontSize:14, marginBottom:8 }}>No VIP members yet</div>
           <div style={{ fontSize:12 }}>Add members from ••• More Options → Manage VIP Groups</div>
         </div>
       ) : Object.entries(grouped).map(([groupName, gMembers]) => (
         <div key={groupName} style={{ width:"100%", maxWidth:460, marginBottom:20 }}>
-          <div style={{ fontSize:12, color:"#9a7aff", letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:"bold" }}>
+          <div style={{ fontSize:12, color:"#6a4fbf", letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:"bold" }}>
             {groupName}
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
@@ -882,7 +891,7 @@ function VIPScreen({ setScreen, setTableNo, goHome }) {
                       setPickedMember({ tno: `GRP-${m.id}` });
                     }
                   }}
-                  style={btn({ background:isActive?"#f6ecd0":"#1a1a3a", border:`2px solid ${isActive?C.gold:"#7a6aff"}`, color:isActive?C.gold:"#ccbbff", padding:"16px 8px", fontSize:14, fontWeight:"bold", borderRadius:14, position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:4 })}>
+                  style={btn({ background:isActive?"#f6ecd0":"#ecebf7", border:`2px solid ${isActive?C.gold:"#7a6aff"}`, color:isActive?C.gold:"#5a3fa0", padding:"16px 8px", fontSize:14, fontWeight:"bold", borderRadius:14, position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:4 })}>
                   {isActive && <div style={{ position:"absolute", top:6, right:6, width:8, height:8, borderRadius:"50%", background:C.gold }} />}
                   <span style={{ fontSize:20 }}>👤</span>
                   <span>{m.display_name}</span>
@@ -924,7 +933,7 @@ function TakeawayScreen({ setScreen, setTableNo, goHome }) {
 
       {/* Legend */}
       <div style={{ display:"flex", gap:16, fontSize:12 }}>
-        <span style={{ color:"#aaffcc" }}>⬜ Available</span>
+        <span style={{ color:"#1e7a4a" }}>⬜ Available</span>
         <span style={{ color:C.gold }}>🟡 Active order</span>
       </div>
 
@@ -935,9 +944,9 @@ function TakeawayScreen({ setScreen, setTableNo, goHome }) {
             return (
               <button key={slot} onClick={() => { setTableNo(slot); setScreen("tablet"); }}
                 style={btn({ 
-                  background: isActive ? "#f6ecd0" : "#1a3a2a",
+                  background: isActive ? "#f6ecd0" : "#e6f3ec",
                   border: `2px solid ${isActive ? C.gold : "#5aaa7a"}`,
-                  color: isActive ? C.gold : "#aaffcc",
+                  color: isActive ? C.gold : "#1e7a4a",
                   padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:10,
                   position:"relative"
                 })}>
@@ -2448,10 +2457,10 @@ function KitchenScreen({ goHome }) {
           <div style={{ fontSize:11, color:"#ff4444" }}>🔴 Live — updates instantly</div>
         </div>
         <div style={{ display:"flex", gap:10 }}>
-          <button onClick={toggleSound} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"7px 12px", fontSize:12 })}>
+          <button onClick={toggleSound} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#2d7a2d":C.border}`, color:soundOn?"#fff":C.muted, padding:"7px 12px", fontSize:12 })}>
             {soundOn ? "🔔 Sound On" : "🔕 Sound Off"}
           </button>
-          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#5aaa5a":C.border}`, color:voiceOn?"#aaddff":C.muted, padding:"7px 12px", fontSize:12 })}>
+          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#2d7a2d":C.border}`, color:voiceOn?"#fff":C.muted, padding:"7px 12px", fontSize:12 })}>
             {voiceOn ? "🔊 Voice On" : "🔇 Voice Off"}
           </button>
           {voiceOn && (
@@ -2706,7 +2715,7 @@ function SalesScreen({ goHome }) {
             style={btn({ background:selectedDate===new Date().toISOString().split("T")[0]?"#f6ecd0":"transparent", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"8px 14px", fontSize:13, fontWeight:"bold" })}>Today</button>
           {orders.length > 0 && (
             <button onClick={() => exportExcel(orders, selectedDate, charge)}
-              style={btn({ background:"#1a3a1a", border:`1px solid #5aaa5a`, color:"#aaffaa", padding:"8px 16px", fontSize:13, fontWeight:"bold", marginLeft:"auto" })}>
+              style={btn({ background:"#e3f2e3", border:`1px solid #2d7a2d`, color:"#2d7a2d", padding:"8px 16px", fontSize:13, fontWeight:"bold", marginLeft:"auto" })}>
               📊 Export Excel
             </button>
           )}
@@ -2791,27 +2800,27 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
   const foodOrders = allOrders.filter(o => o.items.some(i => FOOD_CATEGORIES.includes(i.category)));
 
   return (
-    <div style={{ background:C.panel, border:`2px solid ${hasPending?"#c8973a":"#5aaa5a"}`, borderRadius:14, overflow:"hidden" }}>
+    <div style={{ background:C.panel, border:`2px solid ${hasPending?"#c8973a":"#2d7a2d"}`, borderRadius:14, overflow:"hidden" }}>
 
       {/* Header — tap to open full detail */}
       <div onClick={() => setTableDetailModal(tableNo)}
-        style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}>
-        <div style={{ fontSize:22, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
+        style={{ background:hasPending?"#fbf3df":"#eaf4ea", padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}>
+        <div className="hl-title" style={{ fontSize:20, fontWeight:800, color:hasPending?C.goldLight:"#2d7a2d" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
         <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-          {data.pending.length>0 && <span style={{ background:"#f6ecd0", color:C.gold, borderRadius:6, padding:"3px 10px", fontSize:12 }}>⏳ {data.pending.length} pending</span>}
-          {data.done.length>0 && <span style={{ background:"#1a3a1a", color:"#5aaa5a", borderRadius:6, padding:"3px 10px", fontSize:12 }}>✅ {data.done.length} done</span>}
+          {data.pending.length>0 && <span style={{ background:"#f6ecd0", color:C.goldLight, borderRadius:6, padding:"3px 10px", fontSize:12, fontWeight:700 }}>⏳ {data.pending.length} pending</span>}
+          {data.done.length>0 && <span style={{ background:"#e3f2e3", color:"#2d7a2d", borderRadius:6, padding:"3px 10px", fontSize:12, fontWeight:700 }}>✅ {data.done.length} done</span>}
           <span style={{ color:C.muted, fontSize:16, marginLeft:4 }}>↗</span>
         </div>
       </div>
 
       {/* Card tabs */}
-      <div style={{ display:"flex", borderBottom:`2px solid ${C.border}`, background:"#160e04" }}>
+      <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, background:"#faf6ee" }}>
         {[["drinks",`☕ Drinks (${drinkOrders.length})`],["food",`🍳 Food (${foodOrders.length})`],["all","📋 All"]].map(([key, label]) => (
           <button key={key} onClick={() => setCardTab(key)}
-            style={btn({ flex:1, background:cardTab===key?(key==="drinks"?"#0d2010":key==="food"?"#1a1208":"#1a1a0a"):"transparent",
-              border:"none", borderBottom:cardTab===key?`3px solid ${key==="drinks"?"#5aaa5a":key==="food"?C.gold:"#aaa"}`:"3px solid transparent",
-              color:cardTab===key?(key==="drinks"?"#aaffaa":key==="food"?C.goldLight:"#ddd"):C.muted,
-              padding:"14px 8px", fontSize:13, fontWeight:cardTab===key?"bold":"normal", borderRadius:0 })}>
+            style={btn({ flex:1, background:cardTab===key?(key==="drinks"?"#e6f3e8":key==="food"?"#fbf3df":"#eef0f2"):"transparent",
+              border:"none", borderBottom:cardTab===key?`3px solid ${key==="drinks"?"#2d7a2d":key==="food"?C.gold:"#9a9083"}`:"3px solid transparent",
+              color:cardTab===key?(key==="drinks"?"#2d7a2d":key==="food"?C.goldLight:C.text):C.muted,
+              padding:"13px 8px", fontSize:13, fontWeight:cardTab===key?"bold":"normal", borderRadius:0 })}>
             {label}
           </button>
         ))}
@@ -2820,7 +2829,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
       {/* DRINKS */}
       {(cardTab==="drinks" || cardTab==="all") && (
         <div style={{ padding:"14px 16px", borderBottom: cardTab==="all" ? `2px solid ${C.border}` : "none" }}>
-          {cardTab==="all" && <div style={{ fontSize:11, color:"#5aaa5a", fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:10 }}>☕ Drinks</div>}
+          {cardTab==="all" && <div style={{ fontSize:11, color:"#2d7a2d", fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:10 }}>☕ Drinks</div>}
           {drinkOrders.length===0
             ? <div style={{ fontSize:13, color:C.border, fontStyle:"italic", padding:"8px 0" }}>No drinks ordered</div>
             : drinkOrders.map((order, oi) => {
@@ -2830,13 +2839,13 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                   <div key={oi} style={{ marginBottom:12, paddingBottom:12, borderBottom: oi < drinkOrders.length-1 ? `1px solid #efe4cf` : "none" }}>
                     {order.order_seq && <div style={{ marginBottom:6 }}><span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:"bold" }}>#{order.order_seq}</span></div>}
                     {drinkItems.map((item, ii) => (
-                      <div key={ii} style={{ padding:"8px 0", borderTop: ii>0 ? `1px solid #2a1a08` : "none" }}>
+                      <div key={ii} style={{ padding:"8px 0", borderTop: ii>0 ? `1px solid #f0e9db` : "none" }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                          <span style={{ color:isPending?"#eee":"#5aaa5a", fontSize:15 }}>
-                            {item.item_no && <span style={{ color:"#5aaa5a", fontWeight:"bold", marginRight:5 }}>{item.item_no}</span>}
+                          <span style={{ color:isPending?C.text:"#2d7a2d", fontSize:15 }}>
+                            {item.item_no && <span style={{ color:"#2d7a2d", fontWeight:"bold", marginRight:5 }}>{item.item_no}</span>}
                             {item.name} <span style={{ color:C.gold, fontWeight:"bold", marginLeft:6 }}>×{item.qty}</span>
                           </span>
-                          <span style={{ color:"#5aaa5a", fontWeight:"bold", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                          <span style={{ color:"#2d7a2d", fontWeight:"bold", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                         </div>
                         {item.is_takeaway && <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold" }}>🥡 TAKEAWAY</div>}
                         {item.note && <div style={{ fontSize:12, color:"#8a6218", background:"#fbf3df", borderRadius:6, padding:"3px 8px", marginTop:3 }}>📝 {item.note}</div>}
@@ -2844,10 +2853,10 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                     ))}
                     {getDrinkReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#fbf3df", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getDrinkReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
-                      <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Pending":"✅ Served"} · {order.time}</span>
+                      <span style={{ fontSize:13, color:isPending?C.gold:"#2d7a2d", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Pending":"✅ Served"} · {order.time}</span>
                       {isPending && <>
-                        <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#2d6a2d", border:"none", color:"#aaffaa", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:100 })}>✓ Done</button>
-                        <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
+                        <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#2d7a2d", border:"none", color:"#fff", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:100 })}>✓ Done</button>
+                        <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#c0392b", border:"none", color:"#fff", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
                       </>}
                     </div>
                   </div>
@@ -2859,7 +2868,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
 
       {/* FOOD */}
       {(cardTab==="food" || cardTab==="all") && (
-        <div style={{ padding:"14px 16px", background:"#1a1208", borderBottom:`1px solid ${C.border}` }}>
+        <div style={{ padding:"14px 16px", background:"#faf8f3", borderBottom:`1px solid ${C.border}` }}>
           {cardTab==="all" && <div style={{ fontSize:11, color:C.muted, fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:10 }}>🍳 Food (Kitchen)</div>}
           {foodOrders.length===0
             ? <div style={{ fontSize:13, color:C.border, fontStyle:"italic", padding:"8px 0" }}>No food ordered</div>
@@ -2867,15 +2876,15 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                 const foodItems = order.items.filter(i => FOOD_CATEGORIES.includes(i.category));
                 const isPending = order.status==="pending";
                 return (
-                  <div key={oi} style={{ marginBottom:12, paddingBottom:12, borderBottom: oi < foodOrders.length-1 ? `1px solid #2d1a08` : "none" }}>
+                  <div key={oi} style={{ marginBottom:12, paddingBottom:12, borderBottom: oi < foodOrders.length-1 ? `1px solid #f0e9db` : "none" }}>
                     {foodItems.map((item, ii) => (
-                      <div key={ii} style={{ padding:"8px 0", borderTop: ii>0 ? `1px solid #2d1a08` : "none" }}>
+                      <div key={ii} style={{ padding:"8px 0", borderTop: ii>0 ? `1px solid #f0e9db` : "none" }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                          <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:15 }}>
-                            {item.item_no && <span style={{ color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", marginRight:5 }}>{item.item_no}</span>}
-                            {item.name} <span style={{ color:isPending?C.gold:"#5aaa5a", marginLeft:6 }}>×{item.qty}</span>
+                          <span style={{ color:isPending?C.muted:"#2d7a2d", fontSize:15 }}>
+                            {item.item_no && <span style={{ color:isPending?C.gold:"#2d7a2d", fontWeight:"bold", marginRight:5 }}>{item.item_no}</span>}
+                            {item.name} <span style={{ color:isPending?C.gold:"#2d7a2d", marginLeft:6 }}>×{item.qty}</span>
                           </span>
-                          <span style={{ color:isPending?C.muted:"#5aaa5a", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                          <span style={{ color:isPending?C.muted:"#2d7a2d", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                         </div>
                         {item.is_takeaway && <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold" }}>🥡 TAKEAWAY</div>}
                         {item.note && <div style={{ fontSize:12, color:"#8a6218", background:"#fbf3df", borderRadius:6, padding:"3px 8px", marginTop:3 }}>📝 {item.note}</div>}
@@ -2883,9 +2892,9 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                     ))}
                     {getFoodReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#fbf3df", borderRadius:6, padding:"6px 10px", marginTop:6 }}>📝 {getFoodReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
-                      <span style={{ fontSize:13, color:isPending?C.gold:"#5aaa5a", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Kitchen preparing":"✅ Served"} · {order.time}</span>
+                      <span style={{ fontSize:13, color:isPending?C.gold:"#2d7a2d", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Kitchen preparing":"✅ Served"} · {order.time}</span>
                       {isPending && (
-                        <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#6a1a1a", border:"none", color:"#ff9999", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:110 })}>✕ Cancel</button>
+                        <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#c0392b", border:"none", color:"#fff", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:110 })}>✕ Cancel</button>
                       )}
                     </div>
                   </div>
@@ -2896,7 +2905,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
       )}
 
       {/* Footer */}
-      <div style={{ background:"#0f0a04", padding:"12px 16px" }}>
+      <div style={{ background:"#faf6ee", padding:"12px 16px" }}>
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
           <span>TOTAL</span><span>RM {data.total.toFixed(2)}</span>
         </div>
@@ -2919,12 +2928,12 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
   return (
     <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.95)", zIndex:9000, display:"flex", flexDirection:"column" }}>
       {/* Header */}
-      <div style={{ background:hasPending?"#2c1a0e":"#1a2c1a", padding:"14px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${hasPending?C.gold:"#5aaa5a"}`, flexShrink:0 }}>
+      <div style={{ background:hasPending?"#fbf3df":"#eaf4ea", padding:"14px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${hasPending?C.gold:"#2d7a2d"}`, flexShrink:0 }}>
         <div>
-          <div style={{ fontSize:26, fontWeight:"bold", color:hasPending?C.goldLight:"#aaffaa" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
+          <div style={{ fontSize:26, fontWeight:"bold", color:hasPending?C.goldLight:"#2d7a2d" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
           <div style={{ fontSize:13, color:C.muted, marginTop:2 }}>
             {pending.length > 0 && <span style={{ color:C.gold, marginRight:12 }}>⏳ {pending.length} pending</span>}
-            {done.length > 0 && <span style={{ color:"#5aaa5a" }}>✅ {done.length} done</span>}
+            {done.length > 0 && <span style={{ color:"#2d7a2d" }}>✅ {done.length} done</span>}
           </div>
         </div>
         <button onClick={() => setTableDetailModal(null)}
@@ -2932,7 +2941,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
       </div>
 
       {/* Tabs */}
-      <div style={{ display:"flex", background:"#160e04", borderBottom:`2px solid ${C.border}`, flexShrink:0 }}>
+      <div style={{ display:"flex", background:"#faf6ee", borderBottom:`2px solid ${C.border}`, flexShrink:0 }}>
         {[["all","📋 All"],["drinks",`☕ Drinks (${drinkOrders.length})`],["food",`🍳 Food (${foodOrders.length})`]].map(([key,label]) => (
           <button key={key} onClick={() => setDetailTab(key)}
             style={btn({ flex:1, background:"transparent", border:"none", borderBottom:detailTab===key?`3px solid ${C.gold}`:"3px solid transparent", color:detailTab===key?C.goldLight:C.muted, padding:"12px 8px", fontSize:13, fontWeight:detailTab===key?"bold":"normal", borderRadius:0 })}>
@@ -2949,7 +2958,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
             const isPending = order.status === "pending";
             const isDrink = order.items.every(i => DRINK_CATEGORIES.includes(i.category));
             return (
-              <div key={order.id} style={{ background:isPending?"#2c1a0e":"#1a2c1a", border:`2px solid ${isPending?C.gold:"#5aaa5a"}`, borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
+              <div key={order.id} style={{ background:isPending?"#fbf3df":"#eaf4ea", border:`2px solid ${isPending?C.gold:"#2d7a2d"}`, borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                     {order.order_seq && <span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"2px 8px", fontSize:13, fontWeight:"bold" }}>#{order.order_seq}</span>}
@@ -2962,13 +2971,13 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
                 {order.items.map((item, ii) => (
                   <div key={ii} style={{ marginBottom:8 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", fontSize:18 }}>
-                      <span style={{ color:isPending?C.goldLight:"#aaffaa", fontWeight:"bold" }}>
+                      <span style={{ color:isPending?C.goldLight:"#2d7a2d", fontWeight:"bold" }}>
                         {item.item_no && <span style={{ color:C.gold, marginRight:6 }}>{item.item_no}</span>}
                         {item.name}
                       </span>
                       <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
                     </div>
-                    <div style={{ color:"#aaffaa", fontSize:15, marginTop:2 }}>RM {(item.price*item.qty).toFixed(2)}</div>
+                    <div style={{ color:"#2d7a2d", fontSize:15, marginTop:2 }}>RM {(item.price*item.qty).toFixed(2)}</div>
                     {item.is_takeaway && <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:4, fontSize:12, fontWeight:"bold" }}>🥡 TAKEAWAY</div>}
                     {item.note && <div style={{ fontSize:13, color:"#8a6218", background:"#fbf3df", borderRadius:8, padding:"5px 10px", marginTop:5 }}>📝 {item.note}</div>}
                   </div>
@@ -2979,9 +2988,9 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
                 {isPending && (
                   <div style={{ display:"flex", gap:10, marginTop:12 }}>
                     <button onClick={() => markOrderDone(order.id)}
-                      style={btn({ flex:1, background:"#2d6a2d", border:"none", color:"#aaffaa", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✓ Mark Done</button>
+                      style={btn({ flex:1, background:"#2d7a2d", border:"none", color:"#fff", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✓ Mark Done</button>
                     <button onClick={() => cancelOrder(order.id)}
-                      style={btn({ flex:1, background:"#6a1a1a", border:"none", color:"#ff9999", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✕ Cancel</button>
+                      style={btn({ flex:1, background:"#c0392b", border:"none", color:"#fff", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✕ Cancel</button>
                   </div>
                 )}
               </div>
@@ -2991,7 +3000,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
       </div>
 
       {/* Footer */}
-      <div style={{ background:"#0f0a04", padding:"14px 16px", borderTop:`2px solid ${C.border}`, flexShrink:0 }}>
+      <div style={{ background:"#faf6ee", padding:"14px 16px", borderTop:`2px solid ${C.border}`, flexShrink:0 }}>
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:22, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
           <span>TOTAL</span><span>RM {total.toFixed(2)}</span>
         </div>
@@ -3149,7 +3158,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
     return (
       <div style={{ position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.9)",zIndex:10000,display:"flex",alignItems:"center",justifyContent:"center",padding:16 }}>
         <div style={{ background:C.panel,border:`1px solid ${C.gold}`,borderRadius:20,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto" }}>
-          <div style={{ background:"#2c1a0e",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:1 }}>
+          <div style={{ background:C.panelGrad,padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:1 }}>
             <div style={{ fontSize:18,fontWeight:"bold",color:C.goldLight }}>✏️ Edit Table — Pick Table</div>
             <button onClick={onClose} style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,width:36,height:36,fontSize:18,borderRadius:50 })}>✕</button>
           </div>
@@ -3158,14 +3167,14 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
             <div style={{ display:"flex",flexWrap:"wrap",gap:10,marginBottom:20 }}>
               {TABLES.map(t=>(
                 <button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}}
-                  style={btn({ background:"#2c1a0e",border:`2px solid ${C.gold}`,color:C.goldLight,padding:"14px 20px",fontSize:16,fontWeight:"bold",minWidth:60 })}>
+                  style={btn({ background:"#f6ecd0",border:`2px solid ${C.gold}`,color:C.goldLight,padding:"14px 20px",fontSize:16,fontWeight:"bold",minWidth:60 })}>
                   {t}
                 </button>
               ))}
             </div>
             <div style={{ fontSize:12,color:C.muted,marginBottom:8,fontWeight:"bold" }}>TAKEAWAY</div>
             <div style={{ display:"flex",flexWrap:"wrap",gap:8,marginBottom:20 }}>
-              {TW_SLOTS.map(t=>(<button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}} style={btn({ background:"#1a2c1a",border:`2px solid #5aaa5a`,color:"#aaffaa",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>{t}</button>))}
+              {TW_SLOTS.map(t=>(<button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}} style={btn({ background:"#e6f3ec",border:`2px solid #2d7a2d`,color:"#2d7a2d",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>{t}</button>))}
             </div>
             <VIPTableButtons setPickedTable={setPickedTable} setStep={setStep} />
           </div>
@@ -3179,7 +3188,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
   return (
     <div style={{ position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.95)",zIndex:10000,display:"flex",flexDirection:"column" }}>
       {/* Header */}
-      <div style={{ background:"#2c1a0e",padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`2px solid ${C.gold}`,flexShrink:0 }}>
+      <div style={{ background:C.panelGrad,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`2px solid ${C.gold}`,flexShrink:0 }}>
         <div>
           <div style={{ fontSize:18,fontWeight:"bold",color:C.goldLight }}>✏️ {tableLabel}</div>
           <div style={{ fontSize:12,color:C.muted }}>{activeOrders.length} order(s) on this table</div>
@@ -3188,7 +3197,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
       </div>
 
       {/* Tabs */}
-      <div style={{ display:"flex",background:"#160e04",borderBottom:`2px solid ${C.border}`,flexShrink:0 }}>
+      <div style={{ display:"flex",background:"#faf6ee",borderBottom:`2px solid ${C.border}`,flexShrink:0 }}>
         {[["existing","📋 Current Orders"],["add","➕ Add Items"]].map(([key,label])=>(
           <button key={key} onClick={()=>setEditTab(key)}
             style={btn({ flex:1,background:"transparent",border:"none",borderBottom:editTab===key?`3px solid ${C.gold}`:"3px solid transparent",
@@ -3206,13 +3215,13 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
           {activeOrders.length===0
             ? <div style={{ color:C.muted,textAlign:"center",padding:40 }}>No current orders on this table</div>
             : activeOrders.map(order=>(
-              <div key={order.id} style={{ background:order.status==="pending"?"#2c1a0e":"#1a2c1a",border:`2px solid ${order.status==="pending"?C.gold:"#5aaa5a"}`,borderRadius:14,padding:14,marginBottom:12 }}>
+              <div key={order.id} style={{ background:order.status==="pending"?"#fbf3df":"#eaf4ea",border:`2px solid ${order.status==="pending"?C.gold:"#2d7a2d"}`,borderRadius:14,padding:14,marginBottom:12 }}>
                 <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
                   <span style={{ background:order.status==="pending"?"#c8973a":"#2d6a2d",color:"#fff",borderRadius:8,padding:"3px 10px",fontSize:12,fontWeight:"bold" }}>
                     {order.status==="pending"?"⏳ Pending":"✅ Served"}
                   </span>
                   <button onClick={()=>cancelExistingOrder(order.id)}
-                    style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",padding:"6px 12px",fontSize:12,fontWeight:"bold",borderRadius:8 })}>
+                    style={btn({ background:"#c0392b",border:"none",color:"#fff",padding:"6px 12px",fontSize:12,fontWeight:"bold",borderRadius:8 })}>
                     🗑️ Remove Order
                   </button>
                 </div>
@@ -3245,11 +3254,11 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                       </div>
                       <div style={{ display:"flex",alignItems:"center",gap:6,flexShrink:0 }}>
                         <button onClick={()=>updateExistingQty(order,ii,-1)}
-                          style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:32,height:32,fontSize:18,borderRadius:8,fontWeight:"bold" })}>−</button>
+                          style={btn({ background:"#c0392b",border:"none",color:"#fff",width:32,height:32,fontSize:18,borderRadius:8,fontWeight:"bold" })}>−</button>
                         <span style={{ color:C.goldLight,fontWeight:"bold",fontSize:15,minWidth:22,textAlign:"center" }}>{item.qty}</span>
                         <button onClick={()=>updateExistingQty(order,ii,+1)}
-                          style={btn({ background:"#1a4a1a",border:"none",color:"#aaffaa",width:32,height:32,fontSize:18,borderRadius:8,fontWeight:"bold" })}>+</button>
-                        <span style={{ color:"#aaffaa",fontWeight:"bold",fontSize:12,minWidth:55,textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                          style={btn({ background:"#2d7a2d",border:"none",color:"#fff",width:32,height:32,fontSize:18,borderRadius:8,fontWeight:"bold" })}>+</button>
+                        <span style={{ color:"#2d7a2d",fontWeight:"bold",fontSize:12,minWidth:55,textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
                       </div>
                     </div>
                     {isEditNote ? (
@@ -3309,13 +3318,13 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                 {items.map(item=>{
                   const inCart=cart.find(c=>c.name===item.name);
                   return (
-                    <div key={item.id} onClick={()=>addToCart(item)} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:inCart?"#2c1a0e":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:8,cursor:"pointer" }}>
+                    <div key={item.id} onClick={()=>addToCart(item)} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:inCart?"#fbf3df":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:8,cursor:"pointer" }}>
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ color:C.text,fontSize:14,fontWeight:inCart?"bold":"normal" }}>{item.item_no && <span style={{ color:C.gold,fontSize:11,fontWeight:"bold",marginRight:5 }}>{item.item_no}</span>}{item.name}</div>
                         <div style={{ color:C.gold,fontSize:13 }}>RM {parseFloat(item.price).toFixed(2)}</div>
                       </div>
                       <div style={{ display:"flex",alignItems:"center",gap:8,flexShrink:0 }}>
-                        {inCart&&<button onClick={e=>{e.stopPropagation();removeFromCart(item.name);}} style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:36,height:36,fontSize:20,borderRadius:8 })}>−</button>}
+                        {inCart&&<button onClick={e=>{e.stopPropagation();removeFromCart(item.name);}} style={btn({ background:"#c0392b",border:"none",color:"#fff",width:36,height:36,fontSize:20,borderRadius:8 })}>−</button>}
                         {inCart&&<span style={{ color:C.goldLight,fontWeight:"bold",minWidth:24,textAlign:"center",fontSize:16 }}>{inCart.qty}</span>}
                         <div style={{ background:C.gold,borderRadius:8,width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:"bold",color:C.dark,flexShrink:0 }}>+</div>
                       </div>
@@ -3340,7 +3349,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                       <div style={{ display:"flex",alignItems:"center",gap:8,flexShrink:0 }}>
                         <span style={{ color:C.gold,fontSize:13 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                         <button onClick={()=>removeFromCart(item.name)}
-                          style={btn({ background:"#6a1a1a",border:"none",color:"#ff9999",width:26,height:26,fontSize:14,borderRadius:6 })}>✕</button>
+                          style={btn({ background:"#c0392b",border:"none",color:"#fff",width:26,height:26,fontSize:14,borderRadius:6 })}>✕</button>
                       </div>
                     </div>
                     <div onClick={()=>setCart(prev=>prev.map((it,idx)=>idx===i?{...it,is_takeaway:!it.is_takeaway}:it))}
@@ -3387,7 +3396,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                   <div key={ai} onClick={()=>{
                     if (addonPicker.addon_required) setPickerAddons([addon]);
                     else setPickerAddons(prev=>selected?prev.filter(a=>a.name!==addon.name):[...prev,addon]);
-                  }} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",marginBottom:8,borderRadius:10,border:`2px solid ${selected?C.gold:C.border}`,background:selected?"#2c1a0e":C.bg,cursor:"pointer" }}>
+                  }} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",marginBottom:8,borderRadius:10,border:`2px solid ${selected?C.gold:C.border}`,background:selected?"#fbf3df":C.bg,cursor:"pointer" }}>
                     <div style={{ display:"flex",alignItems:"center",gap:10 }}>
                       <div style={{ width:22,height:22,borderRadius:addonPicker.addon_required?11:5,border:`2px solid ${selected?C.gold:C.border}`,background:selected?C.gold:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
                         {selected && <span style={{ color:C.dark,fontSize:13,fontWeight:"bold" }}>✓</span>}
@@ -3438,7 +3447,7 @@ function VIPTableButtons({ setPickedTable, setStep }) {
             const tno = data&&data.length ? data[0].table_no : `GRP-${v.id}`;
             setPickedTable(tno); setStep("edit");
           }}
-            style={btn({ background:"#1a1a3a",border:`2px solid #7a6aff`,color:"#ccbbff",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>
+            style={btn({ background:"#ecebf7",border:`2px solid #7a6aff`,color:"#5a3fa0",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>
             👤 {v.display_name}
           </button>
         ))}
@@ -3899,10 +3908,10 @@ function CashierScreen({ goHome }) {
           </div>
         </div>
       )}
-      <div style={{ background:C.panel, borderBottom:`2px solid #5aaa5a`, padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
+      <div style={{ background:C.panel, borderBottom:`2px solid #2d7a2d`, padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
         <div>
-          <div style={{ fontSize:16, color:"#aaffaa", fontWeight:"bold" }}>💳 Cashier — Drinks & Payment</div>
-          <div style={{ fontSize:11, color:"#5aaa5a" }}>🔴 Live — updates instantly</div>
+          <div style={{ fontSize:16, color:"#2d7a2d", fontWeight:"bold" }}>💳 Cashier — Drinks & Payment</div>
+          <div style={{ fontSize:11, color:"#2d7a2d" }}>🔴 Live — updates instantly</div>
         </div>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
           <button onClick={() => setSoundOn(s => {
@@ -3910,10 +3919,10 @@ function CashierScreen({ goHome }) {
             soundOnRef.current = next;
             localStorage.setItem("c_sound", next ? "on" : "off");
             return next;
-          })} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#5aaa5a":C.border}`, color:soundOn?"#aaffaa":C.muted, padding:"6px 10px", fontSize:11 })}>
+          })} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#2d7a2d":C.border}`, color:soundOn?"#fff":C.muted, padding:"6px 10px", fontSize:11 })}>
             {soundOn ? "🔔 Sound" : "🔕 Sound"}
           </button>
-          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#5aaa5a":C.border}`, color:voiceOn?"#aaddff":C.muted, padding:"6px 10px", fontSize:11 })}>
+          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#2d7a2d":C.border}`, color:voiceOn?"#fff":C.muted, padding:"6px 10px", fontSize:11 })}>
             {voiceOn ? "🔊 Voice" : "🔇 Voice"}
           </button>
           {voiceOn && (
@@ -3922,7 +3931,7 @@ function CashierScreen({ goHome }) {
             </button>
           )}
           <button onClick={() => setEditTableModal("pick")}
-            style={btn({ background:"#1a2a3a", border:`1px solid #5aaaff`, color:"#99ccff", padding:"6px 10px", fontSize:11, fontWeight:"bold" })}>
+            style={btn({ background:"#e9eff5", border:`1px solid #5aaaff`, color:"#1e6076", padding:"6px 10px", fontSize:11, fontWeight:"bold" })}>
             ✏️ Edit
           </button>
           <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"6px 10px", fontSize:11 })}>← Back</button>
@@ -3931,15 +3940,15 @@ function CashierScreen({ goHome }) {
       <div style={{ background:C.panel, borderBottom:`1px solid ${C.border}`, padding:"0 16px", display:"flex", gap:0 }}>
         {[["all",`All (${activeTables.length})`],["pending",`⏳ Pending (${pendingTables.length})`],["done",`✅ All Served (${doneTables.length})`]].map(([key,label]) => (
           <button key={key} onClick={() => { setFilterTab(key); setSelectedTable(null); }}
-            style={btn({ background:"transparent", border:"none", borderBottom:filterTab===key?`3px solid ${key==="pending"?C.gold:"#5aaa5a"}`:"3px solid transparent",
-              color:filterTab===key?(key==="pending"?C.goldLight:"#aaffaa"):C.muted,
+            style={btn({ background:"transparent", border:"none", borderBottom:filterTab===key?`3px solid ${key==="pending"?C.gold:"#2d7a2d"}`:"3px solid transparent",
+              color:filterTab===key?(key==="pending"?C.goldLight:"#2d7a2d"):C.muted,
               padding:"14px 20px", fontSize:14, fontWeight:filterTab===key?"bold":"normal", borderRadius:0 })}>
             {label}
           </button>
         ))}
       </div>
       {activeTables.length > 0 && (
-        <div style={{ background:"#110d06", borderBottom:`1px solid ${C.border}`, padding:"10px 16px", display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
+        <div style={{ background:"#f3efe8", borderBottom:`1px solid ${C.border}`, padding:"10px 16px", display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
           <span style={{ fontSize:12, color:C.muted, marginRight:4, fontWeight:"bold" }}>TABLE:</span>
           <button onClick={() => setSelectedTable(null)}
             style={btn({ background:selectedTable===null?"#f6ecd0":"transparent", border:`2px solid ${selectedTable===null?C.gold:C.border}`,
@@ -3951,9 +3960,9 @@ function CashierScreen({ goHome }) {
             const isSelected = String(selectedTable)===String(tno);
             return (
               <button key={tno} onClick={() => setSelectedTable(isSelected ? null : tno)}
-                style={btn({ background:isSelected?(hasPend?"#f6ecd0":"#1a3a1a"):"transparent",
-                  border:`2px solid ${isSelected?(hasPend?C.gold:"#5aaa5a"):(hasPend?"#5a4a20":"#2a4a2a")}`,
-                  color:isSelected?(hasPend?C.goldLight:"#aaffaa"):(hasPend?C.muted:"#5aaa5a"),
+                style={btn({ background:isSelected?(hasPend?"#f6ecd0":"#e3f2e3"):"transparent",
+                  border:`2px solid ${isSelected?(hasPend?C.gold:"#2d7a2d"):(hasPend?"#5a4a20":"#2a4a2a")}`,
+                  color:isSelected?(hasPend?C.goldLight:"#2d7a2d"):(hasPend?C.muted:"#2d7a2d"),
                   padding:"10px 18px", fontSize:14, fontWeight:isSelected?"bold":"normal", minHeight:44 })}>
                 T{tno} {hasPend?"⏳":"✅"}
               </button>
@@ -3970,7 +3979,7 @@ function CashierScreen({ goHome }) {
                 <div style={{ fontSize:12, color:"#ff6b35", letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:"bold" }}>🔔 Waiter Called</div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
                   {waiterCalls.map(c => (
-                    <div key={c.table_no} style={{ background:"#3d1a0e", border:"1.5px solid #ff6b35", borderRadius:10, padding:"10px 16px", display:"flex", alignItems:"center", gap:12 }}>
+                    <div key={c.table_no} style={{ background:"#fceee7", border:"1.5px solid #ff6b35", borderRadius:10, padding:"10px 16px", display:"flex", alignItems:"center", gap:12 }}>
                       <div><div style={{ fontWeight:"bold", color:"#ff6b35", fontSize:15 }}>Table {c.table_no}</div><div style={{ fontSize:11, color:C.muted }}>{c.time}</div></div>
                       <button onClick={() => dismissWaiter(c.table_no)} style={btn({ background:"#ff6b35", border:"none", color:"#fff", padding:"6px 12px", fontSize:12, fontWeight:"bold" })}>Done ✓</button>
                     </div>
@@ -3981,14 +3990,14 @@ function CashierScreen({ goHome }) {
             {displayTables.length===0 ? (
             <div style={{ textAlign:"center", color:C.muted, padding:60 }}>
               <div style={{ fontSize:48, marginBottom:16 }}>✅</div>
-              <div style={{ fontSize:18, color:"#5aaa5a", fontWeight:"bold" }}>All Clear!</div>
+              <div style={{ fontSize:18, color:"#2d7a2d", fontWeight:"bold" }}>All Clear!</div>
               <div style={{ fontSize:14, marginTop:8 }}>No active tables right now</div>
             </div>
           ) : (
             <>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(140px,1fr))", gap:10, marginBottom:20 }}>
-                <div style={{ background:C.panel, border:`1px solid #5aaa5a`, borderRadius:10, padding:12, textAlign:"center" }}>
-                  <div style={{ fontSize:22, color:"#aaffaa", fontWeight:"bold" }}>{activeTables.length}</div>
+                <div style={{ background:C.panel, border:`1px solid #2d7a2d`, borderRadius:10, padding:12, textAlign:"center" }}>
+                  <div style={{ fontSize:22, color:"#2d7a2d", fontWeight:"bold" }}>{activeTables.length}</div>
                   <div style={{ fontSize:11, color:C.muted }}>Active Tables</div>
                 </div>
                 <div style={{ background:C.panel, border:`1px solid ${C.gold}`, borderRadius:10, padding:12, textAlign:"center" }}>
