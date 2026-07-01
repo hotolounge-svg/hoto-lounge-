@@ -2617,16 +2617,19 @@ function KitchenScreen({ goHome }) {
         return (
         <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:C.bg, zIndex:9000, display:"flex", flexDirection:"column" }}>
           {/* Header */}
-          <div style={{ background:C.panel, padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${C.gold}`, flexShrink:0, boxShadow:C.shadow }}>
-            <div>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-                {liveOrder.order_seq && <span style={{ background:C.gold, color:"#fff", borderRadius:6, padding:"3px 10px", fontSize:16, fontWeight:"bold" }}>#{liveOrder.order_seq}</span>}
-                <div className="hl-title" style={{ fontSize:28, fontWeight:800, color:C.goldLight }}>{isTakeaway(liveOrder.table_no) ? takeawayLabel(liveOrder.table_no) : `Table ${liveOrder.table_no}`}</div>
+          <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"14px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0, boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ width:40, height:40, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="hat" size={20} color="#fff" /></div>
+              <div>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  {liveOrder.order_seq && <span style={{ background:"rgba(255,255,255,0.9)", color:"#394c76", borderRadius:6, padding:"2px 9px", fontSize:14, fontWeight:"bold" }}>#{liveOrder.order_seq}</span>}
+                  <div className="hl-title" style={{ fontSize:24, fontWeight:800, color:"#fff" }}>{isTakeaway(liveOrder.table_no) ? takeawayLabel(liveOrder.table_no) : `Table ${liveOrder.table_no}`}</div>
+                </div>
+                <div style={{ fontSize:12, color:"#aeb8cc", marginTop:2 }}>Food Order · {liveOrder.time}</div>
               </div>
-              <div style={{ fontSize:13, color:C.muted }}>Food Order · {liveOrder.time}</div>
             </div>
             <button onClick={() => setKitchenDetailModal(null)}
-              style={btn({ background:"#eef1f6", border:`1px solid ${C.border}`, color:C.muted, width:46, height:46, fontSize:22, borderRadius:50 })}>✕</button>
+              style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", width:44, height:44, fontSize:20, borderRadius:50 })}>✕</button>
           </div>
 
           {/* Items */}
@@ -2896,7 +2899,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
       <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, background:"#f4f6f9" }}>
         {[["drinks",`Drinks (${drinkOrders.length})`],["food",`Food (${foodOrders.length})`],["all","All"]].map(([key, label]) => (
           <button key={key} onClick={() => setCardTab(key)}
-            style={btn({ flex:1, background:cardTab===key?(key==="drinks"?"#e6f3e8":key==="food"?"#eef1f6":"#eef0f2"):"transparent",
+            style={btn({ flex:1, background:cardTab===key?(key==="drinks"?"#eef1f6":key==="food"?"#eef1f6":"#eef1f6"):"transparent",
               border:"none", borderBottom:cardTab===key?`3px solid ${key==="drinks"?"#394c76":key==="food"?C.gold:"#9a9083"}`:"3px solid transparent",
               color:cardTab===key?(key==="drinks"?"#394c76":key==="food"?C.goldLight:C.text):C.muted,
               padding:"13px 8px", fontSize:13, fontWeight:cardTab===key?"bold":"normal", borderRadius:0 })}>
@@ -4029,7 +4032,7 @@ function CashierScreen({ goHome }) {
         ))}
       </div>
       {activeTables.length > 0 && (
-        <div style={{ background:"#f3efe8", borderBottom:`1px solid ${C.border}`, padding:"10px 16px", display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
+        <div style={{ background:"#eef1f6", borderBottom:`1px solid ${C.border}`, padding:"10px 16px", display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
           <span style={{ fontSize:12, color:C.muted, marginRight:4, fontWeight:"bold" }}>TABLE:</span>
           <button onClick={() => setSelectedTable(null)}
             style={btn({ background:selectedTable===null?"#e3e7f0":"transparent", border:`2px solid ${selectedTable===null?C.gold:C.border}`,
