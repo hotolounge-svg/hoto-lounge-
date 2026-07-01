@@ -191,6 +191,18 @@ function Icon({ name, size=24, color="currentColor", stroke=1.8, style }) {
     sliders: <><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></>,
     dots: <><circle cx="5" cy="12" r="1.6" fill={color} stroke="none"/><circle cx="12" cy="12" r="1.6" fill={color} stroke="none"/><circle cx="19" cy="12" r="1.6" fill={color} stroke="none"/></>,
     lock: <><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></>,
+    user: <><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></>,
+    crown: <><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 10.5h-15z"/><path d="M4.5 18.5h15"/></>,
+    pen: <><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></>,
+    clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></>,
+    check: <path d="M4 12.5l5 5L20 6.5"/>,
+    x: <path d="M6 6l12 12M18 6L6 18"/>,
+    trash: <><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></>,
+    printer: <><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7" rx="1"/></>,
+    plus: <path d="M12 5v14M5 12h14"/>,
+    minus: <path d="M5 12h14"/>,
+    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>,
+    arrowLeft: <><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
@@ -382,7 +394,7 @@ function GroupWrapper({ tableNo: initialTableNo }) {
 
   if (checking) {
     return (
-      <div style={{ minHeight:"100vh", background:"linear-gradient(180deg,#ffffff,#f6efe0)", display:"flex", alignItems:"center", justifyContent:"center", color:"#8c8c8c", fontFamily:"Georgia,serif", fontSize:14 }}>
+      <div style={{ minHeight:"100vh", background:"#e8ecef", display:"flex", alignItems:"center", justifyContent:"center", color:"#8c8c8c", fontFamily:"Georgia,serif", fontSize:14 }}>
         Loading…
       </div>
     );
@@ -406,20 +418,23 @@ function GroupScreen({ tableNo, setTableNo, onBack }) {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(180deg,#ffffff,#f6efe0)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
-      <div style={{ fontSize:48, marginBottom:8 }}>👤</div>
-      <div style={{ fontSize:26, fontWeight:"bold", color:"#394c76", marginBottom:4 }}>Welcome, {memberName}!</div>
+    <div style={{ minHeight:"100vh", background:HP.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
+      <div style={{ width:72, height:72, borderRadius:20, background:"#394c76", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:14, boxShadow:"0 8px 22px rgba(57,76,118,0.25)" }}>
+        <Icon name="user" size={34} color="#fff" />
+      </div>
+      <div className="hl-title" style={{ fontSize:26, fontWeight:800, color:"#2b3346", marginBottom:4 }}>Welcome, {memberName}!</div>
       <div style={{ fontSize:13, color:"#8c8c8c", letterSpacing:3, textTransform:"uppercase", marginBottom:24 }}>Which table today?</div>
       {lastTable && (
         <button onClick={() => proceed(parseInt(lastTable))}
-          style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#e3f2e3", border:"2px solid #2d7a2d", color:"#2d7a2d", borderRadius:12, padding:"12px 24px", fontSize:15, fontWeight:"bold", marginBottom:16, width:"100%", maxWidth:420 }}>
-          📍 Last time: Table {lastTable} — use same?
+          style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:"1.5px solid #394c76", color:"#394c76", borderRadius:12, padding:"13px 24px", fontSize:15, fontWeight:"bold", marginBottom:16, width:"100%", maxWidth:420, boxShadow:"0 2px 8px rgba(57,76,118,0.08)" }}>
+          Last time: Table {lastTable} — use same?
         </button>
       )}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, width:"100%", maxWidth:420, marginBottom:16 }}>
         {TABLES.map(t => (
           <button key={t} onClick={() => proceed(t)}
-            style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#e3e7f0", border:"2px solid #c9cfd8", color:"#394c76", borderRadius:12, padding:"14px 0", fontSize:16, fontWeight:"bold" }}>
+            className="hl-title"
+            style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:"1.5px solid #d6dbe2", color:"#394c76", borderRadius:12, padding:"15px 0", fontSize:17, fontWeight:700, boxShadow:"0 2px 8px rgba(57,76,118,0.06)" }}>
             {t}
           </button>
         ))}
@@ -430,7 +445,7 @@ function GroupScreen({ tableNo, setTableNo, onBack }) {
       </button>
       {onBack && (
         <button onClick={onBack}
-          style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:`1px solid ${C.border}`, color:C.muted, borderRadius:12, padding:"11px 28px", fontSize:14, marginTop:16 }}>
+          style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"1px solid #d6dbe2", color:"#8c8c8c", borderRadius:12, padding:"11px 28px", fontSize:14, marginTop:16 }}>
           ← Back
         </button>
       )}
@@ -469,10 +484,12 @@ function JoinScreen({ groupSlug, goHome }) {
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const isAndroid = /android/i.test(navigator.userAgent);
     return (
-      <div style={{ minHeight:"100vh", background:"linear-gradient(180deg,#ffffff,#f6efe0)", fontFamily:"Georgia,serif", overflowY:"auto" }}>
+      <div style={{ minHeight:"100vh", background:"#e8ecef", fontFamily:"Georgia,serif", overflowY:"auto" }}>
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"32px 20px 40px" }}>
-          <div style={{ fontSize:44, marginBottom:8 }}>🎉</div>
-          <div style={{ fontSize:22, fontWeight:"bold", color:"#394c76", marginBottom:4 }}>Welcome, {done.name}!</div>
+          <div style={{ width:64, height:64, borderRadius:18, background:"#394c76", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:12, boxShadow:"0 8px 22px rgba(57,76,118,0.25)" }}>
+            <Icon name="check" size={30} color="#fff" stroke={2.4} />
+          </div>
+          <div className="hl-title" style={{ fontSize:22, fontWeight:800, color:"#2b3346", marginBottom:4 }}>Welcome, {done.name}!</div>
           <div style={{ fontSize:13, color:"#8c8c8c", marginBottom:20, textAlign:"center" }}>Your personal menu link is ready</div>
 
           {/* PRIMARY actions — the link works the same on iPhone & Android */}
@@ -545,9 +562,11 @@ function JoinScreen({ groupSlug, goHome }) {
   }
 
   return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(180deg,#ffffff,#f6efe0)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
-      <div style={{ fontSize:48, marginBottom:8 }}>☕</div>
-      <div style={{ fontSize:24, fontWeight:"bold", color:"#394c76", marginBottom:4 }}>{groupName || "VIP Group"}</div>
+    <div style={{ minHeight:"100vh", background:"#e8ecef", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
+      <div style={{ width:64, height:64, borderRadius:18, background:"#394c76", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:12, boxShadow:"0 8px 22px rgba(57,76,118,0.25)" }}>
+        <Icon name="coffee" size={30} color="#fff" stroke={1.7} />
+      </div>
+      <div className="hl-title" style={{ fontSize:24, fontWeight:800, color:"#2b3346", marginBottom:4 }}>{groupName || "VIP Group"}</div>
       <div style={{ fontSize:13, color:"#8c8c8c", letterSpacing:2, textTransform:"uppercase", marginBottom:28 }}>Register your name</div>
       <div style={{ width:"100%", maxWidth:360 }}>
         <input value={name} onChange={e=>{setName(e.target.value);setError("");}}
@@ -693,9 +712,12 @@ function GroupAdminScreen({ goHome }) {
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"Georgia,serif" }}>
-      <div style={{ background:C.panelGrad, borderBottom:`2px solid ${C.gold}`, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 18px rgba(0,0,0,0.35)" }}>
-        <div className="hl-title" style={{ fontSize:21, color:C.goldLight, fontWeight:700, letterSpacing:0.5 }}>👥 Group Members</div>
-        <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
+      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:34, height:34, borderRadius:9, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="users" size={18} color="#fff" /></div>
+          <div className="hl-title" style={{ fontSize:20, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Group Members</div>
+        </div>
+        <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"8px 16px", fontSize:13 })}>← Back</button>
       </div>
       <div style={{ padding:16, maxWidth:600, margin:"0 auto" }}>
         {/* Create / Add form */}
@@ -798,7 +820,7 @@ function GroupAdminScreen({ goHome }) {
                   Cancel
                 </button>
                 <button onClick={confirmModal.onConfirm}
-                  style={btn({ flex:1, background:"#c0392b", border:"none", color:"#fff", padding:"10px 0", borderRadius:10, fontSize:14, fontWeight:"bold" })}>
+                  style={btn({ flex:1, background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"10px 0", borderRadius:10, fontSize:14, fontWeight:"bold" })}>
                   Delete
                 </button>
               </div>
@@ -816,7 +838,7 @@ function GroupAdminScreen({ goHome }) {
                 <div style={{ background:`${C.border}44`, padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <div style={{ fontSize:15, fontWeight:"bold", color:C.goldLight }}>👥 {grp.name}</div>
                   <button onClick={()=>deleteGroup(grp.slug, grp.name)}
-                    style={btn({ background:"#c0392b", border:"none", color:"#fff", padding:"4px 10px", fontSize:12, borderRadius:6 })}>Delete Group</button>
+                    style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"4px 10px", fontSize:12, borderRadius:6 })}>Delete Group</button>
                 </div>
                 {/* Invite link — always visible */}
                 <div style={{ padding:"12px 16px", background:"#eef4ee", borderTop:`1px solid ${C.border}` }}>
@@ -839,7 +861,7 @@ function GroupAdminScreen({ goHome }) {
                         <button onClick={()=>setQrTarget({ name:m.display_name, url })}
                           style={btn({ background:C.gold, border:"none", color:C.dark, padding:"6px 14px", fontSize:12, fontWeight:"bold", borderRadius:6 })}>📱 Show QR</button>
                         <button onClick={()=>deleteMember(m.id)}
-                          style={btn({ background:"#c0392b", border:"none", color:"#fff", padding:"6px 10px", fontSize:12, borderRadius:6 })}>✕</button>
+                          style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"6px 10px", fontSize:12, borderRadius:6 })}>✕</button>
                       </div>
                     </div>
                   );
@@ -901,55 +923,55 @@ function VIPScreen({ setScreen, setTableNo, goHome }) {
   }
 
   return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(180deg,#ffffff,#f6efe0)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
-      <div style={{ fontSize:40, marginBottom:6 }}>👥</div>
-      <div style={{ fontSize:24, fontWeight:"bold", color:"#394c76", marginBottom:4 }}>VIP Members</div>
-      <div style={{ fontSize:12, color:"#8c8c8c", letterSpacing:3, textTransform:"uppercase", marginBottom:20 }}>Select a member to order</div>
-
-      {/* Legend */}
-      <div style={{ display:"flex", gap:16, fontSize:12, marginBottom:16 }}>
-        <span style={{ color:"#5a3fa0" }}>⬜ Available</span>
-        <span style={{ color:C.gold }}>🟡 Active order</span>
+    <div style={{ minHeight:"100vh", background:HP.bg, display:"flex", flexDirection:"column", fontFamily:"Georgia,serif" }}>
+      {/* Header */}
+      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="users" size={19} color="#fff" /></div>
+          <div>
+            <div className="hl-title" style={{ fontSize:19, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>VIP Members</div>
+            <div style={{ fontSize:11, color:"#aeb8cc", letterSpacing:1 }}>Select a member to order</div>
+          </div>
+        </div>
+        <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"8px 16px", fontSize:13 })}>← Back</button>
       </div>
 
-      {loading ? <div style={{ color:"#8c8c8c" }}>Loading...</div> : Object.keys(grouped).length === 0 ? (
-        <div style={{ color:"#8c8c8c", textAlign:"center" }}>
-          <div style={{ fontSize:14, marginBottom:8 }}>No VIP members yet</div>
-          <div style={{ fontSize:12 }}>Add members from ••• More Options → Manage VIP Groups</div>
+      <div style={{ flex:1, overflowY:"auto", padding:"20px 18px 32px", maxWidth:520, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
+        {/* Legend */}
+        <div style={{ display:"flex", gap:18, fontSize:12, marginBottom:18, color:"#8c8c8c" }}>
+          <span style={{ display:"flex", alignItems:"center", gap:6 }}><span style={{ width:11, height:11, borderRadius:3, border:"1.5px solid #c9cfd8" }} /> Available</span>
+          <span style={{ display:"flex", alignItems:"center", gap:6 }}><span style={{ width:11, height:11, borderRadius:3, background:"#394c76" }} /> Active order</span>
         </div>
-      ) : Object.entries(grouped).map(([groupName, gMembers]) => (
-        <div key={groupName} style={{ width:"100%", maxWidth:460, marginBottom:20 }}>
-          <div style={{ fontSize:12, color:"#6a4fbf", letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:"bold" }}>
-            {groupName}
-          </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
-            {gMembers.map(m => {
-              const isActive = activeIds.includes(m.id);
-              return (
-                <button key={m.id} onClick={async () => {
-                    // Check for an active order to get the correct table_no
-                    const { data } = await supabase.from("orders").select("table_no")
-                      .like("table_no", `GRP-${m.id}%`).not("status","eq","paid").limit(1);
-                    if (data && data.length) {
-                      // Existing order → continue it directly (table already chosen)
-                      setTableNo(data[0].table_no); setScreen("tablet");
-                    } else {
-                      // New order → ask which table first, like the VIP phone flow
-                      setPickedMember({ tno: `GRP-${m.id}` });
-                    }
-                  }}
-                  style={btn({ background:isActive?"#e3e7f0":"#ecebf7", border:`2px solid ${isActive?C.gold:"#7a6aff"}`, color:isActive?C.gold:"#5a3fa0", padding:"16px 8px", fontSize:14, fontWeight:"bold", borderRadius:14, position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:4 })}>
-                  {isActive && <div style={{ position:"absolute", top:6, right:6, width:8, height:8, borderRadius:"50%", background:C.gold }} />}
-                  <span style={{ fontSize:20 }}>👤</span>
-                  <span>{m.display_name}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
 
-      <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"10px 28px", fontSize:13, marginTop:8 })}>← Back</button>
+        {loading ? <div style={{ color:"#8c8c8c", textAlign:"center", padding:30 }}>Loading…</div> : Object.keys(grouped).length === 0 ? (
+          <div style={{ color:"#8c8c8c", textAlign:"center", padding:30 }}>
+            <div style={{ fontSize:14, marginBottom:8 }}>No VIP members yet</div>
+            <div style={{ fontSize:12 }}>Add members from ••• More Options → Manage VIP Groups</div>
+          </div>
+        ) : Object.entries(grouped).map(([groupName, gMembers]) => (
+          <div key={groupName} style={{ width:"100%", marginBottom:20 }}>
+            <div style={{ fontSize:11, color:"#8c8c8c", letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:700 }}>{groupName}</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(110px,1fr))", gap:10 }}>
+              {gMembers.map(m => {
+                const isActive = activeIds.includes(m.id);
+                return (
+                  <button key={m.id} onClick={async () => {
+                      const { data } = await supabase.from("orders").select("table_no")
+                        .like("table_no", `GRP-${m.id}%`).not("status","eq","paid").limit(1);
+                      if (data && data.length) { setTableNo(data[0].table_no); setScreen("tablet"); }
+                      else { setPickedMember({ tno: `GRP-${m.id}` }); }
+                    }}
+                    style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:`1.5px solid ${isActive?"#394c76":"#d6dbe2"}`, color:"#2b3346", padding:"16px 8px", fontSize:13, fontWeight:700, borderRadius:14, position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 8px rgba(57,76,118,0.06)" }}>
+                    {isActive && <div style={{ position:"absolute", top:8, right:8, width:8, height:8, borderRadius:"50%", background:"#394c76" }} />}
+                    <div style={{ width:40, height:40, borderRadius:"50%", background:isActive?"#eef1f6":"#f4f6f9", display:"flex", alignItems:"center", justifyContent:"center" }}><Icon name="user" size={20} color="#394c76" /></div>
+                    <span>{m.display_name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -971,41 +993,40 @@ function TakeawayScreen({ setScreen, setTableNo, goHome }) {
   }, []);
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:24, padding:24 }}>
-      <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:48 }}>🥡</div>
-        <div style={{ fontSize:24, color:C.goldLight, fontWeight:"bold", letterSpacing:2 }}>Takeaway Orders</div>
-        <div style={{ fontSize:12, color:C.muted, letterSpacing:3, textTransform:"uppercase", marginTop:4 }}>Select a slot to start ordering</div>
+    <div style={{ minHeight:"100vh", background:HP.bg, display:"flex", flexDirection:"column", fontFamily:"Georgia,serif" }}>
+      {/* Header */}
+      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="bag" size={19} color="#fff" /></div>
+          <div>
+            <div className="hl-title" style={{ fontSize:19, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Takeaway Orders</div>
+            <div style={{ fontSize:11, color:"#aeb8cc", letterSpacing:1 }}>Select a slot to start ordering</div>
+          </div>
+        </div>
+        <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"8px 16px", fontSize:13 })}>← Back</button>
       </div>
 
-      {/* Legend */}
-      <div style={{ display:"flex", gap:16, fontSize:12 }}>
-        <span style={{ color:"#1e7a4a" }}>⬜ Available</span>
-        <span style={{ color:C.gold }}>🟡 Active order</span>
-      </div>
+      <div style={{ flex:1, overflowY:"auto", padding:"20px 18px 32px", maxWidth:520, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
+        {/* Legend */}
+        <div style={{ display:"flex", gap:18, fontSize:12, marginBottom:18, color:"#8c8c8c" }}>
+          <span style={{ display:"flex", alignItems:"center", gap:6 }}><span style={{ width:11, height:11, borderRadius:3, border:"1.5px solid #c9cfd8" }} /> Available</span>
+          <span style={{ display:"flex", alignItems:"center", gap:6 }}><span style={{ width:11, height:11, borderRadius:3, background:"#394c76" }} /> Active order</span>
+        </div>
 
-      <div style={{ width:"100%", maxWidth:460 }}>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(72px,1fr))", gap:10 }}>
           {TW_SLOTS.map(slot => {
             const isActive = activeSlots.includes(slot);
             return (
               <button key={slot} onClick={() => { setTableNo(slot); setScreen("tablet"); }}
-                style={btn({ 
-                  background: isActive ? "#e3e7f0" : "#e6f3ec",
-                  border: `2px solid ${isActive ? C.gold : "#5aaa7a"}`,
-                  color: isActive ? C.gold : "#1e7a4a",
-                  padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:10,
-                  position:"relative"
-                })}>
+                className="hl-title"
+                style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"#fff", border:`1.5px solid ${isActive?"#394c76":"#d6dbe2"}`, color:"#2b3346", padding:"16px 0", fontSize:17, fontWeight:700, borderRadius:12, position:"relative", boxShadow:"0 2px 8px rgba(57,76,118,0.06)" }}>
                 {slot.replace("TW-","")}
-                {isActive && <div style={{ position:"absolute", top:4, right:4, width:7, height:7, borderRadius:"50%", background:C.gold }} />}
+                {isActive && <div style={{ position:"absolute", top:6, right:6, width:8, height:8, borderRadius:"50%", background:"#394c76" }} />}
               </button>
             );
           })}
         </div>
       </div>
-
-      <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"10px 28px", fontSize:13 })}>← Back</button>
     </div>
   );
 }
@@ -1137,13 +1158,16 @@ function AdminScreen({ goHome }) {
           </div>
         </div>
       )}
-      <div style={{ background:A.panel, borderBottom:`2px solid ${A.gold}`, padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 2px 12px rgba(70,52,22,0.08)", position:"sticky", top:0, zIndex:50, flexWrap:"wrap", gap:10 }}>
-        <div className="hl-title" style={{ fontSize:22, color:A.text, fontWeight:700, letterSpacing:0.3 }}>⚙️ Menu <span style={{ color:A.gold }}>Management</span></div>
+      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 16px rgba(57,76,118,0.25)", position:"sticky", top:0, zIndex:50, flexWrap:"wrap", gap:10 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:34, height:34, borderRadius:9, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="sliders" size={18} color="#fff" /></div>
+          <div className="hl-title" style={{ fontSize:20, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Menu Management</div>
+        </div>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-          <button onClick={openAdd} style={aPrimary()}>+ Add Item</button>
-          <button onClick={() => setShowPwForm(s=>!s)} style={showPwForm ? aGhost({ background:A.goldSoft, border:`1px solid ${A.gold}`, color:A.goldText }) : aGhost()}>🔑 Passwords</button>
-          <button onClick={() => setShowChargeForm(s=>!s)} style={showChargeForm ? aGhost({ background:A.goldSoft, border:`1px solid ${A.gold}`, color:A.goldText }) : aGhost()}>💰 Charges</button>
-          <button onClick={goHome} style={aGhost()}>← Back</button>
+          <button onClick={openAdd} style={{ fontFamily:"Georgia,serif", cursor:"pointer", border:"none", background:"#fff", color:"#394c76", padding:"9px 16px", fontSize:13, fontWeight:700, borderRadius:10 }}>+ Add Item</button>
+          {[["Passwords",showPwForm,()=>setShowPwForm(s=>!s)],["Charges",showChargeForm,()=>setShowChargeForm(s=>!s)],["← Back",false,goHome]].map(([lbl,active,fn]) => (
+            <button key={lbl} onClick={fn} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:active?"rgba(255,255,255,0.9)":"rgba(255,255,255,0.12)", border:active?"none":"1px solid rgba(255,255,255,0.28)", color:active?"#394c76":"#fff", padding:"8px 14px", fontSize:13, fontWeight:600, borderRadius:10 }}>{lbl}</button>
+          ))}
         </div>
       </div>
       {showForm && (
@@ -2355,11 +2379,14 @@ function QRScreen({ goHome }) {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
-      <div style={{ background:C.panelGrad, borderBottom:`2px solid ${C.gold}`, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 18px rgba(0,0,0,0.35)" }}>
-        <div className="hl-title" style={{ fontSize:21, color:C.goldLight, fontWeight:700, letterSpacing:0.5 }}>📱 QR Codes for Tables</div>
+      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:34, height:34, borderRadius:9, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="grid" size={18} color="#fff" /></div>
+          <div className="hl-title" style={{ fontSize:20, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>QR Codes for Tables</div>
+        </div>
         <div style={{ display:"flex", gap:10 }}>
-          <button onClick={() => window.print()} style={btn({ background:C.goldGrad, border:"none", color:C.dark, padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>🖨️ Print All</button>
-          <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
+          <button onClick={() => window.print()} style={btn({ background:"#fff", border:"none", color:"#394c76", padding:"8px 16px", fontSize:13, fontWeight:"bold" })}>Print All</button>
+          <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"8px 16px", fontSize:13 })}>← Back</button>
         </div>
       </div>
       <div style={{ padding:20 }}>
@@ -2498,25 +2525,28 @@ function KitchenScreen({ goHome }) {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
-      <div style={{ background:C.panelGrad, borderBottom:`2px solid ${C.gold}`, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 18px rgba(0,0,0,0.35)" }}>
-        <div>
-          <div className="hl-title" style={{ fontSize:21, color:C.goldLight, fontWeight:700, letterSpacing:0.5 }}>🍳 Kitchen Screen — Food Only</div>
-          <div style={{ fontSize:11, color:"#ff4444" }}>🔴 Live — updates instantly</div>
+      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="hat" size={19} color="#fff" /></div>
+          <div>
+            <div className="hl-title" style={{ fontSize:19, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Kitchen Screen</div>
+            <div style={{ fontSize:11, color:"#aeb8cc", display:"flex", alignItems:"center", gap:5 }}><span style={{ width:7, height:7, borderRadius:"50%", background:"#4caf50", display:"inline-block" }} /> Live — updates instantly</div>
+          </div>
         </div>
-        <div style={{ display:"flex", gap:10 }}>
-          <button onClick={toggleSound} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#2d7a2d":C.border}`, color:soundOn?"#fff":C.muted, padding:"7px 12px", fontSize:12 })}>
-            {soundOn ? "🔔 Sound On" : "🔕 Sound Off"}
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+          <button onClick={toggleSound} style={btn({ background:soundOn?"#fff":"rgba(255,255,255,0.1)", border:soundOn?"none":"1px solid rgba(255,255,255,0.28)", color:soundOn?"#394c76":"rgba(255,255,255,0.8)", padding:"7px 13px", fontSize:12, fontWeight:soundOn?"bold":"normal" })}>
+            {soundOn ? "Sound On" : "Sound Off"}
           </button>
-          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#2d7a2d":C.border}`, color:voiceOn?"#fff":C.muted, padding:"7px 12px", fontSize:12 })}>
-            {voiceOn ? "🔊 Voice On" : "🔇 Voice Off"}
+          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#fff":"rgba(255,255,255,0.1)", border:voiceOn?"none":"1px solid rgba(255,255,255,0.28)", color:voiceOn?"#394c76":"rgba(255,255,255,0.8)", padding:"7px 13px", fontSize:12, fontWeight:voiceOn?"bold":"normal" })}>
+            {voiceOn ? "Voice On" : "Voice Off"}
           </button>
           {voiceOn && (
-            <button onClick={toggleVoiceLang} style={btn({ background:"#e3e7f0", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
-              {voiceLang === "en" ? "🇬🇧 EN" : "🇨🇳 中文"}
+            <button onClick={toggleVoiceLang} style={btn({ background:"rgba(255,255,255,0.16)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>
+              {voiceLang === "en" ? "EN" : "中文"}
             </button>
           )}
-          {cancelled.length>0 && <button onClick={clearFinished} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 12px", fontSize:12 })}>Clear Cancelled</button>}
-          <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 10px", fontSize:12 })}>✕</button>
+          {cancelled.length>0 && <button onClick={clearFinished} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"rgba(255,255,255,0.8)", padding:"7px 12px", fontSize:12 })}>Clear Cancelled</button>}
+          <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
         </div>
       </div>
       <div style={{ flex:1, padding:16, overflowY:"auto" }}>
@@ -2741,9 +2771,12 @@ function SalesScreen({ goHome }) {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
-      <div style={{ background:C.panelGrad, borderBottom:`2px solid ${C.gold}`, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 18px rgba(0,0,0,0.35)" }}>
-        <div className="hl-title" style={{ fontSize:21, color:C.goldLight, fontWeight:700, letterSpacing:0.5 }}>💰 Daily Sales Summary</div>
-        <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"7px 14px", fontSize:13 })}>← Back</button>
+      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:34, height:34, borderRadius:9, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="chart" size={18} color="#fff" /></div>
+          <div className="hl-title" style={{ fontSize:20, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Daily Sales Summary</div>
+        </div>
+        <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"8px 16px", fontSize:13 })}>← Back</button>
       </div>
       <div style={{ padding:16, overflowY:"auto", flex:1 }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20, flexWrap:"wrap" }}>
@@ -2902,8 +2935,8 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#2d7a2d", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Pending":"✅ Served"} · {order.time}</span>
                       {isPending && <>
-                        <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#2d7a2d", border:"none", color:"#fff", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:100 })}>✓ Done</button>
-                        <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#c0392b", border:"none", color:"#fff", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
+                        <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:100 })}>✓ Done</button>
+                        <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
                       </>}
                     </div>
                   </div>
@@ -2941,7 +2974,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#2d7a2d", fontWeight:"bold", flex:1 }}>{isPending?"⏳ Kitchen preparing":"✅ Served"} · {order.time}</span>
                       {isPending && (
-                        <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#c0392b", border:"none", color:"#fff", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:110 })}>✕ Cancel</button>
+                        <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:110 })}>✕ Cancel</button>
                       )}
                     </div>
                   </div>
@@ -2957,7 +2990,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
           <span>TOTAL</span><span>RM {data.total.toFixed(2)}</span>
         </div>
         <button onClick={() => setPayModal({tableNo, data, method:"QR DuitNow", cashReceived:""})} disabled={paying===tableNo}
-          style={btn({ width:"100%", background:"linear-gradient(135deg,#1976d2,#0d47a1)", border:"none", color:"#fff", padding:"16px 0", fontSize:17, fontWeight:"bold", cursor:"pointer", marginBottom:8, borderRadius:10, boxShadow:"0 4px 12px rgba(25,118,210,0.35)" })}>
+          style={btn({ width:"100%", background:"linear-gradient(135deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:"16px 0", fontSize:17, fontWeight:"bold", cursor:"pointer", marginBottom:8, borderRadius:10, boxShadow:"0 4px 12px rgba(25,118,210,0.35)" })}>
           💳 Collect Payment
         </button>
         <button onClick={() => printReceipt(tableNo, data, null, null, null)}
@@ -3035,9 +3068,9 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
                 {isPending && (
                   <div style={{ display:"flex", gap:10, marginTop:12 }}>
                     <button onClick={() => markOrderDone(order.id)}
-                      style={btn({ flex:1, background:"#2d7a2d", border:"none", color:"#fff", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✓ Mark Done</button>
+                      style={btn({ flex:1, background:"#394c76", border:"none", color:"#fff", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✓ Mark Done</button>
                     <button onClick={() => cancelOrder(order.id)}
-                      style={btn({ flex:1, background:"#c0392b", border:"none", color:"#fff", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✕ Cancel</button>
+                      style={btn({ flex:1, background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✕ Cancel</button>
                   </div>
                 )}
               </div>
@@ -3057,7 +3090,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
             🖨️ Print Bill
           </button>
           <button onClick={() => { setTableDetailModal(null); setPayModal({tableNo, data:liveData, method:"QR DuitNow", cashReceived:""}); }}
-            style={btn({ flex:2, background:"linear-gradient(135deg,#1976d2,#0d47a1)", border:"none", color:"#fff", padding:"14px 0", fontSize:16, fontWeight:"bold", borderRadius:10 })}>
+            style={btn({ flex:2, background:"linear-gradient(135deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:"14px 0", fontSize:16, fontWeight:"bold", borderRadius:10 })}>
             💳 Collect Payment
           </button>
         </div>
@@ -3268,7 +3301,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                     {order.status==="pending"?"⏳ Pending":"✅ Served"}
                   </span>
                   <button onClick={()=>cancelExistingOrder(order.id)}
-                    style={btn({ background:"#c0392b",border:"none",color:"#fff",padding:"6px 12px",fontSize:12,fontWeight:"bold",borderRadius:8 })}>
+                    style={btn({ background:"#fbeaea",border:"1px solid #e6c3c3",color:"#c0392b",padding:"6px 12px",fontSize:12,fontWeight:"bold",borderRadius:8 })}>
                     🗑️ Remove Order
                   </button>
                 </div>
@@ -3301,10 +3334,10 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                       </div>
                       <div style={{ display:"flex",alignItems:"center",gap:6,flexShrink:0 }}>
                         <button onClick={()=>updateExistingQty(order,ii,-1)}
-                          style={btn({ background:"#c0392b",border:"none",color:"#fff",width:32,height:32,fontSize:18,borderRadius:8,fontWeight:"bold" })}>−</button>
+                          style={btn({ background:"#fbeaea",border:"1px solid #e6c3c3",color:"#c0392b",width:32,height:32,fontSize:18,borderRadius:8,fontWeight:"bold" })}>−</button>
                         <span style={{ color:C.goldLight,fontWeight:"bold",fontSize:15,minWidth:22,textAlign:"center" }}>{item.qty}</span>
                         <button onClick={()=>updateExistingQty(order,ii,+1)}
-                          style={btn({ background:"#2d7a2d",border:"none",color:"#fff",width:32,height:32,fontSize:18,borderRadius:8,fontWeight:"bold" })}>+</button>
+                          style={btn({ background:"#394c76",border:"none",color:"#fff",width:32,height:32,fontSize:18,borderRadius:8,fontWeight:"bold" })}>+</button>
                         <span style={{ color:"#2d7a2d",fontWeight:"bold",fontSize:12,minWidth:55,textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
                       </div>
                     </div>
@@ -3371,7 +3404,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                         <div style={{ color:C.gold,fontSize:13 }}>RM {parseFloat(item.price).toFixed(2)}</div>
                       </div>
                       <div style={{ display:"flex",alignItems:"center",gap:8,flexShrink:0 }}>
-                        {inCart&&<button onClick={e=>{e.stopPropagation();removeFromCart(item.name);}} style={btn({ background:"#c0392b",border:"none",color:"#fff",width:36,height:36,fontSize:20,borderRadius:8 })}>−</button>}
+                        {inCart&&<button onClick={e=>{e.stopPropagation();removeFromCart(item.name);}} style={btn({ background:"#fbeaea",border:"1px solid #e6c3c3",color:"#c0392b",width:36,height:36,fontSize:20,borderRadius:8 })}>−</button>}
                         {inCart&&<span style={{ color:C.goldLight,fontWeight:"bold",minWidth:24,textAlign:"center",fontSize:16 }}>{inCart.qty}</span>}
                         <div style={{ background:C.gold,borderRadius:8,width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:"bold",color:C.dark,flexShrink:0 }}>+</div>
                       </div>
@@ -3396,7 +3429,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                       <div style={{ display:"flex",alignItems:"center",gap:8,flexShrink:0 }}>
                         <span style={{ color:C.gold,fontSize:13 }}>RM {(item.price*item.qty).toFixed(2)}</span>
                         <button onClick={()=>removeFromCart(item.name)}
-                          style={btn({ background:"#c0392b",border:"none",color:"#fff",width:26,height:26,fontSize:14,borderRadius:6 })}>✕</button>
+                          style={btn({ background:"#fbeaea",border:"1px solid #e6c3c3",color:"#c0392b",width:26,height:26,fontSize:14,borderRadius:6 })}>✕</button>
                       </div>
                     </div>
                     <div onClick={()=>setCart(prev=>prev.map((it,idx)=>idx===i?{...it,is_takeaway:!it.is_takeaway}:it))}
@@ -3784,7 +3817,7 @@ function CashierScreen({ goHome }) {
             <div style={{ background:"#fff", borderRadius:20, width:"100%", maxWidth:420, color:"#1a1a1a", overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,0.5)", margin:"auto" }}>
 
               {/* Header */}
-              <div style={{ background:"linear-gradient(135deg,#1976d2,#0d47a1)", padding:"20px 24px" }}>
+              <div style={{ background:"linear-gradient(135deg,#394c76,#2c3b5e)", padding:"20px 24px" }}>
                 <div style={{ fontSize:13, color:"rgba(255,255,255,0.75)", fontFamily:"Georgia,serif" }}>{orderType}</div>
                 <div style={{ fontSize:22, fontWeight:"bold", color:"#fff", fontFamily:"Georgia,serif", marginTop:2 }}>💳 {tableLabel}</div>
                 <div style={{ fontSize:32, fontWeight:"bold", color:"#fff", marginTop:6, fontFamily:"Georgia,serif" }}>RM {parseFloat(rounded).toFixed(2)}</div>
@@ -3794,12 +3827,15 @@ function CashierScreen({ goHome }) {
                 {/* Payment method selector */}
                 <div style={{ fontSize:11, color:"#888", marginBottom:10, fontFamily:"Georgia,serif", fontWeight:"bold", letterSpacing:1 }}>SELECT PAYMENT METHOD</div>
                 <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-                  {[["💵","Cash","#e8f5e9","#2e7d32"],["📱","QR DuitNow","#e3f2fd","#1565c0"],["💳","Credit Card","#fce4ec","#c62828"]].map(([icon,method,bg,color]) => (
+                  {[["💵","Cash"],["📱","QR DuitNow"],["💳","Credit Card"]].map(([icon,method]) => {
+                    const active = payModal.method===method;
+                    return (
                     <button key={method} onClick={() => setPayModal(m=>({...m, method, cashReceived:""}))}
-                      style={{ flex:1, background:payModal.method===method?bg:"#f9f9f9", border:`2px solid ${payModal.method===method?color:"#eee"}`, color:payModal.method===method?color:"#aaa", padding:"12px 4px", fontSize:11, fontWeight:"bold", borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", lineHeight:1.6, transition:"all 0.15s" }}>
+                      style={{ flex:1, background:active?"#eef1f6":"#f7f8fa", border:`2px solid ${active?"#394c76":"#e4e7ec"}`, color:active?"#394c76":"#9aa0ac", padding:"12px 4px", fontSize:11, fontWeight:"bold", borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", lineHeight:1.6, transition:"all 0.15s" }}>
                       <div style={{ fontSize:22 }}>{icon}</div>{method}
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Items */}
@@ -3823,7 +3859,7 @@ function CashierScreen({ goHome }) {
                   {roundingDiff!==0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#aaa", marginBottom:4, fontFamily:"Georgia,serif" }}>
                     <span>Rounding</span><span>{roundingDiff>0?"+":""}{roundingDiff.toFixed(2)}</span>
                   </div>}
-                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:20, fontWeight:"bold", color:"#1976d2", marginTop:8, paddingTop:8, borderTop:"2px solid #eee", fontFamily:"Georgia,serif" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:20, fontWeight:"bold", color:"#394c76", marginTop:8, paddingTop:8, borderTop:"2px solid #eee", fontFamily:"Georgia,serif" }}>
                     <span>TOTAL</span><span>RM {parseFloat(rounded).toFixed(2)}</span>
                   </div>
                 </div>
@@ -3835,7 +3871,7 @@ function CashierScreen({ goHome }) {
                     <input type="number" step="0.05" min="0" autoFocus value={payModal.cashReceived}
                       onChange={e => setPayModal(m=>({...m, cashReceived:e.target.value}))}
                       placeholder={`e.g. ${Math.ceil(rounded/5)*5}.00`}
-                      style={{ width:"100%", border:"2px solid #1976d2", borderRadius:8, padding:"10px 14px", fontSize:22, textAlign:"right", boxSizing:"border-box", color:"#1a1a1a" }} />
+                      style={{ width:"100%", border:"2px solid #394c76", borderRadius:8, padding:"10px 14px", fontSize:22, textAlign:"right", boxSizing:"border-box", color:"#1a1a1a" }} />
                     {cash >= rounded && (
                       <div style={{ marginTop:8, background:"#e8f5e9", borderRadius:8, padding:"10px 14px", display:"flex", justifyContent:"space-between" }}>
                         <span style={{ color:"#2e7d32", fontSize:14, fontWeight:"bold", fontFamily:"Georgia,serif" }}>Change</span>
@@ -3859,7 +3895,7 @@ function CashierScreen({ goHome }) {
                     if (!canConfirm) return;
                     setConfirmModal({ tableNo:payModal.tableNo, data:payModal.data, method:payModal.method, cashReceived:payModal.cashReceived||null, change:payModal.method==="Cash"&&change>=0?change:null, rounded });
                   }} disabled={!canConfirm}
-                    style={{ width:"100%", background:canConfirm?"linear-gradient(135deg,#1976d2,#0d47a1)":"#ccc", border:"none", color:"#fff", padding:"16px 0", fontSize:16, borderRadius:10, cursor:canConfirm?"pointer":"not-allowed", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:canConfirm?"0 4px 12px rgba(25,118,210,0.4)":"none" }}>
+                    style={{ width:"100%", background:canConfirm?"linear-gradient(135deg,#394c76,#2c3b5e)":"#ccc", border:"none", color:"#fff", padding:"16px 0", fontSize:16, borderRadius:10, cursor:canConfirm?"pointer":"not-allowed", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:canConfirm?"0 4px 12px rgba(25,118,210,0.4)":"none" }}>
                     {payModal.method==="Cash"&&!canConfirm?"Enter Cash Amount Above ↑":`✅ Print & Clear Table — RM ${parseFloat(rounded).toFixed(2)}`}
                   </button>
                 </div>
@@ -3902,7 +3938,7 @@ function CashierScreen({ goHome }) {
           <div style={{ background:"#fff", borderRadius:20, width:"100%", maxWidth:340, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,0.4)" }}>
 
             {/* Header */}
-            <div style={{ background:"linear-gradient(135deg,#1976d2,#0d47a1)", padding:"20px 24px", textAlign:"center" }}>
+            <div style={{ background:"linear-gradient(135deg,#394c76,#2c3b5e)", padding:"20px 24px", textAlign:"center" }}>
               <div style={{ fontSize:40, marginBottom:6 }}>🧾</div>
               <div style={{ fontSize:18, fontWeight:"bold", color:"#fff", fontFamily:"Georgia,serif" }}>Confirm Payment</div>
               <div style={{ fontSize:12, color:"rgba(255,255,255,0.75)", marginTop:4, fontFamily:"Georgia,serif" }}>
@@ -3923,7 +3959,7 @@ function CashierScreen({ goHome }) {
               {/* Amount */}
               <div style={{ textAlign:"center", padding:"14px 0", borderTop:"1px solid #eee", borderBottom:"1px solid #eee", marginBottom:12 }}>
                 <div style={{ fontSize:12, color:"#999", fontFamily:"Georgia,serif", marginBottom:4 }}>Total Amount</div>
-                <div style={{ fontSize:32, fontWeight:"bold", color:"#1976d2", fontFamily:"Georgia,serif" }}>RM {parseFloat(confirmModal.rounded).toFixed(2)}</div>
+                <div style={{ fontSize:32, fontWeight:"bold", color:"#394c76", fontFamily:"Georgia,serif" }}>RM {parseFloat(confirmModal.rounded).toFixed(2)}</div>
                 {confirmModal.change !== null && confirmModal.change >= 0 && (
                   <div style={{ marginTop:6, fontSize:13, color:"#2e7d32", fontWeight:"bold", fontFamily:"Georgia,serif" }}>Change: RM {parseFloat(confirmModal.change).toFixed(2)}</div>
                 )}
@@ -3947,7 +3983,7 @@ function CashierScreen({ goHome }) {
                           setConfirmModal(null);
                   setPayModal(null);
                 }}
-                  style={{ flex:2, background:"linear-gradient(135deg,#1976d2,#0d47a1)", border:"none", color:"#fff", padding:"13px 0", fontSize:14, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:"0 4px 12px rgba(25,118,210,0.4)" }}>
+                  style={{ flex:2, background:"linear-gradient(135deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:"13px 0", fontSize:14, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:"0 4px 12px rgba(25,118,210,0.4)" }}>
                   ✅ Confirm & Print
                 </button>
               </div>
@@ -3955,10 +3991,13 @@ function CashierScreen({ goHome }) {
           </div>
         </div>
       )}
-      <div style={{ background:C.panel, borderBottom:`2px solid #2d7a2d`, padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
-        <div>
-          <div style={{ fontSize:16, color:"#2d7a2d", fontWeight:"bold" }}>💳 Cashier — Drinks & Payment</div>
-          <div style={{ fontSize:11, color:"#2d7a2d" }}>🔴 Live — updates instantly</div>
+      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8, boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="card" size={19} color="#fff" /></div>
+          <div>
+            <div className="hl-title" style={{ fontSize:18, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Cashier</div>
+            <div style={{ fontSize:11, color:"#aeb8cc", display:"flex", alignItems:"center", gap:5 }}><span style={{ width:7, height:7, borderRadius:"50%", background:"#4caf50", display:"inline-block" }} /> Live — updates instantly</div>
+          </div>
         </div>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
           <button onClick={() => setSoundOn(s => {
@@ -3966,26 +4005,17 @@ function CashierScreen({ goHome }) {
             soundOnRef.current = next;
             localStorage.setItem("c_sound", next ? "on" : "off");
             return next;
-          })} style={btn({ background:soundOn?"#2d6a2d":"transparent", border:`1px solid ${soundOn?"#2d7a2d":C.border}`, color:soundOn?"#fff":C.muted, padding:"6px 10px", fontSize:11 })}>
-            {soundOn ? "🔔 Sound" : "🔕 Sound"}
-          </button>
-          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#1a4a6a":"transparent", border:`1px solid ${voiceOn?"#2d7a2d":C.border}`, color:voiceOn?"#fff":C.muted, padding:"6px 10px", fontSize:11 })}>
-            {voiceOn ? "🔊 Voice" : "🔇 Voice"}
-          </button>
+          })} style={btn({ background:soundOn?"#fff":"rgba(255,255,255,0.1)", border:soundOn?"none":"1px solid rgba(255,255,255,0.28)", color:soundOn?"#394c76":"rgba(255,255,255,0.8)", padding:"7px 12px", fontSize:11, fontWeight:soundOn?"bold":"normal" })}>Sound</button>
+          <button onClick={toggleVoice} style={btn({ background:voiceOn?"#fff":"rgba(255,255,255,0.1)", border:voiceOn?"none":"1px solid rgba(255,255,255,0.28)", color:voiceOn?"#394c76":"rgba(255,255,255,0.8)", padding:"7px 12px", fontSize:11, fontWeight:voiceOn?"bold":"normal" })}>Voice</button>
           {voiceOn && (
-            <button onClick={toggleVoiceLang} style={btn({ background:"#e3e7f0", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"6px 10px", fontSize:11, fontWeight:"bold" })}>
-              {voiceLang === "en" ? "CN 中文" : "🇬🇧 EN"}
-            </button>
+            <button onClick={toggleVoiceLang} style={btn({ background:"rgba(255,255,255,0.16)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"7px 12px", fontSize:11, fontWeight:"bold" })}>{voiceLang === "en" ? "中文" : "EN"}</button>
           )}
-          <button onClick={() => setEditTableModal("pick")}
-            style={btn({ background:"#e9eff5", border:`1px solid #5aaaff`, color:"#1e6076", padding:"6px 10px", fontSize:11, fontWeight:"bold" })}>
-            ✏️ Edit
-          </button>
-          <button onClick={goHome} style={btn({ background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"6px 10px", fontSize:11 })}>← Back</button>
+          <button onClick={() => setEditTableModal("pick")} style={btn({ background:"rgba(255,255,255,0.16)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"7px 12px", fontSize:11, fontWeight:"bold" })}>Edit</button>
+          <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:11 })}>← Back</button>
         </div>
       </div>
       <div style={{ background:C.panel, borderBottom:`1px solid ${C.border}`, padding:"0 16px", display:"flex", gap:0 }}>
-        {[["all",`All (${activeTables.length})`],["pending",`⏳ Pending (${pendingTables.length})`],["done",`✅ All Served (${doneTables.length})`]].map(([key,label]) => (
+        {[["all",`All (${activeTables.length})`],["pending",`Pending (${pendingTables.length})`],["done",`Served (${doneTables.length})`]].map(([key,label]) => (
           <button key={key} onClick={() => { setFilterTab(key); setSelectedTable(null); }}
             style={btn({ background:"transparent", border:"none", borderBottom:filterTab===key?`3px solid ${key==="pending"?C.gold:"#2d7a2d"}`:"3px solid transparent",
               color:filterTab===key?(key==="pending"?C.goldLight:"#2d7a2d"):C.muted,
