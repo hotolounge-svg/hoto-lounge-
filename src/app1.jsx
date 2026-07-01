@@ -42,6 +42,24 @@ const T = {
   goldGrad:"linear-gradient(135deg,#e6c463,#b4842a)"
 };
 
+// ── Grand UI helpers — shared across every screen ──
+const uiCard = (x={}) => ({ background:C.panelGrad, border:`1px solid ${C.border}`, borderRadius:18, boxShadow:C.shadow, overflow:"hidden", ...x });
+const uiLabel = (x={}) => ({ fontSize:11, color:C.gold, fontWeight:700, letterSpacing:3, textTransform:"uppercase", ...x });
+const goldRule = { height:1, background:`linear-gradient(90deg,transparent,${C.gold}55,transparent)` };
+// Centered section heading flanked by tapered gold rules — the app's signature motif
+function Crest({ label, color=C.gold, sub }) {
+  return (
+    <div style={{ textAlign:"center" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:12 }}>
+        <span style={{ height:1, width:30, background:`linear-gradient(90deg,transparent,${color})` }} />
+        <span style={{ fontSize:11, color, fontWeight:700, letterSpacing:3.5, textTransform:"uppercase" }}>{label}</span>
+        <span style={{ height:1, width:30, background:`linear-gradient(90deg,${color},transparent)` }} />
+      </div>
+      {sub && <div style={{ fontSize:11, color:C.muted, letterSpacing:1, marginTop:5 }}>{sub}</div>}
+    </div>
+  );
+}
+
 // Helper to extract drink/food parts from special_request
 const getDrinkReq = (req) => {
   if (!req) return null;
@@ -162,18 +180,19 @@ function HomeScreen({ setScreen, setTableNo }) {
         </div>
       </div>
 
-      <div style={{ padding:"20px 16px 32px", maxWidth:480, margin:"0 auto", display:"flex", flexDirection:"column", gap:16 }}>
+      <div style={{ padding:"30px 18px 44px", maxWidth:460, margin:"0 auto", display:"flex", flexDirection:"column", gap:22 }}>
 
         {/* Dine In */}
-        <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:16, overflow:"hidden" }}>
-          <div style={{ padding:"10px 16px", borderBottom:`1px solid ${C.border}` }}>
-            <span style={{ fontSize:13, color:C.gold, fontWeight:"bold", letterSpacing:2, textTransform:"uppercase" }}>🪑 Dine In</span>
+        <div style={uiCard()}>
+          <div style={{ padding:"18px 18px 12px" }}>
+            <Crest label="🪑 Dine In" sub="Select a table to begin" />
           </div>
-          <div style={{ padding:12 }}>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8 }}>
+          <div style={{ padding:"4px 16px 20px" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10 }}>
               {TABLES.map(tnum => (
                 <button key={tnum} onClick={() => { setTableNo(tnum); setScreen("tablet"); }}
-                  style={btn({ background:C.bg, border:`1.5px solid ${C.gold}`, color:C.goldLight, padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:10 })}>
+                  className="hl-title"
+                  style={btn({ background:"linear-gradient(160deg,#3a2811,#241708)", border:`1.5px solid ${C.gold}`, color:C.goldLight, padding:"16px 0", fontSize:20, fontWeight:700, borderRadius:12, boxShadow:"inset 0 1px 0 rgba(242,215,154,0.15), 0 2px 8px rgba(0,0,0,0.3)" })}>
                   {tnum}
                 </button>
               ))}
@@ -181,40 +200,42 @@ function HomeScreen({ setScreen, setTableNo }) {
           </div>
         </div>
 
-        {/* Bottom row — Takeaway + VIP side by side */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-          <button onClick={() => setScreen("takeaway")}
-            style={btn({ background:"linear-gradient(135deg,#1a3a4a,#0d2030)", border:`1.5px solid #5a9aaa`, color:"#aaddff", padding:"20px 0", fontSize:15, fontWeight:"bold", borderRadius:14, display:"flex", flexDirection:"column", alignItems:"center", gap:6 })}>
-            <span style={{ fontSize:28 }}>🥡</span>
-            <span>Takeaway</span>
-          </button>
-          <button onClick={() => setScreen("vipscreen")}
-            style={btn({ background:"linear-gradient(135deg,#2a1a4a,#1a0d30)", border:`1.5px solid #9a7aff`, color:"#ccbbff", padding:"20px 0", fontSize:15, fontWeight:"bold", borderRadius:14, display:"flex", flexDirection:"column", alignItems:"center", gap:6 })}>
-            <span style={{ fontSize:28 }}>👥</span>
-            <span>VIP</span>
-          </button>
+        {/* Takeaway + VIP */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          {[
+            { onClick:()=>setScreen("takeaway"), icon:"🥡", label:"Takeaway", grad:"linear-gradient(155deg,#1e3f4f,#0c1e2c)", border:"#5a9aaa", color:"#bfe6f5" },
+            { onClick:()=>setScreen("vipscreen"), icon:"👥", label:"VIP", grad:"linear-gradient(155deg,#2e1e50,#160b2c)", border:"#9a7aff", color:"#d6c7ff" },
+          ].map(b => (
+            <button key={b.label} onClick={b.onClick}
+              style={btn({ background:b.grad, border:`1.5px solid ${b.border}`, color:b.color, padding:"26px 0", borderRadius:16, display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:C.shadow })}>
+              <span style={{ fontSize:34, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.4))" }}>{b.icon}</span>
+              <span style={{ fontSize:13, fontWeight:700, letterSpacing:3, textTransform:"uppercase" }}>{b.label}</span>
+            </button>
+          ))}
         </div>
 
-        {/* Staff buttons */}
-        <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:16, overflow:"hidden" }}>
-          <div style={{ padding:"8px 16px", borderBottom:`1px solid ${C.border}` }}>
-            <span style={{ fontSize:12, color:C.muted, fontWeight:"bold", letterSpacing:2, textTransform:"uppercase" }}>— Staff —</span>
+        {/* Staff */}
+        <div style={uiCard()}>
+          <div style={{ padding:"16px 18px 12px" }}>
+            <Crest label="Staff" color={C.muted} />
           </div>
+          <div style={{ ...goldRule, margin:"0 18px" }} />
           <button onClick={() => setScreen("kitchen")}
-            style={btn({ width:"100%", background:`linear-gradient(135deg,${C.gold},#a07020)`, border:"none", color:C.dark, padding:"14px 20px", fontSize:16, fontWeight:"bold", borderRadius:0, textAlign:"left", display:"flex", justifyContent:"space-between", alignItems:"center" })}>
+            style={btn({ width:"100%", background:"linear-gradient(90deg,rgba(212,165,68,0.16),transparent)", border:"none", borderLeft:`3px solid ${C.gold}`, color:C.goldLight, padding:"18px 20px", fontSize:16, fontWeight:700, borderRadius:0, textAlign:"left", display:"flex", justifyContent:"space-between", alignItems:"center" })}>
             <span>🍳 Kitchen Screen</span>
-            <span style={{ fontSize:12, opacity:0.7, fontWeight:"normal" }}>Food orders</span>
+            <span style={{ fontSize:11, color:C.muted, letterSpacing:1.5, textTransform:"uppercase" }}>Food orders ›</span>
           </button>
+          <div style={{ ...goldRule, margin:"0 18px" }} />
           <button onClick={() => setScreen("cashier")}
-            style={btn({ width:"100%", background:`linear-gradient(135deg,#2d6a2d,#1a4a1a)`, border:"none", borderTop:`1px solid rgba(255,255,255,0.1)`, color:"#aaffaa", padding:"14px 20px", fontSize:16, fontWeight:"bold", borderRadius:0, textAlign:"left", display:"flex", justifyContent:"space-between", alignItems:"center" })}>
+            style={btn({ width:"100%", background:"linear-gradient(90deg,rgba(90,170,90,0.16),transparent)", border:"none", borderLeft:"3px solid #5aaa5a", color:"#aaffaa", padding:"18px 20px", fontSize:16, fontWeight:700, borderRadius:0, textAlign:"left", display:"flex", justifyContent:"space-between", alignItems:"center" })}>
             <span>💳 Cashier Screen</span>
-            <span style={{ fontSize:12, opacity:0.7, fontWeight:"normal" }}>Drinks + Payment</span>
+            <span style={{ fontSize:11, color:C.muted, letterSpacing:1.5, textTransform:"uppercase" }}>Drinks + Payment ›</span>
           </button>
         </div>
 
         {/* More button */}
         <button onClick={() => setMoreOpen(true)}
-          style={btn({ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:"13px 0", fontSize:14, borderRadius:14 })}>
+          style={btn({ width:"100%", background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"15px 0", fontSize:12, letterSpacing:3, textTransform:"uppercase", borderRadius:14 })}>
           ••• More Options
         </button>
 
@@ -222,11 +243,11 @@ function HomeScreen({ setScreen, setTableNo }) {
 
       {/* More options modal */}
       {moreOpen && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", zIndex:9999, display:"flex", alignItems:"flex-end", justifyContent:"center" }}
+        <div style={{ position:"fixed", inset:0, background:"rgba(10,6,2,0.82)", WebkitBackdropFilter:"blur(4px)", backdropFilter:"blur(4px)", zIndex:9999, display:"flex", alignItems:"flex-end", justifyContent:"center" }}
           onClick={() => setMoreOpen(false)}>
-          <div onClick={e=>e.stopPropagation()} style={{ background:C.panel, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:480, padding:"20px 16px 32px" }}>
-            <div style={{ width:40, height:4, background:C.border, borderRadius:4, margin:"0 auto 20px" }} />
-            <div style={{ fontSize:14, color:C.muted, fontWeight:"bold", letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>More Options</div>
+          <div onClick={e=>e.stopPropagation()} style={{ background:C.panelGrad, borderTop:`2px solid ${C.gold}`, borderRadius:"22px 22px 0 0", width:"100%", maxWidth:460, padding:"18px 18px 34px", boxShadow:"0 -12px 44px rgba(0,0,0,0.55)" }}>
+            <div style={{ width:44, height:4, background:C.border, borderRadius:4, margin:"0 auto 18px" }} />
+            <div style={{ marginBottom:18 }}><Crest label="More Options" color={C.muted} /></div>
             {[
               { label:"📱 View & Print QR Codes", screen:"qrcodes", color:C.goldLight },
               { label:"👥 Manage VIP Groups", screen:"groupadmin", color:"#ccbbff" },
@@ -234,12 +255,12 @@ function HomeScreen({ setScreen, setTableNo }) {
               { label:"⚙️ Admin — Manage Menu", screen:"admin", color:C.muted },
             ].map((item,i) => (
               <button key={item.screen} onClick={() => { setMoreOpen(false); setScreen(item.screen); }}
-                style={btn({ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:item.color, padding:"14px 20px", fontSize:15, fontWeight:"bold", borderRadius:12, textAlign:"left", marginBottom:10 })}>
+                style={btn({ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:item.color, padding:"15px 20px", fontSize:15, fontWeight:700, borderRadius:14, textAlign:"left", marginBottom:10 })}>
                 {item.label}
               </button>
             ))}
             <button onClick={() => setMoreOpen(false)}
-              style={btn({ width:"100%", background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"12px 0", fontSize:14, borderRadius:12 })}>
+              style={btn({ width:"100%", background:"transparent", border:`1px solid ${C.border}`, color:C.muted, padding:"13px 0", fontSize:12, letterSpacing:2, textTransform:"uppercase", borderRadius:14 })}>
               Cancel
             </button>
           </div>
@@ -1714,12 +1735,15 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
           {/* Category tabs — hidden when searching */}
           {!searchQuery && (
-            <div style={{ display:"flex", background:"#1a1208", borderBottom:"1px solid #4a2020", overflowX:"auto", flexShrink:0 }}>
-              {CATEGORIES.map(cat => (
-                <button key={cat} onClick={() => setActiveCategory(cat)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:activeCategory===cat?"#c8973a":"transparent", border:"none", color:activeCategory===cat?"#1a1208":"#a07060", padding:"14px 18px", fontSize:15, fontWeight:activeCategory===cat?"bold":"normal", whiteSpace:"nowrap", flexShrink:0, borderBottom:activeCategory===cat?"3px solid #a07020":"3px solid transparent" }}>
+            <div style={{ display:"flex", gap:8, background:"#1a1208", borderBottom:"1px solid #4a2020", overflowX:"auto", flexShrink:0, padding:"12px 12px" }}>
+              {CATEGORIES.map(cat => {
+                const active = activeCategory===cat;
+                return (
+                <button key={cat} onClick={() => setActiveCategory(cat)} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:active?"linear-gradient(135deg,#e6c463,#b4842a)":"transparent", border:`1px solid ${active?"transparent":"#4a3018"}`, color:active?"#1a1208":"#b79268", padding:"10px 18px", fontSize:14, fontWeight:active?"bold":"normal", whiteSpace:"nowrap", flexShrink:0, borderRadius:30, letterSpacing:0.5, boxShadow:active?"0 3px 12px rgba(180,132,42,0.4)":"none", transition:"all 0.2s" }}>
                   {cat==="Beverage"?t.beverage:cat==="Food & Snacks"?t.food:cat==="Desserts"?t.desserts:t.addons}
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -1734,7 +1758,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     const soldOut = item.is_available===false;
                     return (
                       <div key={item.id} onClick={() => !soldOut && handleAddItem(item)}
-                        style={{ background:"#fff", border:qty>0?`2px solid ${T.brown}`:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden", position:"relative", opacity:soldOut?0.5:1, boxShadow:T.shadow, display:"flex", flexDirection:"column", cursor:soldOut?"default":"pointer" }}>
+                        style={{ background:"#fff", border:qty>0?`2px solid ${T.brown}`:`1px solid ${T.border}`, borderRadius:18, overflow:"hidden", position:"relative", opacity:soldOut?0.5:1, boxShadow:qty>0?"0 10px 26px rgba(180,132,42,0.22)":T.shadow, display:"flex", flexDirection:"column", cursor:soldOut?"default":"pointer", transition:"box-shadow 0.2s, transform 0.2s" }}>
 
                         {/* Best seller badge - bottom left of image */}
                         {!soldOut && item.is_best_seller && (
@@ -1753,8 +1777,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
                         <div style={{ padding:"8px 10px 10px", flex:1, display:"flex", flexDirection:"column" }}>
                           {/* Name */}
-                          <div style={{ fontWeight:"bold", fontSize:13, marginBottom:6, color:T.text, lineHeight:1.3, flex:1 }}>
-                            {item.item_no && <span style={{ color:T.brown, marginRight:4, fontSize:12 }}>{item.item_no}</span>}{item.name}
+                          <div className="hl-title" style={{ fontWeight:700, fontSize:15, marginBottom:6, color:T.text, lineHeight:1.25, flex:1, letterSpacing:0.2 }}>
+                            {item.item_no && <span style={{ color:T.brown, marginRight:4, fontSize:12, fontFamily:"Georgia,serif" }}>{item.item_no}</span>}{item.name}
                           </div>
 
                           {/* Bottom group: badges above, price+button row pinned to bottom so + aligns across all cards */}
@@ -1791,7 +1815,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                             {soldOut ? null : qty === 0 ? (
                               /* + button */
                               <button onClick={e => { e.stopPropagation(); handleAddItem(item); }}
-                                style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:T.brown, border:"none", color:"#fff", width:34, height:34, fontSize:22, fontWeight:"bold", borderRadius:50, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 2px 6px rgba(138,90,0,0.3)" }}>+</button>
+                                style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:"linear-gradient(135deg,#e6c463,#b4842a)", border:"none", color:"#1a1208", width:36, height:36, fontSize:22, fontWeight:"bold", borderRadius:50, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 4px 12px rgba(180,132,42,0.45)" }}>+</button>
                             ) : (
                               /* qty controls */
                               <div style={{ display:"flex", alignItems:"center", gap:4 }} onClick={e => e.stopPropagation()}>
