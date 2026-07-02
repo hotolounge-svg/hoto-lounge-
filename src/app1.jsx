@@ -342,7 +342,7 @@ function HomeScreen({ setScreen, setTableNo }) {
             {[
               { name:"grid", label:"View & Print QR Codes", screen:"qrcodes" },
               { name:"users", label:"Manage VIP Groups", screen:"groupadmin" },
-              { name:"chart", label:"Daily Sales Summary", screen:"sales" },
+              { name:"chart", label:"Sales Summary", screen:"sales" },
               { name:"sliders", label:"Admin — Manage Menu", screen:"admin" },
             ].map(item => (
               <button key={item.screen} onClick={() => { setMoreOpen(false); setScreen(item.screen); }}
@@ -3028,7 +3028,7 @@ function KitchenScreen({ goHome }) {
   );
 }
 
-function exportExcel(orders, selectedDate, charge) {
+function exportExcel(orders, rangeLabel, charge) {
   const subtotal = orders.reduce((s,o)=>s+o.total,0);
   const chargeAmt = +(subtotal*charge/100).toFixed(2);
   // Sum per-bill rounded amounts (matches what was actually collected)
@@ -3054,7 +3054,7 @@ function exportExcel(orders, selectedDate, charge) {
   const blob = new Blob([bom+csv],{type:"text/csv;charset=utf-8;"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href=url; a.download="Sales_"+selectedDate+".csv"; a.click();
+  a.href=url; a.download="Sales_"+rangeLabel+".csv"; a.click();
   URL.revokeObjectURL(url);
 }
 
@@ -3065,18 +3065,58 @@ function SalesScreen({ goHome }) {
   const [pinErr, setPinErr] = useState(false);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState("day"); // day | week | month
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"}));
+
+  // Period boundaries (both inclusive, "YYYY-MM-DD") derived from selectedDate + viewMode
+  const rangeStart = (() => {
+    if (viewMode==="day") return selectedDate;
+    if (viewMode==="month") return selectedDate.slice(0,7)+"-01";
+    const d = new Date(selectedDate+"T00:00:00"); const day = d.getDay();
+    d.setDate(d.getDate() + (day===0 ? -6 : 1-day)); // back to Monday
+    return d.toLocaleDateString("en-CA");
+  })();
+  const rangeEnd = (() => {
+    if (viewMode==="day") return selectedDate;
+    if (viewMode==="week") { const d=new Date(rangeStart+"T00:00:00"); d.setDate(d.getDate()+6); return d.toLocaleDateString("en-CA"); }
+    const d=new Date(rangeStart+"T00:00:00"); d.setMonth(d.getMonth()+1); d.setDate(d.getDate()-1); return d.toLocaleDateString("en-CA");
+  })();
+  const todayMYT = new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"});
+  const isCurrentPeriod = rangeStart <= todayMYT && todayMYT <= rangeEnd;
+  const periodLabel = viewMode==="day"
+    ? new Date(selectedDate+"T00:00:00").toLocaleDateString("en-MY",{day:"2-digit",month:"short",year:"numeric"})
+    : viewMode==="week"
+    ? `${new Date(rangeStart+"T00:00:00").toLocaleDateString("en-MY",{day:"2-digit",month:"short"})} – ${new Date(rangeEnd+"T00:00:00").toLocaleDateString("en-MY",{day:"2-digit",month:"short",year:"numeric"})}`
+    : new Date(rangeStart+"T00:00:00").toLocaleDateString("en-MY",{month:"long",year:"numeric"});
+  const goPrev = () => {
+    const d = new Date((viewMode==="day"?selectedDate:rangeStart)+"T00:00:00");
+    if (viewMode==="day") d.setDate(d.getDate()-1);
+    else if (viewMode==="week") d.setDate(d.getDate()-7);
+    else d.setMonth(d.getMonth()-1);
+    setSelectedDate(d.toLocaleDateString("en-CA"));
+  };
+  const goNext = () => {
+    const d = new Date((viewMode==="day"?selectedDate:rangeStart)+"T00:00:00");
+    if (viewMode==="day") d.setDate(d.getDate()+1);
+    else if (viewMode==="week") d.setDate(d.getDate()+7);
+    else d.setMonth(d.getMonth()+1);
+    setSelectedDate(d.toLocaleDateString("en-CA"));
+  };
+  const goToday = () => setSelectedDate(todayMYT);
 
   useEffect(() => {
     if (!pinOk) return;
     const fetchSales = async () => {
       setLoading(true);
       const { data } = await supabase.from("orders").select("*").eq("status","paid").order("created_at",{ascending:true});
-      const filtered = (data||[]).filter(o => new Date(o.created_at).toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"})===selectedDate);
+      const filtered = (data||[]).filter(o => {
+        const ds = new Date(o.created_at).toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"});
+        return ds >= rangeStart && ds <= rangeEnd;
+      });
       setOrders(filtered); setLoading(false);
     };
     fetchSales();
-  }, [selectedDate, pinOk]);
+  }, [rangeStart, rangeEnd, pinOk]);
 
   if (!pinOk) return (
     <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif" }}>
@@ -3131,27 +3171,37 @@ function SalesScreen({ goHome }) {
       <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <div style={{ width:34, height:34, borderRadius:9, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="chart" size={18} color="#fff" /></div>
-          <div className="hl-title" style={{ fontSize:20, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Daily Sales Summary</div>
+          <div className="hl-title" style={{ fontSize:20, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Sales Summary</div>
         </div>
         <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"8px 16px", fontSize:13 })}>← Back</button>
       </div>
       <div style={{ padding:16, overflowY:"auto", flex:1 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+          {[["day","Day"],["week","Week"],["month","Month"]].map(([key,label]) => (
+            <button key={key} onClick={() => setViewMode(key)}
+              style={btn({ background:viewMode===key?C.goldGrad:C.panel, border:`1px solid ${viewMode===key?"transparent":C.border}`, color:viewMode===key?"#fff":C.muted, padding:"8px 18px", fontSize:13, fontWeight:"bold" })}>
+              {label}
+            </button>
+          ))}
+        </div>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20, flexWrap:"wrap" }}>
-          <button onClick={() => { const d=new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d.toISOString().split("T")[0]); }}
+          <button onClick={goPrev}
             style={btn({ background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:"8px 14px", fontSize:18 })}>‹</button>
           <div style={{ position:"relative" }}>
             <div style={{ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:8, padding:"8px 16px", fontSize:14, color:C.goldLight, fontWeight:"bold", fontFamily:"Georgia,serif", cursor:"pointer", userSelect:"none", minWidth:160, textAlign:"center" }}>
-              {new Date(selectedDate+"T00:00:00").toLocaleDateString("en-MY",{day:"2-digit",month:"short",year:"numeric"})}
+              {periodLabel}
             </div>
             <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
               style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", width:"100%", height:"100%" }} />
           </div>
-          <button onClick={() => { const d=new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d.toISOString().split("T")[0]); }}
+          <button onClick={goNext}
             style={btn({ background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:"8px 14px", fontSize:18 })}>›</button>
-          <button onClick={() => setSelectedDate(new Date().toISOString().split("T")[0])}
-            style={btn({ background:selectedDate===new Date().toISOString().split("T")[0]?"#e3e7f0":"transparent", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"8px 14px", fontSize:13, fontWeight:"bold" })}>Today</button>
+          <button onClick={goToday}
+            style={btn({ background:isCurrentPeriod?"#e3e7f0":"transparent", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"8px 14px", fontSize:13, fontWeight:"bold" })}>
+            {viewMode==="day"?"Today":viewMode==="week"?"This Week":"This Month"}
+          </button>
           {orders.length > 0 && (
-            <button onClick={() => exportExcel(orders, selectedDate, charge)}
+            <button onClick={() => exportExcel(orders, viewMode==="day"?selectedDate:`${rangeStart}_to_${rangeEnd}`, charge)}
               style={btn({ background:"#eef1f6", border:`1px solid #394c76`, color:"#394c76", padding:"8px 16px", fontSize:13, fontWeight:"bold", marginLeft:"auto", display:"flex", alignItems:"center", gap:7 })}>
               <Icon name="chart" size={14} color="#394c76" /> Export Excel
             </button>
@@ -3194,7 +3244,7 @@ function SalesScreen({ goHome }) {
             </div>
           )}
 
-          {orders.length===0 ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>No completed orders for this date</div> : <>
+          {orders.length===0 ? <div style={{ color:C.muted, textAlign:"center", padding:40 }}>No completed orders for this period</div> : <>
             <div style={{ fontSize:13, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:12, fontWeight:700 }}>Top Selling Items</div>
             <div style={{ background:C.panel, borderRadius:12, overflow:"hidden", marginBottom:24 }}>
               {topItems.map((item,i) => (
