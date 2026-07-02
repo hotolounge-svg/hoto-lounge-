@@ -92,6 +92,19 @@ const isPromoNow = (item) => {
   return cur >= sh * 60 + sm && cur < eh * 60 + em;
 };
 
+// Effective base-item price: VIP price wins outright if set; otherwise normal price/promo rules apply
+const effPrice = (item, isVip) => {
+  if (isVip && item.vip_price && parseFloat(item.vip_price) > 0) return parseFloat(item.vip_price);
+  const promo = isPromoNow(item) && item.promo_price && parseFloat(item.promo_price) > 0;
+  return parseFloat(promo ? item.promo_price : item.price);
+};
+// Effective add-on price: same VIP-overrides-promo rule as the base item
+const effAddonPrice = (addon, item, isVip) => {
+  if (isVip && addon.vip_price && parseFloat(addon.vip_price) > 0) return parseFloat(addon.vip_price);
+  const promo = isPromoNow(item) && addon.promo_price && parseFloat(addon.promo_price) > 0;
+  return parseFloat(promo ? addon.promo_price : (addon.price||0));
+};
+
 function QRCode({ url, size=160 }) {
   const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=394c76&margin=10`;
   return <img src={src} alt="QR" style={{ width:size, height:size, borderRadius:8 }} />;
@@ -1061,7 +1074,7 @@ function AdminScreen({ goHome }) {
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[], promo_label:"" });
+  const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", vip_price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[], promo_label:"" });
   const [uploading, setUploading] = useState(false);
   const [showPwForm, setShowPwForm] = useState(false);
   const [showChargeForm, setShowChargeForm] = useState(false);
@@ -1083,11 +1096,11 @@ function AdminScreen({ goHome }) {
 
   const handleLogin = () => { setAuthed(true); };
   const openAdd = () => {
-    setForm({ item_no:"", name:"", category:CATEGORIES[0], price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, is_best_seller:false, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[], promo_label:"" });
+    setForm({ item_no:"", name:"", category:CATEGORIES[0], price:"", vip_price:"", description:"", emoji:"🍽️", image_url:"", is_available:true, is_best_seller:false, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[], promo_label:"" });
     setEditItem(null); setShowForm(true);
   };
   const openEdit = (item) => {
-    setForm({ item_no:item.item_no, name:item.name, category:item.category, price:item.price, description:item.description||"", emoji:item.emoji||"🍽️", image_url:item.image_url||"", is_available:item.is_available!==false, is_best_seller:item.is_best_seller||false, addons:item.addons||[], addon_required:item.addon_required||false, promo_start:item.promo_start||"", promo_end:item.promo_end||"", promo_price:item.promo_price||"", promo_drinks:item.promo_drinks||[], promo_label:item.promo_label||"" });
+    setForm({ item_no:item.item_no, name:item.name, category:item.category, price:item.price, vip_price:item.vip_price||"", description:item.description||"", emoji:item.emoji||"🍽️", image_url:item.image_url||"", is_available:item.is_available!==false, is_best_seller:item.is_best_seller||false, addons:item.addons||[], addon_required:item.addon_required||false, promo_start:item.promo_start||"", promo_end:item.promo_end||"", promo_price:item.promo_price||"", promo_drinks:item.promo_drinks||[], promo_label:item.promo_label||"" });
     setEditItem(item); setShowForm(true);
   };
   const handleUpload = async (e) => {
@@ -1105,7 +1118,7 @@ function AdminScreen({ goHome }) {
     const toMins = (t) => { if (!t) return null; const [h,m] = t.split(":").map(Number); return h*60+m; };
     const s = toMins(form.promo_start); const e = toMins(form.promo_end);
     const promo_active = s !== null && e !== null && nowMins >= s && nowMins < e;
-    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, is_best_seller:form.is_best_seller||false, addons:form.addons||[], addon_required:form.addon_required||false, promo_start:form.promo_start||null, promo_end:form.promo_end||null, promo_price:form.promo_price?parseFloat(form.promo_price):null, promo_drinks:form.promo_drinks||[], promo_label:form.promo_label||null, promo_active };
+    const p = { item_no:form.item_no, name:form.name, category:form.category, price:parseFloat(form.price), vip_price:form.vip_price?parseFloat(form.vip_price):null, description:form.description, emoji:form.emoji, image_url:form.image_url, is_available:form.is_available, is_best_seller:form.is_best_seller||false, addons:form.addons||[], addon_required:form.addon_required||false, promo_start:form.promo_start||null, promo_end:form.promo_end||null, promo_price:form.promo_price?parseFloat(form.promo_price):null, promo_drinks:form.promo_drinks||[], promo_label:form.promo_label||null, promo_active };
     if (editItem) await supabase.from("menu_items").update(p).eq("id", editItem.id);
     else await supabase.from("menu_items").insert(p);
     setShowForm(false); fetchItems();
@@ -1192,10 +1205,10 @@ function AdminScreen({ goHome }) {
           <button onClick={() => setShowForm(false)} style={{ position:"absolute", top:14, right:14, background:"#eef1f6", border:"none", color:A.sub, fontSize:19, cursor:"pointer", fontFamily:"Georgia,serif", width:36, height:36, borderRadius:50 }}>✕</button>
           <div className="hl-title" style={{ fontSize:20, color:A.text, fontWeight:700, marginBottom:18 }}>{editItem ? "Edit Item" : "Add New Item"}</div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px,1fr))", gap:14 }}>
-            {[["Item No.","item_no","e.g. A1"],["Item Name","name","e.g. Latte"],["Price (RM)","price","e.g. 8.00"],["Emoji","emoji","e.g. ☕"],["Description","description","Short description"]].map(([label,key,ph]) => (
+            {[["Item No.","item_no","e.g. A1"],["Item Name","name","e.g. Latte"],["Price (RM)","price","e.g. 8.00"],["VIP Price (RM)","vip_price","optional, leave blank to follow normal price"],["Emoji","emoji","e.g. ☕"],["Description","description","Short description"]].map(([label,key,ph]) => (
               <div key={key}>
                 <div style={aLabel}>{label}</div>
-                <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]:e.target.value }))} placeholder={ph} type={key==="price"?"number":"text"} step={key==="price"?"0.10":undefined}
+                <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]:e.target.value }))} placeholder={ph} type={(key==="price"||key==="vip_price")?"number":"text"} step={(key==="price"||key==="vip_price")?"0.10":undefined}
                   style={aInput} />
               </div>
             ))}
@@ -1252,6 +1265,11 @@ function AdminScreen({ goHome }) {
                 <div>
                   <div style={{ fontSize:10, color:A.goldText, marginBottom:3, fontWeight:600 }}>Happy Hour</div>
                   <input value={addon.promo_price||""} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],promo_price:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="optional" type="number" step="0.50"
+                    style={{ ...aInput, width:92, padding:"8px 10px", fontSize:13, background:A.goldSoft, border:`1px solid ${A.gold}`, color:A.goldText }} />
+                </div>
+                <div>
+                  <div style={{ fontSize:10, color:A.goldText, marginBottom:3, fontWeight:600 }}>VIP Price</div>
+                  <input value={addon.vip_price||""} onChange={e => { const u=[...form.addons]; u[ai]={...u[ai],vip_price:e.target.value}; setForm(f=>({...f,addons:u})); }} placeholder="optional" type="number" step="0.50"
                     style={{ ...aInput, width:92, padding:"8px 10px", fontSize:13, background:A.goldSoft, border:`1px solid ${A.gold}`, color:A.goldText }} />
                 </div>
                 <button onClick={() => setForm(f=>({...f,addons:f.addons.map((a,i)=>i===ai?{...a,sold_out:!a.sold_out}:a)}))}
@@ -1411,6 +1429,7 @@ function AdminScreen({ goHome }) {
 }
 
 function TabletScreen({ tableNo, goHome, isStaff }) {
+  const isVip = String(tableNo).startsWith("GRP-");
   useEffect(() => {
     // Set viewport
     const noZoom = "width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover";
@@ -1610,11 +1629,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   }, [tableNo]);
 
   const addToCart = (item, freeDrink=null, selectedAddons=[], note="", qty=1) => {
-    const addonPrice = selectedAddons.reduce((s,a) => {
-      const usePromo = isPromoNow(item) && a.promo_price && parseFloat(a.promo_price) > 0;
-      return s + parseFloat(usePromo ? a.promo_price : (a.price||0));
-    }, 0);
-    const basePrice = item.addon_required ? 0 : parseFloat(isPromoNow(item) && item.promo_price && parseFloat(item.promo_price) > 0 ? item.promo_price : item.price);
+    const addonPrice = selectedAddons.reduce((s,a) => s + effAddonPrice(a, item, isVip), 0);
+    const basePrice = item.addon_required ? 0 : effPrice(item, isVip);
     const addonNames = selectedAddons.length > 0 ? (item.addon_required ? " " : " +") + selectedAddons.map(a=>a.name).join(" +") : "";
     const cartKey = item.id + (selectedAddons.length > 0 ? "_" + selectedAddons.map(a=>a.name).join("_") : "") + (note ? "_note_"+note.slice(0,20) : "");
     const itemToAdd = { ...item, price: basePrice + addonPrice, name: item.name + addonNames, cartKey, note: note||"" };
@@ -1803,21 +1819,17 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                             <div style={{ fontSize:13, fontWeight:"bold", color:C.gold }}>
                               {(() => {
-                                const promo = isPromoNow(item);
                                 if (item.addon_required && item.addons && item.addons.length > 0) {
                                   const normalMin = Math.min(...item.addons.map(a=>parseFloat(a.price||0)));
-                                  const effMin = Math.min(...item.addons.map(a => {
-                                    const usePromo = promo && a.promo_price && parseFloat(a.promo_price) > 0;
-                                    return parseFloat(usePromo ? a.promo_price : (a.price||0));
-                                  }));
-                                  return promo && effMin < normalMin
+                                  const effMin = Math.min(...item.addons.map(a => effAddonPrice(a, item, isVip)));
+                                  return effMin < normalMin
                                     ? <span style={{ display:"flex", flexDirection:"column", lineHeight:1.1 }}><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", fontSize:10, color:C.muted }}>RM {normalMin.toFixed(2)}</span><span>RM {effMin.toFixed(2)}+</span></span>
                                     : `RM ${effMin.toFixed(2)}+`;
                                 }
-                                const usePromo = promo && item.promo_price && parseFloat(item.promo_price) > 0;
-                                return usePromo
-                                  ? <span style={{ display:"flex", flexDirection:"column", lineHeight:1.1 }}><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", fontSize:10, color:C.muted }}>RM {parseFloat(item.price).toFixed(2)}</span><span>RM {parseFloat(item.promo_price).toFixed(2)}</span></span>
-                                  : `RM ${parseFloat(item.price).toFixed(2)}`;
+                                const eff = effPrice(item, isVip);
+                                return eff < parseFloat(item.price)
+                                  ? <span style={{ display:"flex", flexDirection:"column", lineHeight:1.1 }}><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", fontSize:10, color:C.muted }}>RM {parseFloat(item.price).toFixed(2)}</span><span>RM {eff.toFixed(2)}</span></span>
+                                  : `RM ${eff.toFixed(2)}`;
                               })()}
                             </div>
                             {soldOut ? null : qty===0 ? (
@@ -1931,11 +1943,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           const soldOut = item.is_available === false;
           const hasAddons = item.addons && item.addons.length > 0;
           const hasPromo = isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0;
-          const addonPrice = itemModal.selectedAddons.reduce((s,a) => {
-            const usePromo = isPromoNow(item) && a.promo_price && parseFloat(a.promo_price) > 0;
-            return s + parseFloat(usePromo ? a.promo_price : (a.price||0));
-          }, 0);
-          const basePrice = item.addon_required ? 0 : parseFloat(isPromoNow(item) && item.promo_price && parseFloat(item.promo_price) > 0 ? item.promo_price : item.price);
+          const addonPrice = itemModal.selectedAddons.reduce((s,a) => s + effAddonPrice(a, item, isVip), 0);
+          const basePrice = item.addon_required ? 0 : effPrice(item, isVip);
           const unitPrice = basePrice + addonPrice;
           const totalPrice = unitPrice * itemModal.qty;
           const canAdd = !soldOut && (!item.addon_required || itemModal.selectedAddons.length > 0);
@@ -1989,7 +1998,12 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                               <span style={{ fontSize:14, color:addon.sold_out?C.muted:C.text }}>{addon.name}</span>
                             </div>
                             <span style={{ fontSize:13, color:C.gold, fontWeight:"bold", flexShrink:0, marginLeft:8 }}>
-                              {parseFloat(addon.price||0) > 0 ? `+RM ${parseFloat(addon.price||0).toFixed(2)}` : ""}
+                              {(() => {
+                                const raw = parseFloat(addon.price||0);
+                                const eff = effAddonPrice(addon, item, isVip);
+                                if (eff === raw) return raw > 0 ? `+RM ${raw.toFixed(2)}` : "";
+                                return <span><span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>+RM {raw.toFixed(2)}</span>+RM {eff.toFixed(2)}</span>;
+                              })()}
                             </span>
                           </div>
                         );
@@ -2230,21 +2244,17 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                             {/* Price */}
                             <div style={{ fontSize:13, fontWeight:"bold", color:T.brown, flexShrink:0 }}>
                               {(() => {
-                                const promo = isPromoNow(item);
                                 if (item.addon_required && item.addons && item.addons.length > 0) {
                                   const normalMin = Math.min(...item.addons.map(a=>parseFloat(a.price||0)));
-                                  const effMin = Math.min(...item.addons.map(a => {
-                                    const usePromo = promo && a.promo_price && parseFloat(a.promo_price) > 0;
-                                    return parseFloat(usePromo ? a.promo_price : (a.price||0));
-                                  }));
-                                  return promo && effMin < normalMin
+                                  const effMin = Math.min(...item.addons.map(a => effAddonPrice(a, item, isVip)));
+                                  return effMin < normalMin
                                     ? <span style={{ display:"flex", flexDirection:"column", lineHeight:1.1 }}><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", fontSize:10 }}>RM {normalMin.toFixed(2)}</span><span style={{ color:"#e65100" }}>RM {effMin.toFixed(2)}+</span></span>
                                     : `RM ${effMin.toFixed(2)}+`;
                                 }
-                                const usePromo = promo && item.promo_price && parseFloat(item.promo_price) > 0;
-                                return usePromo
-                                  ? <span style={{ display:"flex", flexDirection:"column", lineHeight:1.1 }}><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", fontSize:10 }}>RM {parseFloat(item.price).toFixed(2)}</span><span style={{ color:"#e65100" }}>RM {parseFloat(item.promo_price).toFixed(2)}</span></span>
-                                  : `RM ${parseFloat(item.price).toFixed(2)}`;
+                                const eff = effPrice(item, isVip);
+                                return eff < parseFloat(item.price)
+                                  ? <span style={{ display:"flex", flexDirection:"column", lineHeight:1.1 }}><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", fontSize:10 }}>RM {parseFloat(item.price).toFixed(2)}</span><span style={{ color:"#e65100" }}>RM {eff.toFixed(2)}</span></span>
+                                  : `RM ${eff.toFixed(2)}`;
                               })()}
                             </div>
 
@@ -2278,11 +2288,8 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             const soldOut = item.is_available === false;
             const hasAddons = item.addons && item.addons.length > 0;
             const hasPromo = isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0;
-            const addonPrice = itemModal.selectedAddons.reduce((s,a) => {
-              const usePromo = isPromoNow(item) && a.promo_price && parseFloat(a.promo_price) > 0;
-              return s + parseFloat(usePromo ? a.promo_price : (a.price||0));
-            }, 0);
-            const basePrice = item.addon_required ? 0 : parseFloat(isPromoNow(item) && item.promo_price && parseFloat(item.promo_price) > 0 ? item.promo_price : item.price);
+            const addonPrice = itemModal.selectedAddons.reduce((s,a) => s + effAddonPrice(a, item, isVip), 0);
+            const basePrice = item.addon_required ? 0 : effPrice(item, isVip);
             const unitPrice = basePrice + addonPrice;
             const totalPrice = unitPrice * itemModal.qty;
             const canAdd = !soldOut && (!item.addon_required || itemModal.selectedAddons.length > 0);
@@ -2357,14 +2364,12 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                                 <span style={{ fontSize:16, color:addon.sold_out?T.muted:T.text, flex:1, minWidth:0 }}>{addon.name}</span>
                               </div>
                               <span style={{ fontSize:14, color:T.brown, fontWeight:"bold", flexShrink:0, marginLeft:8, whiteSpace:"nowrap" }}>
-                                {isPromoNow(item) && addon.promo_price && parseFloat(addon.promo_price) > 0 ? (
-                                  <span>
-                                    <span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>+RM {parseFloat(addon.price||0).toFixed(2)}</span>
-                                    <span style={{ color:"#e65100" }}>+RM {parseFloat(addon.promo_price).toFixed(2)}</span>
-                                  </span>
-                                ) : (
-                                  parseFloat(addon.price||0) > 0 ? `+RM ${parseFloat(addon.price||0).toFixed(2)}` : ""
-                                )}
+                                {(() => {
+                                  const raw = parseFloat(addon.price||0);
+                                  const eff = effAddonPrice(addon, item, isVip);
+                                  if (eff === raw) return raw > 0 ? `+RM ${raw.toFixed(2)}` : "";
+                                  return <span><span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>+RM {raw.toFixed(2)}</span><span style={{ color:"#e65100" }}>+RM {eff.toFixed(2)}</span></span>;
+                                })()}
                               </span>
                             </div>
                           );
@@ -3458,6 +3463,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
   const [addonPicker, setAddonPicker] = useState(null); // item needing addon selection
   const [pickerAddons, setPickerAddons] = useState([]);
   const tableNo = pickedTable;
+  const isVip = String(tableNo).startsWith("GRP-");
 
   const loadData = () => {
     if (!tableNo) return;
@@ -3492,17 +3498,14 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
     setCart(prev => {
       const ex = prev.find(c=>c.name===item.name);
       if (ex) return prev.map(c=>c.name===item.name?{...c,qty:c.qty+1}:c);
-      return [...prev,{name:item.name,price:parseFloat(item.price),qty:1,category:item.category||""}];
+      return [...prev,{name:item.name,price:effPrice(item, isVip),qty:1,category:item.category||""}];
     });
   };
 
   const confirmAddonPicker = () => {
     if (!addonPicker) return;
-    const addonPrice = pickerAddons.reduce((s,a)=>{
-      const usePromo = isPromoNow(addonPicker) && a.promo_price && parseFloat(a.promo_price) > 0;
-      return s+parseFloat(usePromo ? a.promo_price : (a.price||0));
-    },0);
-    const basePrice = addonPicker.addon_required ? 0 : parseFloat(isPromoNow(addonPicker) && addonPicker.promo_price && parseFloat(addonPicker.promo_price) > 0 ? addonPicker.promo_price : addonPicker.price);
+    const addonPrice = pickerAddons.reduce((s,a) => s + effAddonPrice(a, addonPicker, isVip), 0);
+    const basePrice = addonPicker.addon_required ? 0 : effPrice(addonPicker, isVip);
     const totalPrice = basePrice + addonPrice;
     const addonNames = pickerAddons.length > 0 ? " " + pickerAddons.map(a=>a.name).join(" +") : "";
     const cartName = addonPicker.name + addonNames;
@@ -3747,7 +3750,14 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                     <div key={item.id} onClick={()=>addToCart(item)} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:inCart?"#eef1f6":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:8,cursor:"pointer" }}>
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ color:C.text,fontSize:14,fontWeight:inCart?"bold":"normal" }}>{item.item_no && <span style={{ color:C.gold,fontSize:11,fontWeight:"bold",marginRight:5 }}>{item.item_no}</span>}{item.name}</div>
-                        <div style={{ color:C.gold,fontSize:13 }}>RM {parseFloat(item.price).toFixed(2)}</div>
+                        <div style={{ color:C.gold,fontSize:13 }}>
+                          {(() => {
+                            if (item.addons && item.addons.length > 0) return `RM ${parseFloat(item.price).toFixed(2)}${item.addon_required?"+":""}`;
+                            const raw = parseFloat(item.price);
+                            const eff = effPrice(item, isVip);
+                            return eff === raw ? `RM ${raw.toFixed(2)}` : <span><span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>RM {raw.toFixed(2)}</span>RM {eff.toFixed(2)}</span>;
+                          })()}
+                        </div>
                       </div>
                       <div style={{ display:"flex",alignItems:"center",gap:8,flexShrink:0 }}>
                         {inCart&&<button onClick={e=>{e.stopPropagation();removeFromCart(item.name);}} style={btn({ background:"#fbeaea",border:"1px solid #e6c3c3",color:"#c0392b",width:36,height:36,fontSize:20,borderRadius:8 })}>−</button>}
@@ -3829,7 +3839,14 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                       </div>
                       <span style={{ color:C.text,fontSize:14 }}>{addon.name}</span>
                     </div>
-                    <span style={{ color:C.gold,fontSize:13,fontWeight:"bold",flexShrink:0 }}>{parseFloat(addon.price||0)>0?`+RM ${parseFloat(addon.price).toFixed(2)}`:""}</span>
+                    <span style={{ color:C.gold,fontSize:13,fontWeight:"bold",flexShrink:0 }}>
+                      {(() => {
+                        const raw = parseFloat(addon.price||0);
+                        const eff = effAddonPrice(addon, addonPicker, isVip);
+                        if (eff === raw) return raw > 0 ? `+RM ${raw.toFixed(2)}` : "";
+                        return <span><span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>+RM {raw.toFixed(2)}</span>+RM {eff.toFixed(2)}</span>;
+                      })()}
+                    </span>
                   </div>
                 );
               })}
@@ -3839,8 +3856,8 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                 disabled={addonPicker.addon_required && pickerAddons.length===0}
                 style={btn({ width:"100%",background:(!addonPicker.addon_required||pickerAddons.length>0)?C.goldGrad:"#333",border:"none",color:(!addonPicker.addon_required||pickerAddons.length>0)?C.dark:"#666",padding:"14px 0",fontSize:15,fontWeight:"bold",borderRadius:10 })}>
                 {addonPicker.addon_required && pickerAddons.length===0 ? "Please select one ↑" : (() => {
-                  const addonTotal = pickerAddons.reduce((s,a)=>s+parseFloat(a.price||0),0);
-                  const base = addonPicker.addon_required ? 0 : parseFloat(addonPicker.price);
+                  const addonTotal = pickerAddons.reduce((s,a)=>s+effAddonPrice(a, addonPicker, isVip),0);
+                  const base = addonPicker.addon_required ? 0 : effPrice(addonPicker, isVip);
                   return `Add to Cart — RM ${(base+addonTotal).toFixed(2)}`;
                 })()}
               </button>
