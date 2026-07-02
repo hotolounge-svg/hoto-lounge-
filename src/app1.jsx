@@ -3214,7 +3214,8 @@ function SalesScreen({ goHome }) {
 
 function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder, cardTab, setCardTab, printReceipt, setPayModal, setTableDetailModal }) {
   const hasPending = data.pending.length>0;
-  const allOrders = [...data.done, ...data.pending];
+  // Newest order first within each status group (fetch is oldest-first)
+  const allOrders = [...[...data.done].reverse(), ...[...data.pending].reverse()];
   const drinkOrders = allOrders.filter(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
   const foodOrders = allOrders.filter(o => o.items.some(i => FOOD_CATEGORIES.includes(i.category)));
 
@@ -4259,7 +4260,8 @@ function CashierScreen({ goHome }) {
         const total = tableOrders.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
         const liveData = { pending, done, total };
         const hasPending = pending.length > 0;
-        const allOrders = [...pending, ...done];
+        // Newest order first within each status group (fetch is oldest-first)
+        const allOrders = [...[...pending].reverse(), ...[...done].reverse()];
         const drinkOrders = allOrders.filter(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
         const foodOrders = allOrders.filter(o => o.items.some(i => FOOD_CATEGORIES.includes(i.category)));
         return (
