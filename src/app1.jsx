@@ -3214,8 +3214,8 @@ function SalesScreen({ goHome }) {
 
 function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder, cardTab, setCardTab, printReceipt, setPayModal, setTableDetailModal }) {
   const hasPending = data.pending.length>0;
-  // Newest order first within each status group (fetch is oldest-first)
-  const allOrders = [...[...data.done].reverse(), ...[...data.pending].reverse()];
+  // Most recently placed order first, regardless of pending/done status
+  const allOrders = [...data.done, ...data.pending].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
   const drinkOrders = allOrders.filter(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
   const foodOrders = allOrders.filter(o => o.items.some(i => FOOD_CATEGORIES.includes(i.category)));
 
@@ -4260,8 +4260,8 @@ function CashierScreen({ goHome }) {
         const total = tableOrders.flatMap(o=>o.items).reduce((s,i) => s+i.price*i.qty, 0);
         const liveData = { pending, done, total };
         const hasPending = pending.length > 0;
-        // Newest order first within each status group (fetch is oldest-first)
-        const allOrders = [...[...pending].reverse(), ...[...done].reverse()];
+        // Most recently placed order first, regardless of pending/done status
+        const allOrders = [...pending, ...done].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
         const drinkOrders = allOrders.filter(o => o.items.some(i => DRINK_CATEGORIES.includes(i.category)));
         const foodOrders = allOrders.filter(o => o.items.some(i => FOOD_CATEGORIES.includes(i.category)));
         return (
