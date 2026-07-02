@@ -156,6 +156,19 @@ export default function App() {
         ::-webkit-scrollbar-track{ background:rgba(0,0,0,0.18); }
         html, body { overflow-x:hidden; max-width:100%; }
         @media (max-width:640px){ .hl-title{ letter-spacing:1px !important; } }
+
+        /* Staff/Cashier POS split-screen: stack menu above ticket instead of side-by-side when there isn't room (phones) */
+        @media (max-width:860px){
+          .hl-pos{ flex-direction:column !important; }
+          .hl-pos-left{ flex:1 1 auto !important; min-width:auto !important; min-height:0 !important; border-right:none !important; border-bottom:1px solid ${C.border}; }
+          .hl-pos-right{ width:100% !important; flex:0 0 46vh !important; border-left:none !important; border-top:1px solid ${C.border}; }
+        }
+
+        /* Admin menu item rows: drop the action buttons to their own line instead of squeezing the name/price column */
+        @media (max-width:640px){
+          .hl-admin-item{ flex-wrap:wrap; }
+          .hl-admin-item .hl-admin-actions{ width:100%; margin-top:8px; justify-content:flex-start !important; }
+        }
       `}</style>
 
       {screen === "home" && !pinUnlocked && !new URLSearchParams(window.location.search).get("join") && !new URLSearchParams(window.location.search).get("group") && !new URLSearchParams(window.location.search).get("page") && (
@@ -1392,7 +1405,7 @@ function AdminScreen({ goHome }) {
                 {catItems.length===0 && <div style={{ color:"#b3a893", fontSize:13, marginBottom:8 }}>No items yet</div>}
                 <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                   {catItems.map(item => (
-                    <div key={item.id} style={{ background:A.panel, border:`1px solid ${A.line}`, borderRadius:14, padding:"12px 14px", display:"flex", alignItems:"center", gap:14, boxShadow:A.shadow }}>
+                    <div key={item.id} className="hl-admin-item" style={{ background:A.panel, border:`1px solid ${A.line}`, borderRadius:14, padding:"12px 14px", display:"flex", alignItems:"center", gap:14, boxShadow:A.shadow }}>
                       {item.image_url ? <img src={item.image_url} alt={item.name} style={{ width:58, height:58, objectFit:"cover", borderRadius:10, flexShrink:0 }} />
                         : <div style={{ width:58, height:58, background:"#eef1f6", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, flexShrink:0 }}>{item.emoji}</div>}
                       <div style={{ flex:1, minWidth:0 }}>
@@ -1404,7 +1417,7 @@ function AdminScreen({ goHome }) {
                         {item.description && <div style={{ fontSize:12, color:A.sub, marginTop:3 }}>{item.description}</div>}
                         <div style={{ fontSize:14, color:A.goldText, fontWeight:700, marginTop:3 }}>RM {parseFloat(item.price).toFixed(2)}</div>
                       </div>
-                      <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", justifyContent:"flex-end" }}>
+                      <div className="hl-admin-actions" style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", justifyContent:"flex-end" }}>
                         <button onClick={() => toggleAvailable(item)}
                           style={item.is_available!==false ? aChip({ background:"#eef1f6", color:"#394c76", border:"1px solid #d6dbe2" }) : aChip({ background:A.redSoft, color:A.red, border:"1px solid #eecaca" })}>
                           {item.is_available!==false ? "Available" : "Sold Out"}
@@ -1755,10 +1768,10 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     const headerIcon = takeaway ? "bag" : isVipOrder ? "users" : "utensils";
     const headerLabel = takeaway ? takeawayLabel(tableNo) : isVipOrder ? groupDisplayName(tableNo) : `Table ${tableNo}`;
     return (
-      <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:C.bg, fontFamily:"Georgia,serif" }}>
+      <div className="hl-pos" style={{ display:"flex", height:"100vh", overflow:"hidden", background:C.bg, fontFamily:"Georgia,serif" }}>
 
         {/* ══ LEFT — MENU ══ */}
-        <div style={{ flex:"1 1 60%", minWidth:0, display:"flex", flexDirection:"column", borderRight:`1px solid ${C.border}` }}>
+        <div className="hl-pos-left" style={{ flex:"1 1 60%", minWidth:0, display:"flex", flexDirection:"column", borderRight:`1px solid ${C.border}` }}>
           <div style={{ background:C.goldGrad, padding:"14px 18px", display:"flex", alignItems:"center", gap:12, flexShrink:0, boxShadow:C.glow }}>
             <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", width:38, height:38, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center" })}>
               <Icon name="arrowLeft" size={18} color="#fff" />
@@ -1855,7 +1868,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         </div>
 
         {/* ══ RIGHT — TICKET ══ */}
-        <div style={{ width:"clamp(300px, 34%, 400px)", flexShrink:0, display:"flex", flexDirection:"column", background:"#fff" }}>
+        <div className="hl-pos-right" style={{ width:"clamp(300px, 34%, 400px)", flexShrink:0, display:"flex", flexDirection:"column", background:"#fff" }}>
           <div style={{ padding:"16px 18px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
             <div style={{ fontSize:17, fontWeight:800, color:C.text }}>Current Order</div>
             <span style={{ background:cartItems.length>0?C.gold:C.border, color:"#fff", borderRadius:20, padding:"3px 11px", fontSize:13, fontWeight:"bold" }}>{cartItems.reduce((s,i)=>s+i.qty,0)}</span>
