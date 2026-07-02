@@ -1768,18 +1768,40 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     const soldOut = item.is_available===false;
                     return (
                       <div key={item.id} onClick={() => !soldOut && handleAddItem(item)}
-                        style={{ background:"#fff", border:qty>0?`2px solid ${C.gold}`:`1px solid ${C.border}`, borderRadius:14, overflow:"hidden", position:"relative", opacity:soldOut?0.5:1, boxShadow:qty>0?C.glow:C.shadow, cursor:soldOut?"default":"pointer", display:"flex", flexDirection:"column" }}>
-                        {!soldOut && item.is_best_seller && (
-                          <div style={{ position:"absolute", top:8, left:8, background:C.gold, color:"#fff", fontWeight:"bold", fontSize:9, padding:"3px 7px", borderRadius:6, letterSpacing:0.4, zIndex:2 }}>BEST SELLER</div>
-                        )}
-                        {soldOut && <div style={{ position:"absolute", top:8, left:8, background:"#c62828", color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:10, fontWeight:"bold", zIndex:3 }}>SOLD OUT</div>}
+                        style={{ background:"#fff", border:qty>0?`2px solid ${C.gold}`:`1px solid ${C.border}`, borderRadius:14, overflow:"hidden", opacity:soldOut?0.5:1, boxShadow:qty>0?C.glow:C.shadow, cursor:soldOut?"default":"pointer", display:"flex", flexDirection:"column" }}>
                         <div style={{ padding:"12px 12px 10px", flex:1, display:"flex", flexDirection:"column" }}>
+                          {!soldOut && item.is_best_seller && (
+                            <div style={{ alignSelf:"flex-start", background:C.gold, color:"#fff", fontWeight:"bold", fontSize:9, padding:"3px 7px", borderRadius:6, letterSpacing:0.4, marginBottom:6 }}>BEST SELLER</div>
+                          )}
+                          {soldOut && <div style={{ alignSelf:"flex-start", background:"#c62828", color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:10, fontWeight:"bold", marginBottom:6 }}>SOLD OUT</div>}
                           <div style={{ fontWeight:700, fontSize:14, marginBottom:8, color:C.text, lineHeight:1.25, flex:1 }}>
                             {item.item_no && <span style={{ color:C.gold, marginRight:4, fontSize:12 }}>{item.item_no}</span>}{item.name}
                           </div>
+                          {isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0 && (
+                            <div style={{ fontSize:10, color:C.gold, fontWeight:"bold", marginBottom:4 }}>With free drink</div>
+                          )}
+                          {isPromoNow(item) && item.addons && item.addons.some(a => a.promo_price && parseFloat(a.promo_price) > 0) && (
+                            <div style={{ fontSize:10, color:C.gold, fontWeight:"bold", marginBottom:4 }}>{item.promo_label || "Happy Hour"}</div>
+                          )}
                           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                             <div style={{ fontSize:13, fontWeight:"bold", color:C.gold }}>
-                              RM {parseFloat(isPromoNow(item) && item.promo_price && parseFloat(item.promo_price) > 0 ? item.promo_price : item.price).toFixed(2)}
+                              {(() => {
+                                const promo = isPromoNow(item);
+                                if (item.addon_required && item.addons && item.addons.length > 0) {
+                                  const normalMin = Math.min(...item.addons.map(a=>parseFloat(a.price||0)));
+                                  const effMin = Math.min(...item.addons.map(a => {
+                                    const usePromo = promo && a.promo_price && parseFloat(a.promo_price) > 0;
+                                    return parseFloat(usePromo ? a.promo_price : (a.price||0));
+                                  }));
+                                  return promo && effMin < normalMin
+                                    ? <span style={{ display:"flex", flexDirection:"column", lineHeight:1.1 }}><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", fontSize:10, color:C.muted }}>RM {normalMin.toFixed(2)}</span><span>RM {effMin.toFixed(2)}+</span></span>
+                                    : `RM ${effMin.toFixed(2)}+`;
+                                }
+                                const usePromo = promo && item.promo_price && parseFloat(item.promo_price) > 0;
+                                return usePromo
+                                  ? <span style={{ display:"flex", flexDirection:"column", lineHeight:1.1 }}><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", fontSize:10, color:C.muted }}>RM {parseFloat(item.price).toFixed(2)}</span><span>RM {parseFloat(item.promo_price).toFixed(2)}</span></span>
+                                  : `RM ${parseFloat(item.price).toFixed(2)}`;
+                              })()}
                             </div>
                             {soldOut ? null : qty===0 ? (
                               <button onClick={e => { e.stopPropagation(); handleAddItem(item); }}
