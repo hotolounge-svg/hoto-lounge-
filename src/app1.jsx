@@ -230,6 +230,7 @@ function Icon({ name, size=24, color="currentColor", stroke=1.8, style }) {
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>,
     arrowLeft: <><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></>,
     search: <><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></>,
+    calendar: <><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18"/><path d="M8 2.5v4M16 2.5v4"/></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
@@ -3067,6 +3068,23 @@ function SalesScreen({ goHome }) {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState("day"); // day | week | month
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"}));
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(selectedDate.slice(0,7)); // "YYYY-MM" shown in the popup
+
+  // Mon-first day grid for the popup calendar; null = blank leading cell
+  const buildCalendarDays = (yearMonth) => {
+    const [y,m] = yearMonth.split("-").map(Number);
+    const startWeekday = (new Date(y, m-1, 1).getDay()+6)%7; // Mon=0..Sun=6
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const cells = Array(startWeekday).fill(null);
+    for (let d=1; d<=daysInMonth; d++) cells.push(d);
+    return cells;
+  };
+  const shiftCalendarMonth = (delta) => {
+    const [y,m] = calendarMonth.split("-").map(Number);
+    const d = new Date(y, m-1+delta, 1);
+    setCalendarMonth(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
+  };
 
   // Period boundaries (both inclusive, "YYYY-MM-DD") derived from selectedDate + viewMode
   const rangeStart = (() => {
@@ -3188,11 +3206,40 @@ function SalesScreen({ goHome }) {
           <button onClick={goPrev}
             style={btn({ background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:"8px 14px", fontSize:18 })}>‹</button>
           <div style={{ position:"relative" }}>
-            <div style={{ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:8, padding:"8px 16px", fontSize:14, color:C.goldLight, fontWeight:"bold", fontFamily:"Georgia,serif", cursor:"pointer", userSelect:"none", minWidth:160, textAlign:"center" }}>
-              {periodLabel}
-            </div>
-            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-              style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", width:"100%", height:"100%" }} />
+            <button onClick={() => { setCalendarMonth(selectedDate.slice(0,7)); setCalendarOpen(o => !o); }}
+              style={btn({ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:8, padding:"8px 16px", fontSize:14, color:C.goldLight, fontWeight:"bold", fontFamily:"Georgia,serif", userSelect:"none", minWidth:160, display:"flex", alignItems:"center", justifyContent:"center", gap:8 })}>
+              <Icon name="calendar" size={14} color={C.goldLight} /> {periodLabel}
+            </button>
+            {calendarOpen && <>
+              <div style={{ position:"fixed", inset:0, zIndex:3000 }} onClick={() => setCalendarOpen(false)} />
+              <div onClick={e => e.stopPropagation()}
+                style={{ position:"absolute", top:"calc(100% + 8px)", left:0, background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, boxShadow:"0 16px 40px rgba(43,51,70,0.28)", padding:14, width:250, zIndex:3001 }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                  <button onClick={() => shiftCalendarMonth(-1)} style={btn({ background:"transparent", border:"none", color:C.muted, fontSize:16, padding:"2px 10px" })}>‹</button>
+                  <div style={{ fontSize:14, fontWeight:"bold", color:C.text }}>
+                    {new Date(calendarMonth+"-01T00:00:00").toLocaleDateString("en-MY",{month:"long",year:"numeric"})}
+                  </div>
+                  <button onClick={() => shiftCalendarMonth(1)} style={btn({ background:"transparent", border:"none", color:C.muted, fontSize:16, padding:"2px 10px" })}>›</button>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:4 }}>
+                  {["M","T","W","T","F","S","S"].map((d,i) => <div key={i} style={{ fontSize:11, color:C.muted, textAlign:"center", fontWeight:"bold" }}>{d}</div>)}
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
+                  {buildCalendarDays(calendarMonth).map((day,i) => {
+                    if (day===null) return <div key={i} />;
+                    const ds = `${calendarMonth}-${String(day).padStart(2,"0")}`;
+                    const isSelected = ds===selectedDate;
+                    const isToday = ds===todayMYT;
+                    return (
+                      <button key={i} onClick={() => { setSelectedDate(ds); setCalendarOpen(false); }}
+                        style={btn({ background:isSelected?C.goldGrad:"transparent", border:isToday&&!isSelected?`1px solid ${C.gold}`:"1px solid transparent", color:isSelected?"#fff":C.text, borderRadius:8, padding:"6px 0", fontSize:13, fontWeight:isSelected?"bold":"normal" })}>
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>}
           </div>
           <button onClick={goNext}
             style={btn({ background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:"8px 14px", fontSize:18 })}>›</button>
