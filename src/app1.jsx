@@ -3066,10 +3066,12 @@ function SalesScreen({ goHome }) {
   const [pinErr, setPinErr] = useState(false);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState("day"); // day | week | month
-  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"}));
+  const todayMYT = new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"});
+  const [rangeStart, setRangeStart] = useState(todayMYT);
+  const [rangeEnd, setRangeEnd] = useState(todayMYT);
+  const [pickingEnd, setPickingEnd] = useState(false); // false = next click starts a new range, true = next click sets the end
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState(selectedDate.slice(0,7)); // "YYYY-MM" shown in the popup
+  const [calendarMonth, setCalendarMonth] = useState(todayMYT.slice(0,7)); // "YYYY-MM" shown in the popup
 
   // Mon-first day grid for the popup calendar; null = blank leading cell
   const buildCalendarDays = (yearMonth) => {
@@ -3085,42 +3087,17 @@ function SalesScreen({ goHome }) {
     const d = new Date(y, m-1+delta, 1);
     setCalendarMonth(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
   };
-
-  // Period boundaries (both inclusive, "YYYY-MM-DD") derived from selectedDate + viewMode
-  const rangeStart = (() => {
-    if (viewMode==="day") return selectedDate;
-    if (viewMode==="month") return selectedDate.slice(0,7)+"-01";
-    const d = new Date(selectedDate+"T00:00:00"); const day = d.getDay();
-    d.setDate(d.getDate() + (day===0 ? -6 : 1-day)); // back to Monday
-    return d.toLocaleDateString("en-CA");
-  })();
-  const rangeEnd = (() => {
-    if (viewMode==="day") return selectedDate;
-    if (viewMode==="week") { const d=new Date(rangeStart+"T00:00:00"); d.setDate(d.getDate()+6); return d.toLocaleDateString("en-CA"); }
-    const d=new Date(rangeStart+"T00:00:00"); d.setMonth(d.getMonth()+1); d.setDate(d.getDate()-1); return d.toLocaleDateString("en-CA");
-  })();
-  const todayMYT = new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"});
-  const isCurrentPeriod = rangeStart <= todayMYT && todayMYT <= rangeEnd;
-  const periodLabel = viewMode==="day"
-    ? new Date(selectedDate+"T00:00:00").toLocaleDateString("en-MY",{day:"2-digit",month:"short",year:"numeric"})
-    : viewMode==="week"
-    ? `${new Date(rangeStart+"T00:00:00").toLocaleDateString("en-MY",{day:"2-digit",month:"short"})} – ${new Date(rangeEnd+"T00:00:00").toLocaleDateString("en-MY",{day:"2-digit",month:"short",year:"numeric"})}`
-    : new Date(rangeStart+"T00:00:00").toLocaleDateString("en-MY",{month:"long",year:"numeric"});
-  const goPrev = () => {
-    const d = new Date((viewMode==="day"?selectedDate:rangeStart)+"T00:00:00");
-    if (viewMode==="day") d.setDate(d.getDate()-1);
-    else if (viewMode==="week") d.setDate(d.getDate()-7);
-    else d.setMonth(d.getMonth()-1);
-    setSelectedDate(d.toLocaleDateString("en-CA"));
+  // Hotel-booking style: 1st click picks the start, 2nd click picks the end (or restarts if it's earlier)
+  const pickDay = (ds) => {
+    if (!pickingEnd) { setRangeStart(ds); setRangeEnd(ds); setPickingEnd(true); }
+    else if (ds < rangeStart) { setRangeStart(ds); setRangeEnd(ds); }
+    else { setRangeEnd(ds); setPickingEnd(false); setCalendarOpen(false); }
   };
-  const goNext = () => {
-    const d = new Date((viewMode==="day"?selectedDate:rangeStart)+"T00:00:00");
-    if (viewMode==="day") d.setDate(d.getDate()+1);
-    else if (viewMode==="week") d.setDate(d.getDate()+7);
-    else d.setMonth(d.getMonth()+1);
-    setSelectedDate(d.toLocaleDateString("en-CA"));
-  };
-  const goToday = () => setSelectedDate(todayMYT);
+  const isCurrentPeriod = rangeStart===todayMYT && rangeEnd===todayMYT;
+  const periodLabel = rangeStart===rangeEnd
+    ? new Date(rangeStart+"T00:00:00").toLocaleDateString("en-MY",{day:"2-digit",month:"short",year:"numeric"})
+    : `${new Date(rangeStart+"T00:00:00").toLocaleDateString("en-MY",{day:"2-digit",month:"short"})} – ${new Date(rangeEnd+"T00:00:00").toLocaleDateString("en-MY",{day:"2-digit",month:"short",year:"numeric"})}`;
+  const goToday = () => { setRangeStart(todayMYT); setRangeEnd(todayMYT); setPickingEnd(false); setCalendarOpen(false); };
 
   useEffect(() => {
     if (!pinOk) return;
@@ -3194,26 +3171,19 @@ function SalesScreen({ goHome }) {
         <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"8px 16px", fontSize:13 })}>← Back</button>
       </div>
       <div style={{ padding:16, overflowY:"auto", flex:1 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
-          {[["day","Day"],["week","Week"],["month","Month"]].map(([key,label]) => (
-            <button key={key} onClick={() => setViewMode(key)}
-              style={btn({ background:viewMode===key?C.goldGrad:C.panel, border:`1px solid ${viewMode===key?"transparent":C.border}`, color:viewMode===key?"#fff":C.muted, padding:"8px 18px", fontSize:13, fontWeight:"bold" })}>
-              {label}
-            </button>
-          ))}
-        </div>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20, flexWrap:"wrap" }}>
-          <button onClick={goPrev}
-            style={btn({ background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:"8px 14px", fontSize:18 })}>‹</button>
           <div style={{ position:"relative" }}>
-            <button onClick={() => { setCalendarMonth(selectedDate.slice(0,7)); setCalendarOpen(o => !o); }}
-              style={btn({ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:8, padding:"8px 16px", fontSize:14, color:C.goldLight, fontWeight:"bold", fontFamily:"Georgia,serif", userSelect:"none", minWidth:160, display:"flex", alignItems:"center", justifyContent:"center", gap:8 })}>
+            <button onClick={() => { setCalendarMonth(rangeStart.slice(0,7)); setPickingEnd(false); setCalendarOpen(o => !o); }}
+              style={btn({ background:C.panel, border:`2px solid ${C.gold}`, borderRadius:8, padding:"8px 16px", fontSize:14, color:C.goldLight, fontWeight:"bold", fontFamily:"Georgia,serif", userSelect:"none", minWidth:190, display:"flex", alignItems:"center", justifyContent:"center", gap:8 })}>
               <Icon name="calendar" size={14} color={C.goldLight} /> {periodLabel}
             </button>
             {calendarOpen && <>
               <div style={{ position:"fixed", inset:0, zIndex:3000 }} onClick={() => setCalendarOpen(false)} />
               <div onClick={e => e.stopPropagation()}
                 style={{ position:"absolute", top:"calc(100% + 8px)", left:0, background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, boxShadow:"0 16px 40px rgba(43,51,70,0.28)", padding:14, width:250, zIndex:3001 }}>
+                <div style={{ fontSize:11, color:C.muted, textAlign:"center", marginBottom:8 }}>
+                  {pickingEnd ? "Pick check-out / end date" : "Pick check-in / start date"}
+                </div>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
                   <button onClick={() => shiftCalendarMonth(-1)} style={btn({ background:"transparent", border:"none", color:C.muted, fontSize:16, padding:"2px 10px" })}>‹</button>
                   <div style={{ fontSize:14, fontWeight:"bold", color:C.text }}>
@@ -3228,11 +3198,19 @@ function SalesScreen({ goHome }) {
                   {buildCalendarDays(calendarMonth).map((day,i) => {
                     if (day===null) return <div key={i} />;
                     const ds = `${calendarMonth}-${String(day).padStart(2,"0")}`;
-                    const isSelected = ds===selectedDate;
+                    const isStart = ds===rangeStart;
+                    const isEnd = ds===rangeEnd;
+                    const inRange = ds>rangeStart && ds<rangeEnd;
                     const isToday = ds===todayMYT;
                     return (
-                      <button key={i} onClick={() => { setSelectedDate(ds); setCalendarOpen(false); }}
-                        style={btn({ background:isSelected?C.goldGrad:"transparent", border:isToday&&!isSelected?`1px solid ${C.gold}`:"1px solid transparent", color:isSelected?"#fff":C.text, borderRadius:8, padding:"6px 0", fontSize:13, fontWeight:isSelected?"bold":"normal" })}>
+                      <button key={i} onClick={() => pickDay(ds)}
+                        style={btn({
+                          background: (isStart||isEnd) ? C.goldGrad : inRange ? "#eef1f6" : "transparent",
+                          border: isToday && !isStart && !isEnd ? `1px solid ${C.gold}` : "1px solid transparent",
+                          color: (isStart||isEnd) ? "#fff" : C.text,
+                          borderRadius: (isStart||isEnd) ? 8 : 0,
+                          padding:"6px 0", fontSize:13, fontWeight:(isStart||isEnd)?"bold":"normal"
+                        })}>
                         {day}
                       </button>
                     );
@@ -3241,14 +3219,10 @@ function SalesScreen({ goHome }) {
               </div>
             </>}
           </div>
-          <button onClick={goNext}
-            style={btn({ background:C.panel, border:`1px solid ${C.border}`, color:C.muted, padding:"8px 14px", fontSize:18 })}>›</button>
           <button onClick={goToday}
-            style={btn({ background:isCurrentPeriod?"#e3e7f0":"transparent", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"8px 14px", fontSize:13, fontWeight:"bold" })}>
-            {viewMode==="day"?"Today":viewMode==="week"?"This Week":"This Month"}
-          </button>
+            style={btn({ background:isCurrentPeriod?"#e3e7f0":"transparent", border:`1px solid ${C.gold}`, color:C.goldLight, padding:"8px 14px", fontSize:13, fontWeight:"bold" })}>Today</button>
           {orders.length > 0 && (
-            <button onClick={() => exportExcel(orders, viewMode==="day"?selectedDate:`${rangeStart}_to_${rangeEnd}`, charge)}
+            <button onClick={() => exportExcel(orders, rangeStart===rangeEnd?rangeStart:`${rangeStart}_to_${rangeEnd}`, charge)}
               style={btn({ background:"#eef1f6", border:`1px solid #394c76`, color:"#394c76", padding:"8px 16px", fontSize:13, fontWeight:"bold", marginLeft:"auto", display:"flex", alignItems:"center", gap:7 })}>
               <Icon name="chart" size={14} color="#394c76" /> Export Excel
             </button>
