@@ -386,7 +386,7 @@ function GroupWrapper({ tableNo: initialTableNo }) {
     const baseId = String(initialTableNo).split("·")[0]; // GRP-{id}
     const checkExisting = async () => {
       const { data } = await supabase.from("orders").select("table_no")
-        .like("table_no", `${baseId}%`).not("status","eq","paid").limit(1);
+        .like("table_no", `${baseId}%`).not("status","in",'("cancelled","paid")').limit(1);
       if (data && data.length) setFinalTableNo(data[0].table_no);
       setChecking(false);
     };
@@ -889,8 +889,8 @@ function VIPScreen({ setScreen, setTableNo, goHome }) {
       setMembers(data||[]);
       // Find which VIPs have active orders
       const { data: orders } = await supabase.from("orders").select("table_no")
-        .like("table_no","GRP-%").not("status","eq","paid");
-      const active = new Set((orders||[]).map(o => o.table_no.split("·")[0]));
+        .like("table_no","GRP-%").not("status","in",'("cancelled","paid")');
+      const active = new Set((orders||[]).map(o => o.table_no.split("·")[0].replace(/^GRP-/,"")));
       setActiveIds([...active]);
       setLoading(false);
     };
@@ -957,7 +957,7 @@ function VIPScreen({ setScreen, setTableNo, goHome }) {
                 return (
                   <button key={m.id} onClick={async () => {
                       const { data } = await supabase.from("orders").select("table_no")
-                        .like("table_no", `GRP-${m.id}%`).not("status","eq","paid").limit(1);
+                        .like("table_no", `GRP-${m.id}%`).not("status","in",'("cancelled","paid")').limit(1);
                       if (data && data.length) { setTableNo(data[0].table_no); setScreen("tablet"); }
                       else { setPickedMember({ tno: `GRP-${m.id}` }); }
                     }}
@@ -1719,8 +1719,9 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   // layout + the navy/grey/white staff theme instead of the customer's warm/gold theme.
   if (isStaff) {
     const takeaway = isTakeaway(tableNo);
-    const headerIcon = takeaway ? "bag" : "utensils";
-    const headerLabel = takeaway ? takeawayLabel(tableNo) : `Table ${tableNo}`;
+    const isVipOrder = String(tableNo).startsWith("GRP-");
+    const headerIcon = takeaway ? "bag" : isVipOrder ? "users" : "utensils";
+    const headerLabel = takeaway ? takeawayLabel(tableNo) : isVipOrder ? groupDisplayName(tableNo) : `Table ${tableNo}`;
     return (
       <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:C.bg, fontFamily:"Georgia,serif" }}>
 
@@ -1870,12 +1871,27 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
               <div style={{ marginTop:16 }}>
                 <div style={{ fontSize:11, fontWeight:700, color:C.muted, letterSpacing:1.5, textTransform:"uppercase", marginBottom:8 }}>Already sent</div>
                 {myOrders.map(o => (
-                  <div key={o.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 10px", background:C.bg, borderRadius:8, marginBottom:6 }}>
-                    <div style={{ fontSize:12, color:C.text }}>{o.order_seq && `#${o.order_seq} · `}{o.items.length} item{o.items.length>1?"s":""}</div>
-                    <span style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, fontWeight:"bold", color:o.status==="pending"?C.gold:C.muted }}>
-                      <Icon name={o.status==="pending"?"clock":"check"} size={11} color={o.status==="pending"?C.gold:C.muted}/>
-                      {o.status==="pending"?"Preparing":"Served"}
-                    </span>
+                  <div key={o.id} style={{ background:C.bg, borderRadius:10, padding:"10px 12px", marginBottom:8 }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+                      <div style={{ fontSize:12, fontWeight:"bold", color:C.text }}>{o.order_seq && `#${o.order_seq}`} <span style={{ color:C.muted, fontWeight:"normal" }}>· {o.time}</span></div>
+                      <span style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, fontWeight:"bold", color:o.status==="pending"?C.gold:C.muted }}>
+                        <Icon name={o.status==="pending"?"clock":"check"} size={11} color={o.status==="pending"?C.gold:C.muted}/>
+                        {o.status==="pending"?"Preparing":"Served"}
+                      </span>
+                    </div>
+                    {o.items.map((item,i) => (
+                      <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:2 }}>
+                        <span style={{ color:C.text }}>{item.name} <span style={{ color:C.muted }}>×{item.qty}</span></span>
+                        <span style={{ color:C.gold, fontWeight:"bold" }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    {o.items.filter(i=>i.note).map((item,i) => (
+                      <div key={i} style={{ fontSize:11, color:C.gold, marginTop:2 }}>{item.name}: {item.note}</div>
+                    ))}
+                    {o.special_request && <div style={{ fontSize:11, color:C.gold, marginTop:2 }}>{o.special_request}</div>}
+                    <div style={{ borderTop:`1px solid ${C.border}`, marginTop:6, paddingTop:6, display:"flex", justifyContent:"space-between", fontSize:12, fontWeight:"bold", color:C.text }}>
+                      <span>Total</span><span>RM {o.total.toFixed(2)}</span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -3836,7 +3852,7 @@ function VIPTableButtons({ setPickedTable, setStep }) {
           <button key={v.id} onClick={async ()=>{
             // Use same table_no as VIP's active order for full sync
             const { data } = await supabase.from("orders").select("table_no")
-              .like("table_no",`GRP-${v.id}%`).not("status","eq","paid").limit(1);
+              .like("table_no",`GRP-${v.id}%`).not("status","in",'("cancelled","paid")').limit(1);
             const tno = data&&data.length ? data[0].table_no : `GRP-${v.id}`;
             setPickedTable(tno); setStep("edit");
           }}
