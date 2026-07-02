@@ -379,24 +379,40 @@ async function downloadQR(url, label) {
 function GroupWrapper({ tableNo: initialTableNo }) {
   const [finalTableNo, setFinalTableNo] = useState(null);
   const [checking, setChecking] = useState(true);
+  const [invalid, setInvalid] = useState(false);
 
   // If admin already started an order for this VIP, skip the table picker
   // and jump straight into the existing order.
   useEffect(() => {
     const baseId = String(initialTableNo).split("·")[0]; // GRP-{id}
-    const checkExisting = async () => {
+    const memberId = baseId.replace(/^GRP-/,"");
+    const check = async () => {
+      // Reject old/removed links — the member must still exist in the roster
+      const { data: member } = await supabase.from("groups").select("id").eq("id", memberId).maybeSingle();
+      if (!member) { setInvalid(true); setChecking(false); return; }
       const { data } = await supabase.from("orders").select("table_no")
         .like("table_no", `${baseId}%`).not("status","in",'("cancelled","paid")').limit(1);
       if (data && data.length) setFinalTableNo(data[0].table_no);
       setChecking(false);
     };
-    checkExisting();
+    check();
   }, [initialTableNo]);
 
   if (checking) {
     return (
       <div style={{ minHeight:"100vh", background:"#e8ecef", display:"flex", alignItems:"center", justifyContent:"center", color:"#8c8c8c", fontFamily:"Georgia,serif", fontSize:14 }}>
         Loading…
+      </div>
+    );
+  }
+  if (invalid) {
+    return (
+      <div style={{ minHeight:"100vh", background:"#e8ecef", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:24, textAlign:"center", fontFamily:"Georgia,serif" }}>
+        <div style={{ width:64, height:64, borderRadius:18, background:"#394c76", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <Icon name="x" size={28} color="#fff" />
+        </div>
+        <div className="hl-title" style={{ fontSize:20, fontWeight:800, color:"#2b3346" }}>Link No Longer Active</div>
+        <div style={{ color:"#8c8c8c", fontSize:14, lineHeight:1.6, maxWidth:340 }}>This VIP link has expired or was removed. Please ask staff for a new link or QR code.</div>
       </div>
     );
   }
