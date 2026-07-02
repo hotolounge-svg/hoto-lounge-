@@ -203,6 +203,7 @@ function Icon({ name, size=24, color="currentColor", stroke=1.8, style }) {
     minus: <path d="M5 12h14"/>,
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>,
     arrowLeft: <><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></>,
+    search: <><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
@@ -1712,6 +1713,288 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       )
     : (menu[activeCategory] || []);
   const hasOrders = myOrders.length > 0;
+
+  // ══ STAFF ORDER SCREEN — fast POS split view (left: menu, right: ticket) ══
+  // Same cart/addon/note/placeOrder logic as the customer flow below, just a different
+  // layout + the navy/grey/white staff theme instead of the customer's warm/gold theme.
+  if (isStaff) {
+    const takeaway = isTakeaway(tableNo);
+    const headerIcon = takeaway ? "bag" : "utensils";
+    const headerLabel = takeaway ? takeawayLabel(tableNo) : `Table ${tableNo}`;
+    return (
+      <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:C.bg, fontFamily:"Georgia,serif" }}>
+
+        {/* ══ LEFT — MENU ══ */}
+        <div style={{ flex:"1 1 60%", minWidth:0, display:"flex", flexDirection:"column", borderRight:`1px solid ${C.border}` }}>
+          <div style={{ background:C.goldGrad, padding:"14px 18px", display:"flex", alignItems:"center", gap:12, flexShrink:0, boxShadow:C.glow }}>
+            <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", width:38, height:38, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center" })}>
+              <Icon name="arrowLeft" size={18} color="#fff" />
+            </button>
+            <div style={{ width:38, height:38, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <Icon name={headerIcon} size={18} color="#fff" />
+            </div>
+            <div className="hl-title" style={{ fontSize:19, fontWeight:800, color:"#fff", letterSpacing:0.3 }}>{headerLabel}</div>
+          </div>
+
+          <div style={{ padding:"12px 16px", background:"#fff", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+            <div style={{ position:"relative" }}>
+              <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", display:"flex" }}><Icon name="search" size={16} color={C.muted}/></span>
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search menu..."
+                style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px 10px 38px", borderRadius:10, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box", outline:"none" }} />
+            </div>
+          </div>
+
+          {!searchQuery && (
+            <div style={{ display:"flex", gap:8, background:"#fff", borderBottom:`1px solid ${C.border}`, overflowX:"auto", flexShrink:0, padding:"10px 16px" }}>
+              {CATEGORIES.map(cat => {
+                const active = activeCategory===cat;
+                return (
+                  <button key={cat} onClick={() => setActiveCategory(cat)}
+                    style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:active?C.goldGrad:"#fff", border:`1px solid ${active?"transparent":C.border}`, color:active?"#fff":C.muted, padding:"9px 18px", fontSize:14, fontWeight:active?"bold":500, whiteSpace:"nowrap", flexShrink:0, borderRadius:30 }}>
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ flex:1, overflowY:"auto", padding:"14px 16px" }}>
+            {menuLoading ? <div style={{ color:C.muted, textAlign:"center", padding:40, fontSize:16 }}>Loading menu...</div>
+              : currentMenuItems.length===0 ? <div style={{ color:C.muted, textAlign:"center", padding:40, fontSize:16 }}>{searchQuery ? `No results for "${searchQuery}"` : "No items yet"}</div>
+              : (
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))", gap:12 }}>
+                  {currentMenuItems.map(item => {
+                    const qty = Object.values(cart).filter(c => c.id === item.id).reduce((s,c) => s+c.qty, 0);
+                    const soldOut = item.is_available===false;
+                    return (
+                      <div key={item.id} onClick={() => !soldOut && handleAddItem(item)}
+                        style={{ background:"#fff", border:qty>0?`2px solid ${C.gold}`:`1px solid ${C.border}`, borderRadius:14, overflow:"hidden", position:"relative", opacity:soldOut?0.5:1, boxShadow:qty>0?C.glow:C.shadow, cursor:soldOut?"default":"pointer", display:"flex", flexDirection:"column" }}>
+                        {!soldOut && item.is_best_seller && (
+                          <div style={{ position:"absolute", top:8, left:8, background:C.gold, color:"#fff", fontWeight:"bold", fontSize:9, padding:"3px 7px", borderRadius:6, letterSpacing:0.4, zIndex:2 }}>BEST SELLER</div>
+                        )}
+                        {soldOut && <div style={{ position:"absolute", top:8, left:8, background:"#c62828", color:"#fff", borderRadius:6, padding:"2px 7px", fontSize:10, fontWeight:"bold", zIndex:3 }}>SOLD OUT</div>}
+                        <div style={{ padding:"12px 12px 10px", flex:1, display:"flex", flexDirection:"column" }}>
+                          <div style={{ fontWeight:700, fontSize:14, marginBottom:8, color:C.text, lineHeight:1.25, flex:1 }}>
+                            {item.item_no && <span style={{ color:C.gold, marginRight:4, fontSize:12 }}>{item.item_no}</span>}{item.name}
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                            <div style={{ fontSize:13, fontWeight:"bold", color:C.gold }}>
+                              RM {parseFloat(isPromoNow(item) && item.promo_price && parseFloat(item.promo_price) > 0 ? item.promo_price : item.price).toFixed(2)}
+                            </div>
+                            {soldOut ? null : qty===0 ? (
+                              <button onClick={e => { e.stopPropagation(); handleAddItem(item); }}
+                                style={{ background:C.goldGrad, border:"none", color:"#fff", width:30, height:30, fontSize:18, fontWeight:"bold", borderRadius:50, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>+</button>
+                            ) : (
+                              <div style={{ display:"flex", alignItems:"center", gap:4 }} onClick={e => e.stopPropagation()}>
+                                <button onClick={() => removeFromCart(Object.values(cart).find(c=>c.id===item.id)?.cartKey||item.id)}
+                                  style={{ background:"#fff", border:`2px solid ${C.gold}`, color:C.gold, width:26, height:26, fontSize:16, fontWeight:"bold", borderRadius:50, cursor:"pointer" }}>−</button>
+                                <span style={{ color:C.gold, fontWeight:"bold", fontSize:14, minWidth:16, textAlign:"center" }}>{qty}</span>
+                                <button onClick={() => handleAddItem(item)}
+                                  style={{ background:C.gold, border:"none", color:"#fff", width:26, height:26, fontSize:16, fontWeight:"bold", borderRadius:50, cursor:"pointer" }}>+</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+          </div>
+        </div>
+
+        {/* ══ RIGHT — TICKET ══ */}
+        <div style={{ width:"clamp(300px, 34%, 400px)", flexShrink:0, display:"flex", flexDirection:"column", background:"#fff" }}>
+          <div style={{ padding:"16px 18px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+            <div style={{ fontSize:17, fontWeight:800, color:C.text }}>Current Order</div>
+            <span style={{ background:cartItems.length>0?C.gold:C.border, color:"#fff", borderRadius:20, padding:"3px 11px", fontSize:13, fontWeight:"bold" }}>{cartItems.reduce((s,i)=>s+i.qty,0)}</span>
+          </div>
+
+          <div style={{ flex:1, overflowY:"auto", padding:"12px 14px" }}>
+            {cartItems.length===0 ? (
+              <div style={{ textAlign:"center", padding:"50px 10px", color:C.muted }}>
+                <Icon name="bag" size={40} color={C.border} style={{ marginBottom:12 }}/>
+                <div style={{ fontSize:14 }}>No items yet — tap the menu to add</div>
+              </div>
+            ) : cartItems.map(item => (
+              <div key={item.cartKey||item.id} style={{ background:C.bg, borderRadius:12, padding:"12px 14px", marginBottom:8 }}>
+                <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:14, fontWeight:"bold", color:C.text }}>{item.name}</div>
+                    <div style={{ fontSize:13, color:C.gold, fontWeight:"bold", marginTop:2 }}>RM {(item.price*item.qty).toFixed(2)}</div>
+                    <div onClick={() => setCartEditModal({ cartKey:item.cartKey||item.id, note:item.note||"", name:item.name })}
+                      style={{ display:"flex", alignItems:"center", gap:4, marginTop:6, cursor:"pointer", fontSize:12, color:item.note?C.gold:C.muted }}>
+                      <Icon name="pen" size={11} color={item.note?C.gold:C.muted} />
+                      {item.note || "Add note"}
+                    </div>
+                    <div onClick={() => setCart(p => ({ ...p, [item.cartKey||item.id]: { ...p[item.cartKey||item.id], is_takeaway: !p[item.cartKey||item.id]?.is_takeaway } }))}
+                      style={{ display:"flex", alignItems:"center", gap:6, marginTop:6, cursor:"pointer", fontSize:12, color:item.is_takeaway?C.gold:C.muted }}>
+                      <div style={{ width:16, height:16, borderRadius:4, border:`1.5px solid ${item.is_takeaway?C.gold:C.border}`, background:item.is_takeaway?C.gold:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        {item.is_takeaway && <Icon name="check" size={10} color="#fff" stroke={3}/>}
+                      </div>
+                      Takeaway
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:0, border:`1.5px solid ${C.border}`, borderRadius:50, overflow:"hidden", flexShrink:0 }}>
+                    <button onClick={() => removeFromCart(item.cartKey||item.id)} style={{ background:"#fff", border:"none", color:C.gold, width:26, height:26, fontSize:16, fontWeight:"bold", cursor:"pointer" }}>−</button>
+                    <span style={{ width:22, textAlign:"center", fontSize:13, fontWeight:"bold", color:C.text }}>{item.qty}</span>
+                    <button onClick={() => setCart(p => ({ ...p, [item.cartKey||item.id]: { ...p[item.cartKey||item.id], qty:p[item.cartKey||item.id].qty+1 } }))} style={{ background:C.gold, border:"none", color:"#fff", width:26, height:26, fontSize:16, fontWeight:"bold", cursor:"pointer" }}>+</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {myOrders.length > 0 && (
+              <div style={{ marginTop:16 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:C.muted, letterSpacing:1.5, textTransform:"uppercase", marginBottom:8 }}>Already sent</div>
+                {myOrders.map(o => (
+                  <div key={o.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 10px", background:C.bg, borderRadius:8, marginBottom:6 }}>
+                    <div style={{ fontSize:12, color:C.text }}>{o.order_seq && `#${o.order_seq} · `}{o.items.length} item{o.items.length>1?"s":""}</div>
+                    <span style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, fontWeight:"bold", color:o.status==="pending"?C.gold:C.muted }}>
+                      <Icon name={o.status==="pending"?"clock":"check"} size={11} color={o.status==="pending"?C.gold:C.muted}/>
+                      {o.status==="pending"?"Preparing":"Served"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ padding:"14px 18px", borderTop:`1px solid ${C.border}`, flexShrink:0 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:15, fontWeight:"bold", color:C.text, marginBottom:12 }}>
+              <span>Total</span><span style={{ color:C.gold }}>RM {total.toFixed(2)}</span>
+            </div>
+            <button onClick={placeOrder} disabled={isSubmitting||cartItems.length===0}
+              style={btn({ width:"100%", background:cartItems.length===0?C.border:C.goldGrad, border:"none", color:cartItems.length===0?C.muted:"#fff", padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:12, cursor:(isSubmitting||cartItems.length===0)?"not-allowed":"pointer" })}>
+              {cartItems.length===0 ? "Add items to order" : isSubmitting ? "Sending…" : "Send to Kitchen"}
+            </button>
+          </div>
+        </div>
+
+        {/* Item modal (add-ons / free drink / note) — staff themed */}
+        {itemModal && (() => {
+          const item = itemModal.item;
+          const soldOut = item.is_available === false;
+          const hasAddons = item.addons && item.addons.length > 0;
+          const hasPromo = isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0;
+          const addonPrice = itemModal.selectedAddons.reduce((s,a) => {
+            const usePromo = isPromoNow(item) && a.promo_price && parseFloat(a.promo_price) > 0;
+            return s + parseFloat(usePromo ? a.promo_price : (a.price||0));
+          }, 0);
+          const basePrice = item.addon_required ? 0 : parseFloat(isPromoNow(item) && item.promo_price && parseFloat(item.promo_price) > 0 ? item.promo_price : item.price);
+          const unitPrice = basePrice + addonPrice;
+          const totalPrice = unitPrice * itemModal.qty;
+          const canAdd = !soldOut && (!item.addon_required || itemModal.selectedAddons.length > 0);
+          return (
+            <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(43,51,70,0.55)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={() => setItemModal(null)}>
+              <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:18, width:"min(92%, 460px)", maxHeight:"85vh", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:"0 20px 50px rgba(0,0,0,0.25)" }}>
+                <div style={{ background:C.goldGrad, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+                  <div style={{ fontSize:17, fontWeight:800, color:"#fff", paddingRight:12 }}>{item.name}</div>
+                  <button onClick={() => setItemModal(null)} style={{ background:"rgba(255,255,255,0.14)", border:"none", borderRadius:50, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}>
+                    <Icon name="x" size={15} color="#fff"/>
+                  </button>
+                </div>
+                <div ref={itemScrollRef} onScroll={updateScrollHint} style={{ flex:1, overflowY:"auto", padding:"18px 20px" }}>
+                  <div style={{ fontSize:16, fontWeight:"bold", color:C.gold, marginBottom:6 }}>RM {unitPrice.toFixed(2)}</div>
+                  {item.description && <div style={{ fontSize:13, color:C.muted, marginBottom:14, lineHeight:1.5 }}>{item.description}</div>}
+
+                  {hasPromo && (
+                    <div style={{ background:"#eef1f6", borderRadius:10, padding:"10px 14px", marginBottom:14 }}>
+                      <div style={{ fontSize:13, fontWeight:"bold", color:C.gold, marginBottom:8 }}>Choose a free drink:</div>
+                      {item.promo_drinks.map((drink, di) => (
+                        <div key={di} onClick={() => setItemModal(m=>({...m, freeDrink:drink}))}
+                          style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", marginTop:8, borderRadius:10, border:`2px solid ${itemModal.freeDrink===drink?C.gold:C.border}`, background:itemModal.freeDrink===drink?"#eef1f6":"#fff", cursor:"pointer" }}>
+                          <span style={{ fontSize:13, color:C.text }}>{drink}</span>
+                          <span style={{ fontSize:12, color:C.gold, fontWeight:"bold" }}>FREE</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {hasAddons && (
+                    <div style={{ marginBottom:14 }}>
+                      <div style={{ fontSize:13, fontWeight:"bold", color:C.text, marginBottom:10 }}>
+                        {item.addon_required ? "Select one (required):" : "Add extras (optional):"}
+                        {item.addon_required && <span style={{ background:"#fbe9e9", color:"#c62828", fontSize:11, borderRadius:6, padding:"2px 8px", marginLeft:8 }}>Required</span>}
+                      </div>
+                      {item.addons.map((addon, ai) => {
+                        const selected = itemModal.selectedAddons.some(a => a.name === addon.name);
+                        const isRequired = item.addon_required;
+                        return (
+                          <div key={ai} onClick={() => { if (addon.sold_out) return; setItemModal(m => ({
+                            ...m,
+                            selectedAddons: isRequired ? [addon] : selected
+                              ? m.selectedAddons.filter(a => a.name !== addon.name)
+                              : [...m.selectedAddons, addon]
+                          }));}}
+                            style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", marginBottom:8, borderRadius:10, border:`2px solid ${addon.sold_out?"#eee":selected?C.gold:C.border}`, background:addon.sold_out?"#f9f9f9":selected?"#eef1f6":"#fff", cursor:addon.sold_out?"not-allowed":"pointer", opacity:addon.sold_out?0.5:1 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:10, flex:1, minWidth:0 }}>
+                              <div style={{ width:22, height:22, borderRadius:isRequired?11:6, border:`2px solid ${selected?C.gold:C.border}`, background:selected?C.gold:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                                {selected && <Icon name="check" size={12} color="#fff" stroke={3}/>}
+                              </div>
+                              <span style={{ fontSize:14, color:addon.sold_out?C.muted:C.text }}>{addon.name}</span>
+                            </div>
+                            <span style={{ fontSize:13, color:C.gold, fontWeight:"bold", flexShrink:0, marginLeft:8 }}>
+                              {parseFloat(addon.price||0) > 0 ? `+RM ${parseFloat(addon.price||0).toFixed(2)}` : ""}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div>
+                    <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:14, fontWeight:"bold", color:C.text, marginBottom:8 }}>
+                      <Icon name="pen" size={13} color={C.text}/> Note for kitchen
+                    </div>
+                    <textarea value={itemModal.note} onChange={e => setItemModal(m=>({...m, note:e.target.value}))}
+                      placeholder="e.g. no sugar, less ice, extra spicy..." rows={2}
+                      style={{ width:"100%", border:`1.5px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontSize:14, fontFamily:"Georgia,serif", color:C.text, resize:"none", boxSizing:"border-box", outline:"none" }} />
+                  </div>
+                </div>
+
+                <div style={{ padding:"14px 20px", borderTop:`1px solid ${C.border}`, background:"#fff", flexShrink:0, display:"flex", alignItems:"center", gap:14 }}>
+                  <div style={{ display:"flex", alignItems:"center", border:`2px solid ${C.border}`, borderRadius:50, overflow:"hidden" }}>
+                    <button onClick={() => { if (itemModal.qty<=1) { setItemModal(null); return; } setItemModal(m=>({...m, qty:m.qty-1})); }}
+                      style={{ background:"#fff", border:"none", color:C.gold, width:38, height:38, fontSize:20, fontWeight:"bold", cursor:"pointer" }}>−</button>
+                    <span style={{ width:34, textAlign:"center", fontSize:16, fontWeight:"bold", color:C.text }}>{itemModal.qty}</span>
+                    <button onClick={() => setItemModal(m=>({...m, qty:m.qty+1}))}
+                      style={{ background:C.gold, border:"none", color:"#fff", width:38, height:38, fontSize:20, fontWeight:"bold", cursor:"pointer" }}>+</button>
+                  </div>
+                  <button onClick={() => { if (!canAdd) return; addToCart(item, itemModal.freeDrink||null, itemModal.selectedAddons, itemModal.note, itemModal.qty); setItemModal(null); }}
+                    disabled={!canAdd}
+                    style={btn({ flex:1, background:canAdd?C.goldGrad:C.border, border:"none", color:canAdd?"#fff":C.muted, padding:"12px 0", fontSize:15, fontWeight:"bold", borderRadius:50, cursor:canAdd?"pointer":"not-allowed" })}>
+                    {!canAdd && item.addon_required ? "Please select one ↑" : `Add — RM ${totalPrice.toFixed(2)}`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Cart item note modal — staff themed */}
+        {cartEditModal && (
+          <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(43,51,70,0.55)", zIndex:1100, display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <div style={{ background:"#fff", borderRadius:16, padding:22, width:"min(92%, 420px)", boxShadow:"0 20px 50px rgba(0,0,0,0.25)" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:16, fontWeight:800, color:C.text }}><Icon name="pen" size={14} color={C.text}/> Note for this item</div>
+                <button onClick={() => setCartEditModal(null)} style={{ background:"transparent", border:"none", cursor:"pointer" }}><Icon name="x" size={18} color={C.muted}/></button>
+              </div>
+              <div style={{ fontSize:13, color:C.muted, marginBottom:12 }}>{cartEditModal.name}</div>
+              <textarea value={cartEditModal.note} onChange={e => setCartEditModal(m => ({...m, note:e.target.value}))}
+                placeholder="e.g. no sugar, less ice, extra shot, less spicy..." rows={3} autoFocus
+                style={{ width:"100%", border:`1.5px solid ${C.border}`, borderRadius:10, padding:"12px 14px", fontSize:14, fontFamily:"Georgia,serif", color:C.text, resize:"none", boxSizing:"border-box", outline:"none", marginBottom:16 }} />
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={() => setCartEditModal(null)} style={btn({ flex:1, background:C.bg, border:`1px solid ${C.border}`, color:C.muted, padding:"12px 0", fontSize:14, borderRadius:10, cursor:"pointer" })}>Cancel</button>
+                <button onClick={() => { const key=cartEditModal.cartKey; setCart(p => ({ ...p, [key]: { ...p[key], note:cartEditModal.note.trim() } })); setCartEditModal(null); }}
+                  style={btn({ flex:2, background:C.goldGrad, border:"none", color:"#fff", padding:"12px 0", fontSize:14, fontWeight:"bold", borderRadius:10, cursor:"pointer" })}>Save Note</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (sessionExpired && !isStaff) return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", gap:20, padding:24, textAlign:"center", background:T.bg }}>
