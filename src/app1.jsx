@@ -3038,17 +3038,18 @@ function exportExcel(orders, rangeLabel, charge) {
     return s + +(Math.round((o.total+bc)*20)/20).toFixed(2);
   },0).toFixed(2);
   const rows = [];
-  rows.push(["Order ID","Table","Time","Item","Category","Qty","Unit Price","Item Total","Special Request"]);
+  rows.push(["Order ID","Date","Table","Time","Item","Category","Qty","Unit Price","Item Total","Special Request"]);
   orders.forEach(o => {
+    const date = new Date(o.created_at).toLocaleDateString("en-MY",{day:"2-digit",month:"2-digit",year:"numeric",timeZone:"Asia/Kuala_Lumpur"});
     const time = o.time || new Date(o.created_at).toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
     o.items.forEach(item => {
-      rows.push([o.id, isTakeaway(o.table_no)?takeawayLabel(o.table_no):"Table "+o.table_no, time, item.name, item.category||"", item.qty, item.price.toFixed(2), (item.price*item.qty).toFixed(2), o.special_request||""]);
+      rows.push([o.id, date, isTakeaway(o.table_no)?takeawayLabel(o.table_no):"Table "+o.table_no, time, item.name, item.category||"", item.qty, item.price.toFixed(2), (item.price*item.qty).toFixed(2), o.special_request||""]);
     });
   });
   rows.push([]);
-  rows.push(["","","","","","","Subtotal",subtotal.toFixed(2)]);
-  if(charge>0) rows.push(["","","","","","",charge+"% Service Charge",chargeAmt.toFixed(2)]);
-  rows.push(["","","","","","","Grand Total",grandTotal.toFixed(2)]);
+  rows.push(["","","","","","","","Subtotal",subtotal.toFixed(2)]);
+  if(charge>0) rows.push(["","","","","","","",charge+"% Service Charge",chargeAmt.toFixed(2)]);
+  rows.push(["","","","","","","","Grand Total",grandTotal.toFixed(2)]);
   const escape = v => { const s=String(v!=null?v:""); return s.includes(",")||s.includes("\n")||s.includes('"') ? '"'+s.replace(/"/g,'\\"')+ '"' : s; };
   const csv = rows.map(r=>r.map(escape).join(",")).join("\r\n");
   const bom = "\uFEFF";
