@@ -2770,6 +2770,17 @@ function KitchenScreen({ goHome }) {
   const soundOnRef = useRef(localStorage.getItem("k_sound") !== "off");
   const voiceOnRef = useRef(localStorage.getItem("k_voice") === "on");
   const voiceLangRef = useRef(localStorage.getItem("k_voice_lang") || "en");
+  const [autoPrintOn, setAutoPrintOn] = useState(() => localStorage.getItem("k_autoprint") === "on");
+  const autoPrintRef = useRef(localStorage.getItem("k_autoprint") === "on");
+
+  const toggleAutoPrint = () => {
+    setAutoPrintOn(v => {
+      const next = !v;
+      autoPrintRef.current = next;
+      localStorage.setItem("k_autoprint", next ? "on" : "off");
+      return next;
+    });
+  };
 
   const toggleSound = () => {
     setSoundOn(s => {
@@ -2848,6 +2859,51 @@ function KitchenScreen({ goHome }) {
     if (voiceOnRef.current && tableNo) speak(tableNo);
   };
 
+  const printKitchenTicket = (order) => {
+    const now = new Date();
+    const dateStr = now.toLocaleString("en-MY",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
+    const serviceArea = isTakeaway(order.table_no) ? takeawayLabel(order.table_no) : `Table ${order.table_no}`;
+    const itemRows = order.items.map(i => `
+      <div class="item-row"><span class="qty">${i.qty}x</span><span class="name">${i.item_no?`<b>${i.item_no}</b> `:""}${i.name}${i.is_takeaway?' <span class="tw">(TAKEAWAY)</span>':""}</span></div>
+      ${i.note ? `<div class="note">${i.note}</div>` : ""}`).join("");
+    const foodReq = getFoodReq(order.special_request);
+    const win = window.open("","_blank","width=380,height=600");
+    win.document.write(`<!DOCTYPE html><html><head><title>Kitchen Ticket</title><style>
+      *{margin:0;padding:0;box-sizing:border-box;}
+      body{font-family:"Courier New",monospace;font-size:15px;width:290px;margin:0 auto;padding:12px 8px;}
+      .center{text-align:center;}
+      .logo{font-size:18px;font-weight:bold;letter-spacing:1px;}
+      .divider{border-top:1px dashed #000;margin:6px 0;}
+      .big{font-size:22px;font-weight:bold;}
+      .item-row{display:flex;gap:8px;margin:6px 0;}
+      .qty{font-weight:bold;min-width:32px;}
+      .name{font-weight:bold;}
+      .tw{font-weight:normal;}
+      .note{margin:2px 0 2px 40px;font-size:13px;}
+      .btn-row{display:flex;gap:8px;margin-top:14px;}
+      .btn-row button{flex:1;padding:12px;font-size:15px;cursor:pointer;font-family:monospace;border:none;border-radius:6px;}
+      @media print{.no-print{display:none;}}
+    </style></head><body>
+    <div class="center">
+      <div class="logo">KITCHEN TICKET</div>
+      ${order.order_seq ? `<div>Order #${order.order_seq}</div>` : ""}
+    </div>
+    <div class="divider"></div>
+    <div class="big center">${serviceArea}</div>
+    <div class="center" style="font-size:12px;">${dateStr}</div>
+    <div class="divider"></div>
+    ${itemRows}
+    ${foodReq ? `<div class="divider"></div><div class="note" style="margin-left:0;font-weight:bold;">${foodReq}</div>` : ""}
+    <div class="divider"></div>
+    <div class="btn-row no-print">
+      <button onclick="window.close()" style="background:#eee;color:#333;">✕ Close</button>
+      <button onclick="window.print()" style="background:#333;color:#fff;">🖨️ Print</button>
+    </div>
+    <script>window.onload = function(){ window.print(); };</script>
+    </body></html>`);
+    win.document.close();
+  };
+
   const fetchAll = async () => {
     const { data:o } = await supabase.from("orders").select("*").order("created_at", { ascending:true });
     const newOrders = o||[];
@@ -2856,10 +2912,12 @@ function KitchenScreen({ goHome }) {
       items: order.items.filter(item => FOOD_CATEGORIES.includes(item.category))
     })).filter(order => order.items.length > 0);
     const newPending = filtered.filter(x => x.status==="pending").length;
-    if ((soundOnRef.current || voiceOnRef.current) && newPending > prevPendingCount.current) {
-      const newOrders = filtered.filter(x => x.status==="pending").slice(prevPendingCount.current);
-      const tableNo = newOrders[0]?.table_no;
-      playAlert(tableNo);
+    const newlyArrived = newPending > prevPendingCount.current ? filtered.filter(x => x.status==="pending").slice(prevPendingCount.current) : [];
+    if ((soundOnRef.current || voiceOnRef.current) && newlyArrived.length > 0) {
+      playAlert(newlyArrived[0]?.table_no);
+    }
+    if (autoPrintRef.current) {
+      newlyArrived.forEach(printKitchenTicket);
     }
     prevPendingCount.current = newPending;
     setOrders(filtered);
@@ -2900,6 +2958,9 @@ function KitchenScreen({ goHome }) {
               {voiceLang === "en" ? "EN" : "中文"}
             </button>
           )}
+          <button onClick={toggleAutoPrint} style={btn({ background:autoPrintOn?"#fff":"rgba(255,255,255,0.1)", border:autoPrintOn?"none":"1px solid rgba(255,255,255,0.28)", color:autoPrintOn?"#394c76":"rgba(255,255,255,0.8)", padding:"7px 13px", fontSize:12, fontWeight:autoPrintOn?"bold":"normal" })}>
+            {autoPrintOn ? "Auto-Print On" : "Auto-Print Off"}
+          </button>
           {cancelled.length>0 && <button onClick={clearFinished} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"rgba(255,255,255,0.8)", padding:"7px 12px", fontSize:12 })}>Clear Cancelled</button>}
           <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
         </div>
