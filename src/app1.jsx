@@ -2766,7 +2766,7 @@ function KitchenScreen({ goHome }) {
   const [voiceOn, setVoiceOn] = useState(() => localStorage.getItem("k_voice") === "on");
   const [voiceLang, setVoiceLang] = useState(() => localStorage.getItem("k_voice_lang") || "en");
   const [kitchenDetailModal, setKitchenDetailModal] = useState(null); // order ID only
-  const prevPendingCount = useRef(0);
+  const printedIdsRef = useRef(new Set(JSON.parse(localStorage.getItem("k_printed_ids")||"[]")));
   const soundOnRef = useRef(localStorage.getItem("k_sound") !== "off");
   const voiceOnRef = useRef(localStorage.getItem("k_voice") === "on");
   const voiceLangRef = useRef(localStorage.getItem("k_voice_lang") || "en");
@@ -2911,15 +2911,19 @@ function KitchenScreen({ goHome }) {
       ...order,
       items: order.items.filter(item => FOOD_CATEGORIES.includes(item.category))
     })).filter(order => order.items.length > 0);
-    const newPending = filtered.filter(x => x.status==="pending").length;
-    const newlyArrived = newPending > prevPendingCount.current ? filtered.filter(x => x.status==="pending").slice(prevPendingCount.current) : [];
+    const pendingList = filtered.filter(x => x.status==="pending");
+    const pendingIds = new Set(pendingList.map(o => o.id));
+    // Forget ids that are no longer pending (done/paid/cancelled) so the stored set doesn't grow forever
+    for (const id of [...printedIdsRef.current]) { if (!pendingIds.has(id)) printedIdsRef.current.delete(id); }
+    const newlyArrived = pendingList.filter(o => !printedIdsRef.current.has(o.id));
     if ((soundOnRef.current || voiceOnRef.current) && newlyArrived.length > 0) {
       playAlert(newlyArrived[0]?.table_no);
     }
     if (autoPrintRef.current) {
       newlyArrived.forEach(printKitchenTicket);
     }
-    prevPendingCount.current = newPending;
+    newlyArrived.forEach(o => printedIdsRef.current.add(o.id));
+    localStorage.setItem("k_printed_ids", JSON.stringify([...printedIdsRef.current]));
     setOrders(filtered);
   };
 
@@ -2997,7 +3001,8 @@ function KitchenScreen({ goHome }) {
                   <div style={{ background:"#eef1f6", border:"1px solid #394c7633", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>{getFoodReq(order.special_request)}</div>
                 )}
               </div>
-              <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"flex-end" }}>
+              <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"flex-end", gap:8 }}>
+                <button onClick={e => { e.stopPropagation(); printKitchenTicket(order); }} style={btn({ background:"#eef1f6", border:`1px solid ${C.border}`, color:"#394c76", padding:"8px 14px", fontSize:14, fontWeight:"bold", display:"flex", alignItems:"center", gap:6 })}><Icon name="printer" size={14} color="#394c76" /> Reprint</button>
                 <button onClick={e => { e.stopPropagation(); markDone(order.id); }} style={btn({ background:C.goldGrad, border:"none", color:C.dark, padding:"8px 20px", fontSize:14, fontWeight:"bold" })}>Done</button>
               </div>
             </div>
@@ -3010,6 +3015,9 @@ function KitchenScreen({ goHome }) {
               <div key={o.id} style={{ background:"#eef1f6", border:"1px solid #cbe3cb", borderRadius:12, padding:12 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><span style={{ color:"#394c76", fontWeight:"bold" }}>Table {o.table_no}</span><span style={{ fontSize:11, color:C.muted }}>{o.time}</span></div>
                 {o.items.map((item,i) => <div key={i} style={{ fontSize:12, color:C.muted, marginBottom:3 }}>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:"#394c76", fontWeight:"bold", marginRight:3 }}>{item.item_no}</span>}{item.name} ×{item.qty}</div>)}
+                <div style={{ marginTop:8, display:"flex", justifyContent:"flex-end" }}>
+                  <button onClick={() => printKitchenTicket(o)} style={btn({ background:"#fff", border:`1px solid ${C.border}`, color:"#394c76", padding:"6px 12px", fontSize:12, fontWeight:"bold", display:"flex", alignItems:"center", gap:5 })}><Icon name="printer" size={12} color="#394c76" /> Reprint</button>
+                </div>
               </div>
             ))}
           </div>
