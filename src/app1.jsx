@@ -2481,14 +2481,17 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                         <span style={{ fontSize:15, color:addon.sold_out?T.muted:T.text }}>{addon.name}{addon.sold_out && <span style={{ fontSize:11, color:T.red, marginLeft:6, fontWeight:"bold" }}>SOLD OUT</span>}</span>
                       </div>
                       <span style={{ fontSize:14, color:T.brown, fontWeight:"bold", textAlign:"right" }}>
-                        {isPromoNow(addonModal.item) && addon.promo_price && parseFloat(addon.promo_price) > 0 ? (
-                          <span>
-                            <span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>RM {parseFloat(addon.price||0).toFixed(2)}</span>
-                            <span style={{ color:"#e65100" }}>RM {parseFloat(addon.promo_price).toFixed(2)}</span>
-                          </span>
-                        ) : (
-                          parseFloat(addon.price||0) > 0 ? `RM ${parseFloat(addon.price||0).toFixed(2)}` : ""
-                        )}
+                        {(() => {
+                          const raw = parseFloat(addon.price||0);
+                          const eff = effAddonPrice(addon, addonModal.item, isVip);
+                          if (eff === raw) return raw > 0 ? `RM ${raw.toFixed(2)}` : "";
+                          return (
+                            <span>
+                              <span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>RM {raw.toFixed(2)}</span>
+                              <span style={{ color:"#e65100" }}>RM {eff.toFixed(2)}</span>
+                            </span>
+                          );
+                        })()}
                       </span>
                     </div>
                   );
