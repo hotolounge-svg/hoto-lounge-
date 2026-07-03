@@ -2919,8 +2919,9 @@ function KitchenScreen({ goHome }) {
     if ((soundOnRef.current || voiceOnRef.current) && newlyArrived.length > 0) {
       playAlert(newlyArrived[0]?.table_no);
     }
-    if (autoPrintRef.current) {
-      newlyArrived.forEach(printKitchenTicket);
+    if (autoPrintRef.current && newlyArrived.length > 0) {
+      // Delay so the print popup doesn't steal window focus and cut off the voice/sound alert
+      setTimeout(() => newlyArrived.forEach(printKitchenTicket), 1200);
     }
     newlyArrived.forEach(o => printedIdsRef.current.add(o.id));
     localStorage.setItem("k_printed_ids", JSON.stringify([...printedIdsRef.current]));
