@@ -3403,9 +3403,10 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
                     {getFoodReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#eef1f6", borderRadius:6, padding:"6px 10px", marginTop:6 }}>{getFoodReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#394c76", fontWeight:"bold", flex:1 }}>{isPending?"Kitchen preparing":"Served"} · {order.time}</span>
-                      {isPending && (
-                        <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:110 })}>✕ Cancel</button>
-                      )}
+                      {isPending && <>
+                        <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:100 })}>Done</button>
+                        <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
+                      </>}
                     </div>
                   </div>
                 );
