@@ -164,6 +164,16 @@ export default function App() {
           .hl-pos-right{ width:100% !important; flex:0 0 46vh !important; border-left:none !important; border-top:1px solid ${C.border}; }
         }
 
+        /* Split Bill screen: side-by-side bucket columns on wide screens,
+           one active bucket + a tab strip to switch on phones */
+        .hl-split-tabs{ display:none; }
+        @media (max-width:760px){
+          .hl-split-buckets{ flex-direction:column !important; }
+          .hl-split-tabs{ display:flex !important; }
+          .hl-split-bucket-col{ display:none !important; }
+          .hl-split-bucket-col.is-active{ display:flex !important; }
+        }
+
         /* Admin menu item rows: drop the action buttons to their own line instead of squeezing the name/price column */
         @media (max-width:640px){
           .hl-admin-item{ flex-wrap:wrap; }
@@ -3375,7 +3385,7 @@ function SalesScreen({ goHome }) {
   );
 }
 
-function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder, cardTab, setCardTab, printReceipt, setPayModal, setTableDetailModal }) {
+function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder, cardTab, setCardTab, printReceipt, setPayModal, setTableDetailModal, onSplitBill, onUndoSplit, selectMode, isSelected, onToggleSelect }) {
   const hasPending = data.pending.length>0;
   // Most recently placed order first, regardless of pending/done status
   const allOrders = [...data.done, ...data.pending].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
@@ -3386,13 +3396,17 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
     <div style={{ background:C.panel, border:`2px solid ${hasPending?"#394c76":"#394c76"}`, borderRadius:14, overflow:"hidden" }}>
 
       {/* Header — tap to open full detail */}
-      <div onClick={() => setTableDetailModal(tableNo)}
+      <div onClick={() => selectMode ? onToggleSelect(tableNo) : setTableDetailModal(tableNo)}
         style={{ background:hasPending?"#eef1f6":"#eef1f6", padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}>
         <div className="hl-title" style={{ fontSize:20, fontWeight:800, color:hasPending?C.goldLight:"#394c76" }}>{isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
         <div style={{ display:"flex", gap:6, alignItems:"center" }}>
           {data.pending.length>0 && <span style={{ background:"#e3e7f0", color:C.goldLight, borderRadius:6, padding:"3px 10px", fontSize:12, fontWeight:700 }}>{data.pending.length} pending</span>}
           {data.done.length>0 && <span style={{ background:"#eef1f6", color:"#394c76", borderRadius:6, padding:"3px 10px", fontSize:12, fontWeight:700 }}>{data.done.length} done</span>}
           <span style={{ color:C.muted, fontSize:16, marginLeft:4 }}>↗</span>
+          {selectMode && (
+            <input type="checkbox" checked={isSelected} readOnly
+              style={{ width:22, height:22, marginLeft:4, pointerEvents:"none" }} />
+          )}
         </div>
       </div>
 
@@ -3493,14 +3507,30 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:18, color:C.goldLight, fontWeight:"bold", marginBottom:12 }}>
           <span>TOTAL</span><span>RM {data.total.toFixed(2)}</span>
         </div>
-        <button onClick={() => setPayModal({tableNo, data, method:"QR DuitNow", cashReceived:""})} disabled={paying===tableNo}
-          style={btn({ width:"100%", background:"linear-gradient(150deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:"15px 0", fontSize:16, fontWeight:"bold", cursor:"pointer", marginBottom:8, borderRadius:10, boxShadow:"0 4px 12px rgba(57,76,118,0.3)", display:"flex", alignItems:"center", justifyContent:"center", gap:8 })}>
-          <Icon name="card" size={17} color="#fff" /> Collect Payment
-        </button>
-        <button onClick={() => printReceipt(tableNo, data, null, null, null)}
-          style={btn({ width:"100%", background:"#eef1f6", border:`1px solid ${C.border}`, color:C.text, padding:"10px 0", fontSize:13, fontWeight:"bold", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 })}>
-          <Icon name="printer" size={15} color="#394c76" /> Print Bill (Preview)
-        </button>
+        {!selectMode && (
+          <>
+            <button onClick={() => setPayModal({tableNo, data, method:"QR DuitNow", cashReceived:""})} disabled={paying===tableNo}
+              style={btn({ width:"100%", background:"linear-gradient(150deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:"15px 0", fontSize:16, fontWeight:"bold", cursor:"pointer", marginBottom:8, borderRadius:10, boxShadow:"0 4px 12px rgba(57,76,118,0.3)", display:"flex", alignItems:"center", justifyContent:"center", gap:8 })}>
+              <Icon name="card" size={17} color="#fff" /> Collect Payment
+            </button>
+            <button onClick={() => printReceipt(tableNo, data, null, null, null)}
+              style={btn({ width:"100%", background:"#eef1f6", border:`1px solid ${C.border}`, color:C.text, padding:"10px 0", fontSize:13, fontWeight:"bold", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 })}>
+              <Icon name="printer" size={15} color="#394c76" /> Print Bill (Preview)
+            </button>
+            {data.done.length > 0 && (
+              <button onClick={() => onSplitBill(tableNo)}
+                style={btn({ width:"100%", background:"#eef1f6", border:`1px solid ${C.border}`, color:"#394c76", padding:"10px 0", fontSize:13, fontWeight:"bold", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginTop:8 })}>
+                <Icon name="grid" size={15} color="#394c76" /> Split Bill
+              </button>
+            )}
+            {/·B\d+$/.test(String(tableNo)) && (
+              <button onClick={() => onUndoSplit(tableNo)}
+                style={btn({ width:"100%", background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"10px 0", fontSize:13, fontWeight:"bold", cursor:"pointer", marginTop:8 })}>
+                ↩ Undo Split
+              </button>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -3601,6 +3631,114 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
             <Icon name="card" size={17} color="#fff" /> Collect Payment
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SplitBillModal({ tableNo, tableOrders, allTableNos, onClose, onSplitOff }) {
+  const doneOrders = tableOrders.filter(o => o.status === "done");
+  const pendingOrders = tableOrders.filter(o => o.status === "pending");
+  const masterItems = doneOrders.flatMap(o => o.items.map((item, itemIdx) => ({ key:`${o.id}_${itemIdx}`, ...item })));
+
+  const [buckets, setBuckets] = useState([{ label:"Bill A", assigned:{} }, { label:"Bill B", assigned:{} }]);
+  const [activeTab, setActiveTab] = useState(0);
+  const [saving, setSaving] = useState(false);
+
+  const assignedElsewhere = (key) => buckets.reduce((s,b) => s + (b.assigned[key]||0), 0);
+  const remaining = (item) => item.qty - assignedElsewhere(item.key);
+
+  const adjust = (bucketIdx, item, delta) => {
+    if (delta > 0 && remaining(item) <= 0) return;
+    setBuckets(prev => prev.map((b, i) => {
+      if (i !== bucketIdx) return b;
+      const current = b.assigned[item.key] || 0;
+      const next = current + delta;
+      if (next < 0) return b;
+      const assigned = { ...b.assigned };
+      if (next === 0) delete assigned[item.key]; else assigned[item.key] = next;
+      return { ...b, assigned };
+    }));
+  };
+
+  const bucketTotal = (bucket) => masterItems.reduce((s,item) => s + (bucket.assigned[item.key]||0)*item.price, 0);
+  const anyAssigned = buckets.some(b => Object.values(b.assigned).some(q => q > 0));
+  const addBucket = () => setBuckets(prev => [...prev, { label:`Bill ${String.fromCharCode(65+prev.length)}`, assigned:{} }]);
+
+  const finalize = async () => {
+    if (!anyAssigned || saving) return;
+    setSaving(true);
+    const assignBuckets = buckets.map(b => ({
+      label: b.label,
+      assigned: Object.fromEntries(Object.entries(b.assigned).filter(([,q]) => q>0)),
+    }));
+    await finalizeSplit({ tableNo, doneOrders, buckets: assignBuckets, allTableNos });
+    setSaving(false);
+    setBuckets([{ label:"Bill A", assigned:{} }, { label:"Bill B", assigned:{} }]);
+    onSplitOff();
+  };
+
+  return (
+    <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:C.bg, zIndex:9500, display:"flex", flexDirection:"column" }}>
+      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"14px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
+        <div className="hl-title" style={{ fontSize:20, fontWeight:800, color:"#fff" }}>Split Bill — {isTakeaway(tableNo) ? takeawayLabel(tableNo) : `Table ${tableNo}`}</div>
+        <button onClick={onClose} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", width:40, height:40, fontSize:18, borderRadius:50 })}>✕</button>
+      </div>
+
+      {pendingOrders.length > 0 && (
+        <div style={{ background:"#fbeaea", color:"#c0392b", padding:"8px 20px", fontSize:12, flexShrink:0 }}>
+          {pendingOrders.flatMap(o=>o.items).length} item(s) still waiting on the kitchen — only served items can be split.
+        </div>
+      )}
+
+      <div className="hl-split-tabs" style={{ background:"#f4f6f9", borderBottom:`2px solid ${C.border}`, flexShrink:0 }}>
+        {buckets.map((b, i) => (
+          <button key={i} onClick={() => setActiveTab(i)}
+            style={btn({ flex:1, background:"transparent", border:"none", borderBottom:activeTab===i?`3px solid ${C.gold}`:"3px solid transparent", color:activeTab===i?"#394c76":C.muted, padding:"12px 8px", fontSize:13, fontWeight:activeTab===i?"bold":"normal" })}>
+            {b.label} · RM {bucketTotal(b).toFixed(2)}
+          </button>
+        ))}
+      </div>
+
+      <div className="hl-split-buckets" style={{ flex:1, display:"flex", flexDirection:"row", gap:12, padding:16, overflow:"auto" }}>
+        {buckets.map((bucket, bi) => (
+          <div key={bi} className={`hl-split-bucket-col${bi===activeTab?" is-active":""}`} style={{ flex:"1 1 260px", display:"flex", flexDirection:"column", background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, overflow:"hidden", minWidth:240 }}>
+            <div style={{ background:"#eef1f6", padding:"10px 14px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span style={{ fontWeight:"bold", color:"#394c76" }}>{bucket.label}</span>
+              <span style={{ fontWeight:"bold", color:C.goldLight }}>RM {bucketTotal(bucket).toFixed(2)}</span>
+            </div>
+            <div style={{ flex:1, overflowY:"auto", padding:"10px 14px" }}>
+              {masterItems.length === 0 && <div style={{ color:C.muted, fontSize:13, fontStyle:"italic" }}>No served items yet to split</div>}
+              {masterItems.map(item => {
+                const assignedQty = bucket.assigned[item.key] || 0;
+                const canAdd = remaining(item) > 0;
+                return (
+                  <div key={item.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:"1px solid #f0f0f0" }}>
+                    <div>
+                      <div style={{ fontSize:14, color:"#2b3346" }}>{item.name}</div>
+                      <div style={{ fontSize:11, color:C.muted }}>RM {item.price.toFixed(2)} · {remaining(item)} unassigned of {item.qty}</div>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <button onClick={() => adjust(bi, item, -1)} disabled={assignedQty===0}
+                        style={btn({ width:30, height:30, borderRadius:8, border:`1px solid ${C.border}`, background:"#fff", color:"#394c76", fontSize:16, cursor:assignedQty===0?"default":"pointer", opacity:assignedQty===0?0.4:1 })}>−</button>
+                      <span style={{ minWidth:18, textAlign:"center", fontWeight:"bold" }}>{assignedQty}</span>
+                      <button onClick={() => adjust(bi, item, 1)} disabled={!canAdd}
+                        style={btn({ width:30, height:30, borderRadius:8, border:"none", background:canAdd?"#394c76":"#ddd", color:"#fff", fontSize:16, cursor:canAdd?"pointer":"default" })}>+</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background:"#f4f6f9", padding:"14px 16px", borderTop:`2px solid ${C.border}`, flexShrink:0, display:"flex", gap:10 }}>
+        <button onClick={addBucket} style={btn({ background:"#eef1f6", border:`1px solid ${C.border}`, color:"#394c76", padding:"14px 18px", fontSize:14, fontWeight:"bold" })}>+ Add Bill</button>
+        <button onClick={finalize} disabled={!anyAssigned || saving}
+          style={btn({ flex:1, background:anyAssigned && !saving ? "linear-gradient(150deg,#394c76,#2c3b5e)" : "#ccc", border:"none", color:"#fff", padding:"14px 0", fontSize:16, fontWeight:"bold", borderRadius:10, cursor:anyAssigned && !saving ? "pointer" : "default" })}>
+          {saving ? "Splitting…" : "Finalize Split"}
+        </button>
       </div>
     </div>
   );
@@ -4058,6 +4196,93 @@ function VIPTableButtons({ setPickedTable, setStep }) {
   );
 }
 
+// Returns the next unused "<tableNo>·B{n}" suffix (n starts at 2) so a
+// table can be split more than once without colliding with an existing,
+// still-unpaid sub-bill.
+function nextSplitSuffix(tableNo, allTableNos) {
+  const prefix = `${tableNo}·B`;
+  let max = 1;
+  allTableNos.forEach(t => {
+    if (String(t).startsWith(prefix)) {
+      const n = parseInt(String(t).slice(prefix.length));
+      if (!isNaN(n) && n > max) max = n;
+    }
+  });
+  return `${prefix}${max + 1}`;
+}
+
+// Splits `doneOrders` (a table's served-only order rows) into one new
+// `orders` row per bucket that has at least one assigned unit, and shrinks
+// or deletes the source rows accordingly. `buckets` is
+// [{ label, assigned: { "<orderId>_<itemIdx>": qty, ... } }, ...].
+// Returns the new table_no created for each active bucket, in order.
+async function finalizeSplit({ tableNo, doneOrders, buckets, allTableNos }) {
+  const activeBuckets = buckets.filter(b => Object.values(b.assigned).some(q => q > 0));
+  if (activeBuckets.length === 0) return [];
+
+  const removedByKey = {};
+  activeBuckets.forEach(b => {
+    Object.entries(b.assigned).forEach(([key, qty]) => {
+      if (qty > 0) removedByKey[key] = (removedByKey[key] || 0) + qty;
+    });
+  });
+
+  for (const order of doneOrders) {
+    let changed = false;
+    const newItems = [];
+    order.items.forEach((item, itemIdx) => {
+      const key = `${order.id}_${itemIdx}`;
+      const removedQty = removedByKey[key] || 0;
+      if (removedQty > 0) changed = true;
+      const remainingQty = item.qty - removedQty;
+      if (remainingQty > 0) newItems.push({ ...item, qty: remainingQty });
+    });
+    if (!changed) continue;
+    if (newItems.length === 0) {
+      await supabase.from("orders").delete().eq("id", order.id);
+    } else {
+      const newTotal = newItems.reduce((s, i) => s + i.price * i.qty, 0);
+      await supabase.from("orders").update({ items: newItems, total: newTotal, subtotal: newTotal }).eq("id", order.id);
+    }
+  }
+
+  const newTableNos = [];
+  let usedTableNos = [...allTableNos];
+  for (const bucket of activeBuckets) {
+    const bucketItems = doneOrders.flatMap(order => order.items.map((item, itemIdx) => {
+      const qty = bucket.assigned[`${order.id}_${itemIdx}`] || 0;
+      return qty > 0 ? { ...item, qty } : null;
+    }).filter(Boolean));
+    const bucketTotal = bucketItems.reduce((s, i) => s + i.price * i.qty, 0);
+    const newTableNo = nextSplitSuffix(tableNo, usedTableNos);
+    usedTableNos = [...usedTableNos, newTableNo];
+    const now = new Date();
+    const time = now.toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kuala_Lumpur" });
+    await supabase.from("orders").insert({
+      table_no: newTableNo, items: bucketItems, subtotal: bucketTotal, tax: 0,
+      total: bucketTotal, status: "done", special_request: null, time, order_seq: null,
+    });
+    newTableNos.push(newTableNo);
+  }
+  return newTableNos;
+}
+
+// Reverses a split: re-inserts each of a sub-bill's order rows under the
+// original table_no, then deletes the sub-bill rows. `rows` are the
+// sub-bill's own order rows (already in memory from `byTable`), so this
+// takes no extra round trip to read them back.
+async function undoSplit(subTableNo, rows) {
+  const originalTableNo = String(subTableNo).split("·")[0];
+  for (const row of rows) {
+    await supabase.from("orders").insert({
+      table_no: originalTableNo, items: row.items, subtotal: row.subtotal, tax: row.tax || 0,
+      total: row.total, status: row.status, special_request: row.special_request,
+      time: row.time, order_seq: row.order_seq,
+    });
+    await supabase.from("orders").delete().eq("id", row.id);
+  }
+}
+
 function CashierScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
   const [waiterCalls, setWaiterCalls] = useState([]);
@@ -4066,6 +4291,13 @@ function CashierScreen({ goHome }) {
   const [payModal, setPayModal] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   const [editTableModal, setEditTableModal] = useState(null); // tableNo to edit
+  const [splitBillModal, setSplitBillModal] = useState(null); // tableNo, or null
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedForCombine, setSelectedForCombine] = useState([]);
+  const [combineModal, setCombineModal] = useState(null); // { tableNos, method, cashReceived }
+  const toggleSelectForCombine = (tableNo) => {
+    setSelectedForCombine(prev => prev.includes(tableNo) ? prev.filter(t => t!==tableNo) : [...prev, tableNo]);
+  };
 
   const [tableDetailModal, setTableDetailModal] = useState(null); // tableNo only — reads live orders
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem("c_sound") !== "off");
@@ -4228,6 +4460,17 @@ function CashierScreen({ goHome }) {
     setPaying(null); fetchAll();
   };
 
+  const markPaidMulti = async (tableNos, paymentMethod="Cash") => {
+    setPaying("combine");
+    const paidAt = new Date().toISOString();
+    for (const tno of tableNos) {
+      const sessionId = "paid_" + Date.now();
+      await supabase.from("orders").update({status:"paid"}).eq("table_no",tno).in("status",["pending","done"]);
+      await supabase.from("table_sessions").upsert({table_no:parseInt(tno), session_id:sessionId, updated_at:paidAt});
+    }
+    setPaying(null); fetchAll();
+  };
+
   const printReceipt = (tableNo, data, paymentMethod=null, cashReceived=null, changeAmt=null) => {
     const charge = parseFloat(localStorage.getItem("service_charge")||"10");
     const subtotal = data.total;
@@ -4317,6 +4560,12 @@ function CashierScreen({ goHome }) {
 
   const dismissWaiter = async (tableNo) => {
     await supabase.from("waiter_calls").delete().eq("table_no", tableNo);
+    fetchAll();
+  };
+
+  const handleUndoSplit = async (tableNo) => {
+    const rows = [...(byTable[tableNo]?.pending||[]), ...(byTable[tableNo]?.done||[])];
+    await undoSplit(tableNo, rows);
     fetchAll();
   };
 
@@ -4455,6 +4704,106 @@ function CashierScreen({ goHome }) {
         <EditTableModal tableNo={editTableModal} onClose={() => setEditTableModal(null)} onSaved={() => { setEditTableModal(null); fetchAll(); }} />
       )}
 
+      {splitBillModal && (() => {
+        const tableOrders = orders.filter(o => String(o.table_no) === String(splitBillModal));
+        return (
+          <SplitBillModal tableNo={splitBillModal} tableOrders={tableOrders} allTableNos={Object.keys(byTable)}
+            onClose={() => setSplitBillModal(null)}
+            onSplitOff={() => fetchAll()} />
+        );
+      })()}
+
+      {selectMode && selectedForCombine.length >= 2 && (() => {
+        const combinedTotal = selectedForCombine.reduce((s,tno) => s + (byTable[tno]?.total||0), 0);
+        return (
+          <div style={{ position:"fixed", left:0, right:0, bottom:0, background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"14px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", boxShadow:"0 -4px 16px rgba(0,0,0,0.25)", zIndex:5000 }}>
+            <div style={{ color:"#fff", fontFamily:"Georgia,serif" }}>
+              <div style={{ fontSize:12, opacity:0.85 }}>{selectedForCombine.length} bills selected</div>
+              <div style={{ fontSize:20, fontWeight:"bold" }}>RM {combinedTotal.toFixed(2)}</div>
+            </div>
+            <button onClick={() => setCombineModal({ tableNos:selectedForCombine, method:"QR DuitNow", cashReceived:"" })}
+              style={btn({ background:"#fff", border:"none", color:"#394c76", padding:"12px 20px", fontSize:14, fontWeight:"bold" })}>
+              Combine &amp; Pay
+            </button>
+          </div>
+        );
+      })()}
+
+      {combineModal && (() => {
+        const charge = parseFloat(localStorage.getItem("service_charge")||"10");
+        const mergedOrders = combineModal.tableNos.flatMap(tno => [...(byTable[tno]?.pending||[]), ...(byTable[tno]?.done||[])]);
+        const subtotal = combineModal.tableNos.reduce((s,tno) => s + (byTable[tno]?.total||0), 0);
+        const chargeAmt = +(subtotal * charge / 100).toFixed(2);
+        const grandTotal = +(subtotal + chargeAmt).toFixed(2);
+        const rounded = +(Math.round(grandTotal * 20) / 20).toFixed(2);
+        const cash = parseFloat(combineModal.cashReceived)||0;
+        const change = +(cash - rounded).toFixed(2);
+        const canConfirm = combineModal.method!=="Cash" || (!!combineModal.cashReceived && cash >= rounded);
+        const label = combineModal.tableNos.join(" + ");
+        const mergedData = { pending: mergedOrders.filter(o=>o.status==="pending"), done: mergedOrders.filter(o=>o.status==="done"), total:subtotal };
+        return (
+          <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16, overflowY:"auto" }}>
+            <div style={{ background:"#fff", borderRadius:20, width:"100%", maxWidth:420, color:"#1a1a1a", overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,0.5)", margin:"auto" }}>
+              <div style={{ background:"linear-gradient(135deg,#394c76,#2c3b5e)", padding:"20px 24px" }}>
+                <div style={{ fontSize:13, color:"rgba(255,255,255,0.75)", fontFamily:"Georgia,serif" }}>Combined Payment</div>
+                <div style={{ fontSize:18, fontWeight:"bold", color:"#fff", fontFamily:"Georgia,serif", marginTop:2 }}>💳 Table {label}</div>
+                <div style={{ fontSize:32, fontWeight:"bold", color:"#fff", marginTop:6, fontFamily:"Georgia,serif" }}>RM {parseFloat(rounded).toFixed(2)}</div>
+              </div>
+              <div style={{ padding:"20px 24px" }}>
+                <div style={{ fontSize:11, color:"#888", marginBottom:10, fontFamily:"Georgia,serif", fontWeight:"bold", letterSpacing:1 }}>SELECT PAYMENT METHOD</div>
+                <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+                  {[["💵","Cash"],["📱","QR DuitNow"],["💳","Credit Card"]].map(([icon,method]) => {
+                    const active = combineModal.method===method;
+                    return (
+                      <button key={method} onClick={() => setCombineModal(m=>({...m, method, cashReceived:""}))}
+                        style={{ flex:1, background:active?"#eef1f6":"#f7f8fa", border:`2px solid ${active?"#394c76":"#e4e7ec"}`, color:active?"#394c76":"#9aa0ac", padding:"12px 4px", fontSize:11, fontWeight:"bold", borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", lineHeight:1.6 }}>
+                        <div style={{ fontSize:22 }}>{icon}</div>{method}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ borderTop:"1px solid #eee", paddingTop:10, marginBottom:12 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#666", marginBottom:4, fontFamily:"Georgia,serif" }}>
+                    <span>Subtotal ({combineModal.tableNos.length} bills)</span><span>{subtotal.toFixed(2)}</span>
+                  </div>
+                  {charge>0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#666", marginBottom:4, fontFamily:"Georgia,serif" }}>
+                    <span>Service Charge ({charge}%)</span><span>{chargeAmt.toFixed(2)}</span>
+                  </div>}
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:20, fontWeight:"bold", color:"#394c76", marginTop:8, paddingTop:8, borderTop:"2px solid #eee", fontFamily:"Georgia,serif" }}>
+                    <span>TOTAL</span><span>RM {parseFloat(rounded).toFixed(2)}</span>
+                  </div>
+                </div>
+                {combineModal.method==="Cash" && (
+                  <div style={{ marginBottom:12 }}>
+                    <div style={{ fontSize:12, color:"#888", marginBottom:6, fontFamily:"Georgia,serif" }}>Cash Received (RM)</div>
+                    <input type="number" step="0.05" min="0" autoFocus value={combineModal.cashReceived}
+                      onChange={e => setCombineModal(m=>({...m, cashReceived:e.target.value}))}
+                      style={{ width:"100%", border:"2px solid #394c76", borderRadius:8, padding:"10px 14px", fontSize:22, textAlign:"right", boxSizing:"border-box", color:"#1a1a1a" }} />
+                    {cash >= rounded && (
+                      <div style={{ marginTop:8, background:"#eef1f6", borderRadius:8, padding:"10px 14px", display:"flex", justifyContent:"space-between" }}>
+                        <span style={{ color:"#394c76", fontSize:14, fontWeight:"bold", fontFamily:"Georgia,serif" }}>Change</span>
+                        <span style={{ color:"#394c76", fontSize:22, fontWeight:"bold", fontFamily:"Georgia,serif" }}>RM {change.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div style={{ display:"flex", gap:8, flexDirection:"column" }}>
+                  <button onClick={() => setCombineModal(null)}
+                    style={{ background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"12px 0", fontSize:13, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif" }}>✕ Cancel</button>
+                  <button onClick={() => {
+                    if (!canConfirm) return;
+                    setConfirmModal({ tableNo:label, tableNos:combineModal.tableNos, data:mergedData, method:combineModal.method, cashReceived:combineModal.cashReceived||null, change:combineModal.method==="Cash"&&change>=0?change:null, rounded });
+                  }} disabled={!canConfirm}
+                    style={{ width:"100%", background:canConfirm?"linear-gradient(135deg,#394c76,#2c3b5e)":"#ccc", border:"none", color:"#fff", padding:"16px 0", fontSize:16, borderRadius:10, cursor:canConfirm?"pointer":"not-allowed", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
+                    {combineModal.method==="Cash"&&!canConfirm?"Enter Cash Amount Above ↑":`✅ Print & Clear ${combineModal.tableNos.length} Bills — RM ${parseFloat(rounded).toFixed(2)}`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Custom Confirm Payment Modal */}
       {confirmModal && (
         <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.75)", zIndex:10000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
@@ -4501,9 +4850,13 @@ function CashierScreen({ goHome }) {
                 </button>
                 <button onClick={() => {
                   printReceipt(confirmModal.tableNo, confirmModal.data, confirmModal.method, confirmModal.cashReceived, confirmModal.change);
-                  markPaid(confirmModal.tableNo, confirmModal.method);
-                          setConfirmModal(null);
+                  if (confirmModal.tableNos) markPaidMulti(confirmModal.tableNos, confirmModal.method);
+                  else markPaid(confirmModal.tableNo, confirmModal.method);
+                  setConfirmModal(null);
                   setPayModal(null);
+                  setCombineModal(null);
+                  setSelectMode(false);
+                  setSelectedForCombine([]);
                 }}
                   style={{ flex:2, background:"linear-gradient(135deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:"13px 0", fontSize:14, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:"0 4px 12px rgba(25,118,210,0.4)" }}>
                   ✅ Confirm & Print
@@ -4532,6 +4885,10 @@ function CashierScreen({ goHome }) {
           {voiceOn && (
             <button onClick={toggleVoiceLang} style={btn({ background:"rgba(255,255,255,0.16)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"7px 12px", fontSize:11, fontWeight:"bold" })}>{voiceLang === "en" ? "中文" : "EN"}</button>
           )}
+          <button onClick={() => { setSelectMode(s => !s); setSelectedForCombine([]); }}
+            style={btn({ background:selectMode?"#fff":"rgba(255,255,255,0.1)", border:selectMode?"none":"1px solid rgba(255,255,255,0.28)", color:selectMode?"#394c76":"rgba(255,255,255,0.8)", padding:"7px 12px", fontSize:11, fontWeight:selectMode?"bold":"normal" })}>
+            {selectMode ? "Cancel Select" : "Select"}
+          </button>
           <button onClick={() => setEditTableModal("pick")} style={btn({ background:"rgba(255,255,255,0.16)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"7px 12px", fontSize:11, fontWeight:"bold" })}>Edit</button>
           <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:11 })}>← Back</button>
         </div>
@@ -4606,7 +4963,7 @@ function CashierScreen({ goHome }) {
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(340px,100%),1fr))", gap:14 }}>
                 {displayTables.map(([tableNo, data]) => (
-                  <TableCard key={tableNo} tableNo={tableNo} data={data} paying={paying} markPaid={markPaid} markOrderDone={markOrderDone} cancelOrder={cancelOrder} cardTab={cardTabs[tableNo]||"drinks"} setCardTab={(tab) => setCardTabs(prev => ({...prev, [tableNo]:tab}))} printReceipt={printReceipt} setPayModal={setPayModal} setTableDetailModal={setTableDetailModal} />
+                  <TableCard key={tableNo} tableNo={tableNo} data={data} paying={paying} markPaid={markPaid} markOrderDone={markOrderDone} cancelOrder={cancelOrder} cardTab={cardTabs[tableNo]||"drinks"} setCardTab={(tab) => setCardTabs(prev => ({...prev, [tableNo]:tab}))} printReceipt={printReceipt} setPayModal={setPayModal} setTableDetailModal={setTableDetailModal} onSplitBill={setSplitBillModal} onUndoSplit={handleUndoSplit} selectMode={selectMode} isSelected={selectedForCombine.includes(tableNo)} onToggleSelect={toggleSelectForCombine} />
                 ))}
               </div>
             </>
