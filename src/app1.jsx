@@ -3664,6 +3664,11 @@ function SplitBillModal({ tableNo, tableOrders, allTableNos, onClose, onSplitOff
   const bucketTotal = (bucket) => masterItems.reduce((s,item) => s + (bucket.assigned[item.key]||0)*item.price, 0);
   const anyAssigned = buckets.some(b => Object.values(b.assigned).some(q => q > 0));
   const addBucket = () => setBuckets(prev => [...prev, { label:`Bill ${String.fromCharCode(65+prev.length)}`, assigned:{} }]);
+  const removeBucket = (idx) => {
+    if (buckets.length <= 2) return;
+    setBuckets(prev => prev.filter((_, i) => i !== idx).map((b, i) => ({ ...b, label:`Bill ${String.fromCharCode(65+i)}` })));
+    setActiveTab(prev => Math.min(prev > idx ? prev - 1 : prev, buckets.length - 2));
+  };
 
   const finalize = async () => {
     if (!anyAssigned || saving) return;
@@ -3703,9 +3708,13 @@ function SplitBillModal({ tableNo, tableOrders, allTableNos, onClose, onSplitOff
       <div className="hl-split-buckets" style={{ flex:1, display:"flex", flexDirection:"row", gap:12, padding:16, overflow:"auto" }}>
         {buckets.map((bucket, bi) => (
           <div key={bi} className={`hl-split-bucket-col${bi===activeTab?" is-active":""}`} style={{ flex:"1 1 260px", display:"flex", flexDirection:"column", background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, overflow:"hidden", minWidth:240 }}>
-            <div style={{ background:"#eef1f6", padding:"10px 14px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div style={{ background:"#eef1f6", padding:"10px 14px", display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
               <span style={{ fontWeight:"bold", color:"#394c76" }}>{bucket.label}</span>
-              <span style={{ fontWeight:"bold", color:C.goldLight }}>RM {bucketTotal(bucket).toFixed(2)}</span>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <span style={{ fontWeight:"bold", color:C.goldLight }}>RM {bucketTotal(bucket).toFixed(2)}</span>
+                <button onClick={() => removeBucket(bi)} disabled={buckets.length <= 2} title="Remove this bill"
+                  style={btn({ width:22, height:22, borderRadius:50, border:"none", background:buckets.length<=2?"#ddd":"#f6d3d3", color:buckets.length<=2?"#999":"#c0392b", fontSize:12, fontWeight:"bold", cursor:buckets.length<=2?"default":"pointer", padding:0, lineHeight:"22px" })}>✕</button>
+              </div>
             </div>
             <div style={{ flex:1, overflowY:"auto", padding:"10px 14px" }}>
               {masterItems.length === 0 && <div style={{ color:C.muted, fontSize:13, fontStyle:"italic" }}>No served items yet to split</div>}
