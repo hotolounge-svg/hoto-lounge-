@@ -118,11 +118,22 @@ const effAddonPrice = (addon, item, isVip, groupSlug) => {
   return parseFloat(promo ? addon.promo_price : (addon.price||0));
 };
 
-// Loyalty phone numbers are looked up by exact match, so strip spaces/dashes/
-// parentheses (which vary by how someone types the same number) before saving
-// or searching. No country restriction — Singapore, Malaysian, or any other
-// number works the same way; only the punctuation is normalized, not the digits.
-const normalizePhone = (phone) => String(phone).replace(/[\s\-()]/g, "");
+// Loyalty phone country picker — extend this list to support more countries.
+const PHONE_COUNTRIES = [
+  { code:"MY", flag:"🇲🇾", dial:"60" },
+  { code:"SG", flag:"🇸🇬", dial:"65" },
+];
+// Composes whatever the customer typed (with or without a leading 0, spaces,
+// dashes, or even the dial code itself) into one unambiguous international
+// number like "+60123456789". Phone is looked up by exact match, so a
+// Malaysian and Singaporean number that happen to share local digits (e.g.
+// "6012...") are only told apart because the dial code is always attached.
+const composePhone = (raw, dial) => {
+  let digits = String(raw).replace(/\D/g, "");
+  if (digits.startsWith(dial)) digits = digits.slice(dial.length);
+  digits = digits.replace(/^0+/, "");
+  return digits ? `+${dial}${digits}` : "";
+};
 
 function QRCode({ url, size=160 }) {
   const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=394c76&margin=10`;
@@ -256,6 +267,7 @@ export default function App() {
       {screen === "admin"   && <AdminScreen   goHome={() => setScreen("home")} />}
       {screen === "sales"   && <SalesScreen   goHome={() => setScreen("home")} />}
       {screen === "systemsettings" && <SystemSettingsScreen goHome={() => setScreen("home")} />}
+      {screen === "members" && <MembersScreen goHome={() => setScreen("home")} />}
       {screen === "cashier" && <CashierScreen goHome={() => setScreen("home")} />}
       {screen === "join"    && <JoinScreen groupSlug={String(tableNo).replace("JOIN-","")} goHome={() => setScreen("home")} />}
       {screen === "joinmember" && <JoinMemberScreen goHome={() => setScreen("home")} />}
@@ -408,6 +420,7 @@ function HomeScreen({ setScreen, setTableNo }) {
               { name:"chart", label:"Sales Summary", screen:"sales" },
               { name:"sliders", label:"Admin — Manage Menu", screen:"admin" },
               { name:"lock", label:"System Settings", screen:"systemsettings" },
+              { name:"crown", label:"Members", screen:"members" },
             ].map(item => (
               <button key={item.screen} onClick={() => { setMoreOpen(false); setScreen(item.screen); }}
                 style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"#f4f6f9", border:`1px solid ${HP.line}`, color:HP.ink, padding:"13px 16px", fontSize:15, fontWeight:600, borderRadius:14, textAlign:"left", marginBottom:10, display:"flex", alignItems:"center", gap:14 }}>
@@ -703,13 +716,15 @@ function JoinScreen({ groupSlug, goHome }) {
 function JoinMemberScreen({ goHome }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState("MY");
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(null);
   const [error, setError] = useState("");
 
   const register = async () => {
     if (name.trim().length < 2) { setError("Please enter your name"); return; }
-    const phoneNorm = normalizePhone(phone.trim());
+    const dial = PHONE_COUNTRIES.find(c=>c.code===country).dial;
+    const phoneNorm = composePhone(phone, dial);
     if (phoneNorm.length < 6) { setError("Please enter a valid phone number"); return; }
     setSaving(true); setError("");
     const { data: existing } = await supabase.from("members").select("name,points").eq("phone", phoneNorm).maybeSingle();
@@ -750,10 +765,16 @@ function JoinMemberScreen({ goHome }) {
         <input value={name} onChange={e=>{setName(e.target.value);setError("");}}
           placeholder="Your name" autoFocus
           style={{ width:"100%", background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:"#2b3346", padding:"16px 18px", borderRadius:14, fontSize:18, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"center", marginBottom:10, outline:"none" }} />
-        <input value={phone} onChange={e=>{setPhone(e.target.value);setError("");}}
-          onKeyDown={e=>e.key==="Enter"&&register()}
-          placeholder="Your phone number" type="tel"
-          style={{ width:"100%", background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:"#2b3346", padding:"16px 18px", borderRadius:14, fontSize:18, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"center", marginBottom:8, outline:"none" }} />
+        <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+          <select value={country} onChange={e=>setCountry(e.target.value)}
+            style={{ background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:"#2b3346", padding:"0 10px", borderRadius:14, fontSize:16, fontFamily:"Georgia,serif", outline:"none" }}>
+            {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} +{c.dial}</option>)}
+          </select>
+          <input value={phone} onChange={e=>{setPhone(e.target.value);setError("");}}
+            onKeyDown={e=>e.key==="Enter"&&register()}
+            placeholder="Phone number" type="tel"
+            style={{ flex:1, minWidth:0, background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:"#2b3346", padding:"16px 18px", borderRadius:14, fontSize:18, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"center", outline:"none" }} />
+        </div>
         {error && <div style={{ color:"#ff7777", fontSize:13, textAlign:"center", marginBottom:8 }}>{error}</div>}
         <button onClick={register} disabled={saving}
           style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"linear-gradient(150deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:"16px 0", borderRadius:14, fontSize:18, fontWeight:"bold", marginTop:4 }}>
@@ -782,6 +803,7 @@ function GroupAdminScreen({ goHome }) {
   const [loyaltyByGroupId, setLoyaltyByGroupId] = useState({}); // groups.id -> linked members row
   const [phoneEditing, setPhoneEditing] = useState(null); // groups.id currently linking a phone
   const [phoneInput, setPhoneInput] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState("MY");
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 2000); };
 
@@ -795,7 +817,8 @@ function GroupAdminScreen({ goHome }) {
   };
 
   const linkPhone = async (member) => {
-    const phone = normalizePhone(phoneInput.trim());
+    const dial = PHONE_COUNTRIES.find(c=>c.code===phoneCountry).dial;
+    const phone = composePhone(phoneInput, dial);
     if (phone.length < 6) { showToast("Enter a valid phone number"); return; }
     const existing = loyaltyByGroupId[member.id];
     if (existing) {
@@ -1075,11 +1098,19 @@ function GroupAdminScreen({ goHome }) {
                             📱 {loyalty.phone} · {loyalty.points} pts
                           </div>
                         ) : phoneEditing === m.id ? (
-                          <div style={{ display:"flex", gap:6 }}>
-                            <input value={phoneInput} onChange={e=>setPhoneInput(e.target.value)} placeholder="Phone number" autoFocus type="tel"
-                              style={{ flex:1, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"6px 10px", borderRadius:6, fontSize:13, fontFamily:"Georgia,serif" }} />
-                            <button onClick={()=>linkPhone(m)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"6px 12px", fontSize:12, borderRadius:6, fontWeight:"bold" })}>Link</button>
-                            <button onClick={()=>{setPhoneEditing(null);setPhoneInput("");}} style={btn({ background:"#f5f5f5", border:"1px solid #ddd", color:"#888", padding:"6px 10px", fontSize:12, borderRadius:6 })}>✕</button>
+                          <div>
+                            <div style={{ display:"flex", gap:6, marginBottom:6 }}>
+                              <select value={phoneCountry} onChange={e=>setPhoneCountry(e.target.value)}
+                                style={{ background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"0 6px", borderRadius:6, fontSize:13, fontFamily:"Georgia,serif" }}>
+                                {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} +{c.dial}</option>)}
+                              </select>
+                              <input value={phoneInput} onChange={e=>setPhoneInput(e.target.value)} placeholder="Phone number" autoFocus type="tel"
+                                style={{ flex:1, minWidth:0, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"6px 10px", borderRadius:6, fontSize:13, fontFamily:"Georgia,serif" }} />
+                            </div>
+                            <div style={{ display:"flex", gap:6 }}>
+                              <button onClick={()=>linkPhone(m)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"6px 12px", fontSize:12, borderRadius:6, fontWeight:"bold", flex:1 })}>Link</button>
+                              <button onClick={()=>{setPhoneEditing(null);setPhoneInput("");}} style={btn({ background:"#f5f5f5", border:"1px solid #ddd", color:"#888", padding:"6px 10px", fontSize:12, borderRadius:6 })}>✕</button>
+                            </div>
                           </div>
                         ) : (
                           <button onClick={()=>{setPhoneEditing(m.id);setPhoneInput("");}}
@@ -1414,6 +1445,112 @@ function SystemSettingsScreen({ goHome }) {
           style={btn({ width:"100%", background:"linear-gradient(150deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:10 })}>
           {saving ? "Saving…" : "Save Settings"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ── MembersScreen — view/search loyalty members, adjust points, remove ──
+function MembersScreen({ goHome }) {
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState(null); // member id currently adjusting points
+  const [adjustInput, setAdjustInput] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(null); // {id, name}
+  const [toast, setToast] = useState("");
+  const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 2000); };
+
+  const load = () => supabase.from("members").select("*").order("created_at",{ ascending:false })
+    .then(({ data }) => { setMembers(data||[]); setLoading(false); });
+  useEffect(() => {
+    load();
+    const ch = supabase.channel("members-screen-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"members" }, load)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
+
+  const filtered = members.filter(m =>
+    m.name.toLowerCase().includes(search.toLowerCase()) || m.phone.includes(search.trim())
+  );
+
+  const adjustPoints = async (member) => {
+    const delta = parseInt(adjustInput);
+    if (!delta) { setEditingId(null); setAdjustInput(""); return; }
+    await supabase.from("members").update({ points: Math.max(0, parseFloat(member.points) + delta) }).eq("id", member.id);
+    setEditingId(null); setAdjustInput("");
+    showToast(delta > 0 ? `+${delta} points added` : `${delta} points removed`);
+  };
+
+  const deleteMember = async (id) => {
+    await supabase.from("members").delete().eq("id", id);
+    setConfirmDelete(null);
+    showToast("Member removed");
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
+      {toast && (
+        <div style={{ position:"fixed", top:24, left:"50%", transform:"translateX(-50%)", zIndex:99999, background:"#394c76", color:"#fff", padding:"14px 28px", borderRadius:12, fontSize:14, fontWeight:"bold", boxShadow:"0 6px 22px rgba(57,76,118,0.3)" }}>
+          {toast}
+        </div>
+      )}
+      {confirmDelete && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:99998, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, width:"100%", maxWidth:320, textAlign:"center" }}>
+            <div style={{ fontSize:15, color:C.text, marginBottom:20, fontWeight:600 }}>Remove {confirmDelete.name} as a member? Their points will be lost.</div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Cancel</button>
+              <button onClick={() => deleteMember(confirmDelete.id)} style={{ flex:1, background:"#c0392b", border:"none", color:"#fff", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="crown" size={19} color="#fff" /></div>
+          <div className="hl-title" style={{ fontSize:19, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Members</div>
+        </div>
+        <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
+      </div>
+      <div style={{ flex:1, padding:20, overflowY:"auto", maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name or phone…"
+          style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"12px 14px", borderRadius:10, fontSize:15, boxSizing:"border-box", marginBottom:16 }} />
+        {loading ? (
+          <div style={{ textAlign:"center", color:C.muted, padding:40 }}>Loading…</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign:"center", color:C.muted, padding:40 }}>{members.length===0 ? "No members yet." : `No members match "${search}".`}</div>
+        ) : filtered.map(m => (
+          <div key={m.id} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:16, marginBottom:10 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+              <div>
+                <div style={{ fontSize:15, fontWeight:"bold", color:C.text }}>
+                  {m.name}{m.source_group_id && <span style={{ marginLeft:8, fontSize:10, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"2px 8px", fontWeight:"bold", letterSpacing:0.5 }}>VIP</span>}
+                </div>
+                <div style={{ fontSize:12, color:C.muted, marginTop:2 }}>{m.phone}</div>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:18, fontWeight:"bold", color:"#394c76" }}>{m.points}</div>
+                <div style={{ fontSize:10, color:C.muted }}>points</div>
+              </div>
+            </div>
+            {editingId === m.id ? (
+              <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                <input type="number" autoFocus value={adjustInput} onChange={e=>setAdjustInput(e.target.value)}
+                  placeholder="e.g. 50 or -20"
+                  style={{ flex:1, minWidth:0, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, boxSizing:"border-box" }} />
+                <button onClick={()=>adjustPoints(m)} style={{ background:"#394c76", color:"#fff", border:"none", borderRadius:8, padding:"8px 16px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Apply</button>
+                <button onClick={()=>{setEditingId(null);setAdjustInput("");}} style={{ background:"#f5f5f5", border:"1px solid #ddd", color:"#888", borderRadius:8, padding:"8px 12px", fontSize:13, cursor:"pointer" }}>✕</button>
+              </div>
+            ) : (
+              <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                <button onClick={()=>{setEditingId(m.id);setAdjustInput("");}} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Adjust Points</button>
+                <button onClick={()=>setConfirmDelete({ id:m.id, name:m.name })} style={{ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", borderRadius:8, padding:"8px 14px", fontSize:13, cursor:"pointer" }}>Remove</button>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -4654,30 +4791,47 @@ function CashierScreen({ goHome }) {
   }, []);
   // Loyalty member attached to the bill currently being paid — reset whenever payModal closes/reopens
   const [payMember, setPayMember] = useState(null); // {id, name, phone, points}
-  const [memberPhoneInput, setMemberPhoneInput] = useState("");
+  const [showMemberSearchModal, setShowMemberSearchModal] = useState(false);
+  const [memberSearchQuery, setMemberSearchQuery] = useState("");
+  const [memberSearchResults, setMemberSearchResults] = useState([]);
   const [memberLookupMsg, setMemberLookupMsg] = useState("");
   const [redeemPointsInput, setRedeemPointsInput] = useState("");
   const [showJoinQR, setShowJoinQR] = useState(false);
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberPhone, setNewMemberPhone] = useState("");
+  const [newMemberPhoneCountry, setNewMemberPhoneCountry] = useState("MY");
   const [payModal, setPayModalRaw] = useState(null);
   const setPayModal = (v) => {
     setPayModalRaw(v);
     if (!v) {
-      setPayMember(null); setMemberPhoneInput(""); setMemberLookupMsg("");
+      setPayMember(null); setShowMemberSearchModal(false); setMemberSearchQuery(""); setMemberSearchResults([]); setMemberLookupMsg("");
       setRedeemPointsInput(""); setShowJoinQR(false); setNewMemberName(""); setNewMemberPhone("");
     }
   };
-  const lookupMember = async () => {
-    const phone = normalizePhone(memberPhoneInput.trim());
-    if (!phone) return;
-    setMemberLookupMsg("");
-    const { data } = await supabase.from("members").select("*").eq("phone", phone).maybeSingle();
-    if (data) { setPayMember(data); setMemberLookupMsg(""); }
-    else { setPayMember(null); setMemberLookupMsg("No member found with this phone."); }
+  // Live search as the cashier types — matches partial name OR partial phone,
+  // so there's no need to type a full number (or worry about how it was
+  // formatted at signup). Two separate queries merged client-side, rather
+  // than one .or() filter, so the typed text never has to be escaped for
+  // PostgREST's filter syntax.
+  useEffect(() => {
+    if (!showMemberSearchModal) return;
+    const q = memberSearchQuery.trim();
+    if (!q) { setMemberSearchResults([]); return; }
+    const phoneDigits = q.replace(/\D/g,"").replace(/^0+/,"");
+    const tasks = [supabase.from("members").select("*").ilike("name", `%${q}%`).limit(20)];
+    if (phoneDigits) tasks.push(supabase.from("members").select("*").ilike("phone", `%${phoneDigits}%`).limit(20));
+    Promise.all(tasks).then(results => {
+      const merged = {};
+      results.forEach(r => (r.data||[]).forEach(m => { merged[m.id] = m; }));
+      setMemberSearchResults(Object.values(merged));
+    });
+  }, [memberSearchQuery, showMemberSearchModal]);
+  const selectMember = (m) => {
+    setPayMember(m); setShowMemberSearchModal(false); setMemberSearchQuery(""); setMemberSearchResults([]);
   };
   const addNewMember = async () => {
-    const name = newMemberName.trim(), phone = normalizePhone(newMemberPhone.trim());
+    const dial = PHONE_COUNTRIES.find(c=>c.code===newMemberPhoneCountry).dial;
+    const name = newMemberName.trim(), phone = composePhone(newMemberPhone, dial);
     if (name.length < 2 || phone.length < 6) { setMemberLookupMsg("Enter a valid name and phone."); return; }
     const { data, error } = await supabase.from("members").insert({ name, phone }).select().maybeSingle();
     if (error) { setMemberLookupMsg(error.code === "23505" ? "This phone is already a member — search instead." : "Could not add member."); return; }
@@ -5039,14 +5193,10 @@ function CashierScreen({ goHome }) {
                   <div style={{ fontSize:13, color:"#394c76", marginBottom:8, fontFamily:"Georgia,serif", fontWeight:"bold" }}>🎉 Ask: Is the customer a member?</div>
                   {!payMember ? (
                     <>
-                      <div style={{ display:"flex", gap:8 }}>
-                        <input value={memberPhoneInput} onChange={e=>setMemberPhoneInput(e.target.value)}
-                          onKeyDown={e=>e.key==="Enter"&&lookupMember()}
-                          placeholder="Phone number" type="tel"
-                          style={{ flex:1, border:"1px solid #ddd", borderRadius:8, padding:"10px 12px", fontSize:14, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
-                        <button onClick={lookupMember} style={{ background:"#394c76", color:"#fff", border:"none", borderRadius:8, padding:"0 16px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Find</button>
-                      </div>
-                      {memberLookupMsg && <div style={{ fontSize:12, color:"#c0392b", marginTop:6, fontFamily:"Georgia,serif" }}>{memberLookupMsg}</div>}
+                      <button onClick={() => setShowMemberSearchModal(true)}
+                        style={{ width:"100%", display:"flex", alignItems:"center", gap:8, background:"#f7f8fa", border:"1px solid #e4e7ec", color:"#888", borderRadius:8, padding:"10px 12px", fontSize:14, fontFamily:"Georgia,serif", cursor:"pointer", textAlign:"left" }}>
+                        🔍 Search by name or phone…
+                      </button>
                       <button onClick={() => setShowJoinQR(true)}
                         style={{ marginTop:8, width:"100%", background:"#f7f8fa", border:"1px solid #e4e7ec", color:"#394c76", fontSize:13, fontWeight:"bold", borderRadius:8, padding:"9px 0", cursor:"pointer", fontFamily:"Georgia,serif" }}>
                         Not a member yet? Sign them up
@@ -5146,6 +5296,40 @@ function CashierScreen({ goHome }) {
         );
       })()}
 
+      {/* Search Member — type partial name or phone, tap to select */}
+      {showMemberSearchModal && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:10001, display:"flex", alignItems:"center", justifyContent:"center", padding:16, overflowY:"auto" }}>
+          <div style={{ background:"#fff", borderRadius:20, width:"100%", maxWidth:380, maxHeight:"80vh", color:"#1a1a1a", boxShadow:"0 20px 60px rgba(0,0,0,0.5)", margin:"auto", display:"flex", flexDirection:"column" }}>
+            <div style={{ background:"linear-gradient(135deg,#394c76,#2c3b5e)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+              <div style={{ fontSize:16, fontWeight:"bold", color:"#fff", fontFamily:"Georgia,serif" }}>🔍 Find Member</div>
+              <button onClick={() => { setShowMemberSearchModal(false); setMemberSearchQuery(""); setMemberSearchResults([]); }}
+                style={{ background:"rgba(255,255,255,0.14)", border:"none", color:"#fff", width:30, height:30, borderRadius:8, fontSize:16, cursor:"pointer" }}>✕</button>
+            </div>
+            <div style={{ padding:"16px 20px", flexShrink:0 }}>
+              <input value={memberSearchQuery} onChange={e=>setMemberSearchQuery(e.target.value)} autoFocus
+                placeholder="Name or phone — no need to type it all"
+                style={{ width:"100%", border:"1px solid #ddd", borderRadius:10, padding:"12px 14px", fontSize:15, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
+            </div>
+            <div style={{ padding:"0 20px 20px", overflowY:"auto", flex:1 }}>
+              {!memberSearchQuery.trim() ? (
+                <div style={{ textAlign:"center", color:"#aaa", fontSize:13, padding:"20px 0", fontFamily:"Georgia,serif" }}>Start typing to search…</div>
+              ) : memberSearchResults.length === 0 ? (
+                <div style={{ textAlign:"center", color:"#aaa", fontSize:13, padding:"20px 0", fontFamily:"Georgia,serif" }}>No members match "{memberSearchQuery}"</div>
+              ) : memberSearchResults.map(m => (
+                <button key={m.id} onClick={() => selectMember(m)}
+                  style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", background:"#f9f9f9", border:"1px solid #eee", borderRadius:10, padding:"12px 14px", marginBottom:8, cursor:"pointer", fontFamily:"Georgia,serif", textAlign:"left" }}>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:"bold", color:"#1a1a1a" }}>{m.name}</div>
+                    <div style={{ fontSize:12, color:"#888" }}>{m.phone}</div>
+                  </div>
+                  <div style={{ fontSize:14, fontWeight:"bold", color:"#394c76" }}>{m.points} pts</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sign Up New Member — its own modal so it has room to breathe on top of the pay modal */}
       {showJoinQR && (
         <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:10001, display:"flex", alignItems:"center", justifyContent:"center", padding:16, overflowY:"auto" }}>
@@ -5171,8 +5355,14 @@ function CashierScreen({ goHome }) {
                 <input value={newMemberName} onChange={e=>setNewMemberName(e.target.value)} placeholder="Customer's name"
                   style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"12px 14px", fontSize:15, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box", marginBottom:12 }} />
                 <div style={{ fontSize:11, color:"#888", marginBottom:5, fontFamily:"Georgia,serif" }}>Phone</div>
-                <input value={newMemberPhone} onChange={e=>setNewMemberPhone(e.target.value)} placeholder="Phone number" type="tel"
-                  style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"12px 14px", fontSize:15, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
+                <div style={{ display:"flex", gap:6 }}>
+                  <select value={newMemberPhoneCountry} onChange={e=>setNewMemberPhoneCountry(e.target.value)}
+                    style={{ border:"1px solid #ddd", borderRadius:8, padding:"0 8px", fontSize:15, fontFamily:"Georgia,serif", color:"#1a1a1a", background:"#fff" }}>
+                    {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} +{c.dial}</option>)}
+                  </select>
+                  <input value={newMemberPhone} onChange={e=>setNewMemberPhone(e.target.value)} placeholder="Phone number" type="tel"
+                    style={{ flex:1, minWidth:0, border:"1px solid #ddd", borderRadius:8, padding:"12px 14px", fontSize:15, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
+                </div>
                 {memberLookupMsg && <div style={{ fontSize:12, color:"#c0392b", marginTop:8, fontFamily:"Georgia,serif" }}>{memberLookupMsg}</div>}
               </div>
               <button onClick={addNewMember} style={{ marginTop:16, width:"100%", background:"linear-gradient(135deg,#394c76,#2c3b5e)", color:"#fff", border:"none", borderRadius:10, padding:"13px 0", fontSize:15, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>Add Member</button>
