@@ -182,6 +182,7 @@ export default function App() {
     if (params.get("page") === "groups") setScreen("groupadmin");
     const j = params.get("join");
     if (j) { setTableNo(`JOIN-${j}`); setScreen("join"); }
+    if (params.get("joinMember")) setScreen("joinmember");
   }, []);
   return (
     <div style={{ fontFamily:"Georgia,serif", background:`radial-gradient(1200px 620px at 50% -12%, rgba(57,76,118,0.08), transparent 62%), ${C.bg}`, minHeight:"100vh", color:C.text }}>
@@ -224,7 +225,7 @@ export default function App() {
         }
       `}</style>
 
-      {screen === "home" && !pinUnlocked && !new URLSearchParams(window.location.search).get("join") && !new URLSearchParams(window.location.search).get("group") && !new URLSearchParams(window.location.search).get("page") && (
+      {screen === "home" && !pinUnlocked && !new URLSearchParams(window.location.search).get("join") && !new URLSearchParams(window.location.search).get("group") && !new URLSearchParams(window.location.search).get("page") && !new URLSearchParams(window.location.search).get("joinMember") && (
         <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(43,51,70,0.55)", WebkitBackdropFilter:"blur(4px)", backdropFilter:"blur(4px)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
           <div style={{ background:"#ffffff", border:"1px solid #d6dbe2", borderRadius:18, padding:32, width:"100%", maxWidth:320, textAlign:"center", boxShadow:"0 20px 60px rgba(43,51,70,0.35)", fontFamily:"Georgia,serif" }}>
             <div style={{ width:56, height:56, margin:"0 auto 14px", borderRadius:16, background:"#eef1f6", display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -251,6 +252,7 @@ export default function App() {
       {screen === "systemsettings" && <SystemSettingsScreen goHome={() => setScreen("home")} />}
       {screen === "cashier" && <CashierScreen goHome={() => setScreen("home")} />}
       {screen === "join"    && <JoinScreen groupSlug={String(tableNo).replace("JOIN-","")} goHome={() => setScreen("home")} />}
+      {screen === "joinmember" && <JoinMemberScreen goHome={() => setScreen("home")} />}
       {screen === "vipscreen" && <VIPScreen setScreen={setScreen} setTableNo={setTableNo} goHome={() => setScreen("home")} />}
     </div>
   );
@@ -690,6 +692,74 @@ function JoinScreen({ groupSlug, goHome }) {
   );
 }
 
+// ── JoinMemberScreen — self-registration for the loyalty points program
+// (separate from VIP group joining above: no group, just name + phone) ──
+function JoinMemberScreen({ goHome }) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(null);
+  const [error, setError] = useState("");
+
+  const register = async () => {
+    if (name.trim().length < 2) { setError("Please enter your name"); return; }
+    if (phone.trim().length < 6) { setError("Please enter a valid phone number"); return; }
+    setSaving(true); setError("");
+    const { data: existing } = await supabase.from("members").select("name,points").eq("phone", phone.trim()).maybeSingle();
+    if (existing) { setDone({ name: existing.name, points: existing.points, already: true }); setSaving(false); return; }
+    const { data, error: err } = await supabase.from("members").insert({ name: name.trim(), phone: phone.trim() }).select().maybeSingle();
+    if (err) { setError("Failed — please try again"); setSaving(false); return; }
+    setDone({ name: data.name, points: data.points, already: false });
+    setSaving(false);
+  };
+
+  if (done) {
+    return (
+      <div style={{ minHeight:"100vh", background:"#e8ecef", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
+        <div style={{ width:64, height:64, borderRadius:18, background:"#394c76", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:12, boxShadow:"0 8px 22px rgba(57,76,118,0.25)" }}>
+          <Icon name="check" size={30} color="#fff" stroke={2.4} />
+        </div>
+        <div className="hl-title" style={{ fontSize:22, fontWeight:800, color:"#2b3346", marginBottom:4, textAlign:"center" }}>
+          {done.already ? `Welcome back, ${done.name}!` : `Welcome, ${done.name}!`}
+        </div>
+        <div style={{ fontSize:14, color:"#8c8c8c", marginBottom:20, textAlign:"center" }}>
+          {done.already ? "You're already a member" : "You're now a member"} — you have <strong style={{ color:"#394c76" }}>{done.points} points</strong>
+        </div>
+        <div style={{ width:"100%", maxWidth:340, background:"#f4f6f9", border:"1px solid #e3e7f0", borderRadius:14, padding:16, textAlign:"center" }}>
+          <div style={{ fontSize:13, color:"#394c76", lineHeight:1.6 }}>Show this screen to the cashier to earn and redeem points on your bill.</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#e8ecef", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
+      <div style={{ width:64, height:64, borderRadius:18, background:"#394c76", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:12, boxShadow:"0 8px 22px rgba(57,76,118,0.25)" }}>
+        <Icon name="coffee" size={30} color="#fff" stroke={1.7} />
+      </div>
+      <div className="hl-title" style={{ fontSize:24, fontWeight:800, color:"#2b3346", marginBottom:4 }}>Join as a Member</div>
+      <div style={{ fontSize:13, color:"#8c8c8c", letterSpacing:1, textTransform:"uppercase", marginBottom:28, textAlign:"center" }}>Earn & redeem points on every visit</div>
+      <div style={{ width:"100%", maxWidth:360 }}>
+        <input value={name} onChange={e=>{setName(e.target.value);setError("");}}
+          placeholder="Your name" autoFocus
+          style={{ width:"100%", background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:"#2b3346", padding:"16px 18px", borderRadius:14, fontSize:18, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"center", marginBottom:10, outline:"none" }} />
+        <input value={phone} onChange={e=>{setPhone(e.target.value);setError("");}}
+          onKeyDown={e=>e.key==="Enter"&&register()}
+          placeholder="Your phone number" type="tel"
+          style={{ width:"100%", background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:"#2b3346", padding:"16px 18px", borderRadius:14, fontSize:18, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"center", marginBottom:8, outline:"none" }} />
+        {error && <div style={{ color:"#ff7777", fontSize:13, textAlign:"center", marginBottom:8 }}>{error}</div>}
+        <button onClick={register} disabled={saving}
+          style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"linear-gradient(150deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:"16px 0", borderRadius:14, fontSize:18, fontWeight:"bold", marginTop:4 }}>
+          {saving?"Joining...":"✓ Join Now"}
+        </button>
+        <div style={{ fontSize:12, color:"#c9cfd8", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
+          Already a member? Enter the same phone number — we'll find your account.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── GroupAdminScreen — create groups + generate QR ──
 function GroupAdminScreen({ goHome }) {
   const [groups, setGroups] = useState([]);
@@ -702,14 +772,42 @@ function GroupAdminScreen({ goHome }) {
   const [confirmModal, setConfirmModal] = useState(null); // {msg, onConfirm}
   const [toast, setToast] = useState(""); // short toast message
   const [formError, setFormError] = useState(""); // validation message for create form
+  const [loyaltyByGroupId, setLoyaltyByGroupId] = useState({}); // groups.id -> linked members row
+  const [phoneEditing, setPhoneEditing] = useState(null); // groups.id currently linking a phone
+  const [phoneInput, setPhoneInput] = useState("");
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 2000); };
+
+  const loadLoyalty = () => {
+    supabase.from("members").select("id,source_group_id,name,phone,points").not("source_group_id","is",null)
+      .then(({ data }) => {
+        const map = {};
+        (data||[]).forEach(r => { map[r.source_group_id] = r; });
+        setLoyaltyByGroupId(map);
+      });
+  };
+
+  const linkPhone = async (member) => {
+    const phone = phoneInput.trim();
+    if (phone.length < 6) { showToast("Enter a valid phone number"); return; }
+    const existing = loyaltyByGroupId[member.id];
+    if (existing) {
+      await supabase.from("members").update({ phone, name: member.display_name }).eq("id", existing.id);
+    } else {
+      const { error } = await supabase.from("members").insert({ name: member.display_name, phone, source_group_id: member.id });
+      if (error) { showToast(error.code === "23505" ? "This phone is already linked to another member" : "Could not link phone"); return; }
+    }
+    setPhoneEditing(null); setPhoneInput("");
+    loadLoyalty();
+    showToast("Loyalty phone linked!");
+  };
 
   const load = async (showLoader=false) => {
     if (showLoader) setLoading(true);
     const { data } = await supabase.from("groups").select("*").order("created_at",{ ascending:false });
     setGroups(data||[]);
     setLoading(false);
+    loadLoyalty();
   };
   useEffect(() => {
     load(true); // show loader only on first load
@@ -952,14 +1050,34 @@ function GroupAdminScreen({ goHome }) {
                 </div>
                 {grp.members.filter(m=>m.display_name!=="__group__").map(m => {
                   const url = `${baseUrl}?group=${m.id}`;
+                  const loyalty = loyaltyByGroupId[m.id];
                   return (
-                    <div key={m.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 16px", borderTop:`1px solid ${C.border}` }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8, color:C.text }}><Icon name="user" size={15} color="#8c8c8c" /><span style={{ fontSize:14, fontWeight:"bold" }}>{m.display_name}</span></div>
-                      <div style={{ display:"flex", gap:8 }}>
-                        <button onClick={()=>setQrTarget({ name:m.display_name, url })}
-                          style={btn({ background:C.gold, border:"none", color:"#fff", padding:"6px 14px", fontSize:12, fontWeight:"bold", borderRadius:6, display:"flex", alignItems:"center", gap:6 })}><Icon name="grid" size={13} color="#fff" /> Show QR</button>
-                        <button onClick={()=>deleteMember(m.id)}
-                          style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"6px 10px", fontSize:12, borderRadius:6 })}>✕</button>
+                    <div key={m.id} style={{ padding:"10px 16px", borderTop:`1px solid ${C.border}` }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, color:C.text }}><Icon name="user" size={15} color="#8c8c8c" /><span style={{ fontSize:14, fontWeight:"bold" }}>{m.display_name}</span></div>
+                        <div style={{ display:"flex", gap:8 }}>
+                          <button onClick={()=>setQrTarget({ name:m.display_name, url })}
+                            style={btn({ background:C.gold, border:"none", color:"#fff", padding:"6px 14px", fontSize:12, fontWeight:"bold", borderRadius:6, display:"flex", alignItems:"center", gap:6 })}><Icon name="grid" size={13} color="#fff" /> Show QR</button>
+                          <button onClick={()=>deleteMember(m.id)}
+                            style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"6px 10px", fontSize:12, borderRadius:6 })}>✕</button>
+                        </div>
+                      </div>
+                      <div style={{ marginTop:8 }}>
+                        {loyalty ? (
+                          <div style={{ fontSize:12, color:"#2e7d32", background:"#eaf5ea", borderRadius:6, padding:"5px 10px", display:"inline-block" }}>
+                            📱 {loyalty.phone} · {loyalty.points} pts
+                          </div>
+                        ) : phoneEditing === m.id ? (
+                          <div style={{ display:"flex", gap:6 }}>
+                            <input value={phoneInput} onChange={e=>setPhoneInput(e.target.value)} placeholder="Phone number" autoFocus type="tel"
+                              style={{ flex:1, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"6px 10px", borderRadius:6, fontSize:13, fontFamily:"Georgia,serif" }} />
+                            <button onClick={()=>linkPhone(m)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"6px 12px", fontSize:12, borderRadius:6, fontWeight:"bold" })}>Link</button>
+                            <button onClick={()=>{setPhoneEditing(null);setPhoneInput("");}} style={btn({ background:"#f5f5f5", border:"1px solid #ddd", color:"#888", padding:"6px 10px", fontSize:12, borderRadius:6 })}>✕</button>
+                          </div>
+                        ) : (
+                          <button onClick={()=>{setPhoneEditing(m.id);setPhoneInput("");}}
+                            style={btn({ background:"transparent", border:"none", color:"#394c76", padding:0, fontSize:12, textDecoration:"underline" })}>+ Add loyalty phone (optional)</button>
+                        )}
                       </div>
                     </div>
                   );
@@ -1205,6 +1323,9 @@ function SystemSettingsScreen({ goHome }) {
       admin_pw: form.admin_pw,
       service_charge: parseFloat(form.service_charge) || 0,
       auto_print_enabled: form.auto_print_enabled,
+      points_earn_rate: parseFloat(form.points_earn_rate) || 0,
+      points_earn_basis: form.points_earn_basis,
+      points_redeem_rate: parseFloat(form.points_redeem_rate) || 0,
       updated_at: new Date().toISOString(),
     }).eq("id", 1);
     setSaving(false);
@@ -1259,6 +1380,28 @@ function SystemSettingsScreen({ goHome }) {
             {form.auto_print_enabled ? "Auto-Print On" : "Auto-Print Off"}
           </button>
           <div style={{ fontSize:11, color:C.muted, marginTop:10 }}>Applies to the Kitchen screen on every device immediately.</div>
+        </div>
+        <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginBottom:16 }}>
+          <div style={{ fontSize:15, fontWeight:"bold", color:C.text, marginBottom:14 }}>Loyalty Points</div>
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Earn Rate (points per RM1 spent)</div>
+            <input type="number" step="0.1" min="0" value={form.points_earn_rate} onChange={e => setForm(f => ({ ...f, points_earn_rate:e.target.value }))}
+              style={{ width:120, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:16, fontWeight:"bold", boxSizing:"border-box" }} />
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Earn Basis</div>
+            <select value={form.points_earn_basis} onChange={e => setForm(f => ({ ...f, points_earn_basis:e.target.value }))}
+              style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
+              <option value="final_total">Final total (incl. service charge)</option>
+              <option value="subtotal">Subtotal (before service charge)</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Redeem Rate (points needed per RM1 discount)</div>
+            <input type="number" step="1" min="0" value={form.points_redeem_rate} onChange={e => setForm(f => ({ ...f, points_redeem_rate:e.target.value }))}
+              style={{ width:120, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:16, fontWeight:"bold", boxSizing:"border-box" }} />
+          </div>
+          <div style={{ fontSize:11, color:C.muted, marginTop:10 }}>Used at the Cashier's payment screen when a member is attached to a bill.</div>
         </div>
         <button onClick={save} disabled={saving}
           style={btn({ width:"100%", background:"linear-gradient(150deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:10 })}>
@@ -1952,6 +2095,9 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
               <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", display:"flex" }}><Icon name="search" size={16} color={C.muted}/></span>
               <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search menu..."
                 style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px 10px 38px", borderRadius:10, fontSize:15, fontFamily:"Georgia,serif", boxSizing:"border-box", outline:"none" }} />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", fontSize:20, color:C.muted, cursor:"pointer" }}>×</button>
+              )}
             </div>
           </div>
 
@@ -4222,8 +4368,13 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
         <div style={{ flex:1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
           {/* Sticky search bar */}
           <div style={{ padding:"10px 12px",background:C.bg,borderBottom:`1px solid ${C.border}`,flexShrink:0 }}>
-            <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Search menu..."
-              style={{ width:"100%",background:C.panel,border:`1px solid ${C.border}`,color:C.text,padding:"10px 14px",borderRadius:10,fontSize:16,fontFamily:"Georgia,serif",boxSizing:"border-box" }} />
+            <div style={{ position:"relative" }}>
+              <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Search menu..."
+                style={{ width:"100%",background:C.panel,border:`1px solid ${C.border}`,color:C.text,padding:"10px 14px",borderRadius:10,fontSize:16,fontFamily:"Georgia,serif",boxSizing:"border-box" }} />
+              {searchQ && (
+                <button onClick={() => setSearchQ("")} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", fontSize:20, color:C.muted, cursor:"pointer" }}>×</button>
+              )}
+            </div>
           </div>
           <div style={{ flex:1,overflowY:"auto",padding:"12px 12px 100px" }}>
           {Object.keys(grouped).length===0
@@ -4476,19 +4627,58 @@ async function undoSplit(subTableNo, rows) {
 function CashierScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
   const [serviceCharge, setServiceCharge] = useState(10);
+  const [pointsEarnRate, setPointsEarnRate] = useState(1);
+  const [pointsEarnBasis, setPointsEarnBasis] = useState("final_total");
+  const [pointsRedeemRate, setPointsRedeemRate] = useState(100);
   useEffect(() => {
-    const load = () => supabase.from("app_settings").select("service_charge").eq("id", 1).maybeSingle()
-      .then(({ data }) => { if (data) setServiceCharge(data.service_charge); });
+    const load = () => supabase.from("app_settings").select("service_charge,points_earn_rate,points_earn_basis,points_redeem_rate").eq("id", 1).maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        setServiceCharge(data.service_charge);
+        setPointsEarnRate(data.points_earn_rate ?? 1);
+        setPointsEarnBasis(data.points_earn_basis || "final_total");
+        setPointsRedeemRate(data.points_redeem_rate ?? 100);
+      });
     load();
     const ch = supabase.channel("app-settings-cashier-watch")
       .on("postgres_changes", { event:"*", schema:"public", table:"app_settings" }, load)
       .subscribe();
     return () => supabase.removeChannel(ch);
   }, []);
+  // Loyalty member attached to the bill currently being paid — reset whenever payModal closes/reopens
+  const [payMember, setPayMember] = useState(null); // {id, name, phone, points}
+  const [memberPhoneInput, setMemberPhoneInput] = useState("");
+  const [memberLookupMsg, setMemberLookupMsg] = useState("");
+  const [redeemPointsInput, setRedeemPointsInput] = useState("");
+  const [showJoinQR, setShowJoinQR] = useState(false);
+  const [newMemberName, setNewMemberName] = useState("");
+  const [newMemberPhone, setNewMemberPhone] = useState("");
+  const [payModal, setPayModalRaw] = useState(null);
+  const setPayModal = (v) => {
+    setPayModalRaw(v);
+    if (!v) {
+      setPayMember(null); setMemberPhoneInput(""); setMemberLookupMsg("");
+      setRedeemPointsInput(""); setShowJoinQR(false); setNewMemberName(""); setNewMemberPhone("");
+    }
+  };
+  const lookupMember = async () => {
+    const phone = memberPhoneInput.trim();
+    if (!phone) return;
+    setMemberLookupMsg("");
+    const { data } = await supabase.from("members").select("*").eq("phone", phone).maybeSingle();
+    if (data) { setPayMember(data); setMemberLookupMsg(""); }
+    else { setPayMember(null); setMemberLookupMsg("No member found with this phone."); }
+  };
+  const addNewMember = async () => {
+    const name = newMemberName.trim(), phone = newMemberPhone.trim();
+    if (name.length < 2 || phone.length < 6) { setMemberLookupMsg("Enter a valid name and phone."); return; }
+    const { data, error } = await supabase.from("members").insert({ name, phone }).select().maybeSingle();
+    if (error) { setMemberLookupMsg(error.code === "23505" ? "This phone is already a member — search instead." : "Could not add member."); return; }
+    setPayMember(data); setNewMemberName(""); setNewMemberPhone(""); setMemberLookupMsg(""); setShowJoinQR(false);
+  };
   const [waiterCalls, setWaiterCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(null);
-  const [payModal, setPayModal] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   const [editTableModal, setEditTableModal] = useState(null); // tableNo to edit
   const [splitBillModal, setSplitBillModal] = useState(null); // tableNo, or null
@@ -4671,13 +4861,14 @@ function CashierScreen({ goHome }) {
     setPaying(null); fetchAll();
   };
 
-  const printReceipt = (tableNo, data, paymentMethod=null, cashReceived=null, changeAmt=null) => {
+  const printReceipt = (tableNo, data, paymentMethod=null, cashReceived=null, changeAmt=null, discount=0) => {
     const charge = serviceCharge;
     const subtotal = data.total;
     const chargeAmt = +(subtotal * charge / 100).toFixed(2);
     const grandTotal = +(subtotal + chargeAmt).toFixed(2);
+    const netTotal = +(grandTotal - (discount||0)).toFixed(2);
     // Malaysian rounding to nearest 0.05
-    const rounded = +(Math.round(grandTotal * 20) / 20).toFixed(2);
+    const rounded = +(Math.round(netTotal * 20) / 20).toFixed(2);
     const allOrders = [...(data.pending||[]), ...(data.done||[])];
     const allItems = allOrders.flatMap(o => o.items);
     const now = new Date();
@@ -4728,6 +4919,7 @@ function CashierScreen({ goHome }) {
     <div class="row bold"><span>Subtotal</span><span></span><span>${subtotal.toFixed(2)}</span></div>
     <div class="divider"></div>
     ${charge>0?`<div class="row"><span>+Service Charge, ${charge}%</span><span></span><span>${chargeAmt.toFixed(2)}</span></div><div class="divider"></div>`:""}
+    ${discount>0?`<div class="row"><span>-Loyalty Discount</span><span></span><span>${discount.toFixed(2)}</span></div><div class="divider"></div>`:""}
     <div class="row grand"><span>Grand total</span><span></span><span>${parseFloat(rounded).toFixed(2)}</span></div>
     <div class="divider"></div>
     ${paymentMethod ? `
@@ -4776,8 +4968,12 @@ function CashierScreen({ goHome }) {
         const subtotal = payModal.data.total;
         const chargeAmt = +(subtotal * charge / 100).toFixed(2);
         const grandTotal = +(subtotal + chargeAmt).toFixed(2);
-        const rounded = +(Math.round(grandTotal * 20) / 20).toFixed(2);
-        const roundingDiff = +(rounded - grandTotal).toFixed(2);
+        const maxRedeemable = payMember ? Math.floor(Math.min(payMember.points, grandTotal * pointsRedeemRate)) : 0;
+        const redeemPts = Math.min(parseInt(redeemPointsInput)||0, maxRedeemable);
+        const discount = pointsRedeemRate > 0 ? +(redeemPts / pointsRedeemRate).toFixed(2) : 0;
+        const netTotal = +(grandTotal - discount).toFixed(2);
+        const rounded = +(Math.round(netTotal * 20) / 20).toFixed(2);
+        const roundingDiff = +(rounded - netTotal).toFixed(2);
         const cash = parseFloat(payModal.cashReceived)||0;
         const change = +(cash - rounded).toFixed(2);
         const canConfirm = payModal.method!=="Cash" || (!!payModal.cashReceived && cash >= rounded);
@@ -4809,6 +5005,58 @@ function CashierScreen({ goHome }) {
                   })}
                 </div>
 
+                {/* Member / Loyalty */}
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:11, color:"#888", marginBottom:8, fontFamily:"Georgia,serif", fontWeight:"bold", letterSpacing:1 }}>MEMBER (OPTIONAL)</div>
+                  {!payMember ? (
+                    <>
+                      <div style={{ display:"flex", gap:8 }}>
+                        <input value={memberPhoneInput} onChange={e=>setMemberPhoneInput(e.target.value)}
+                          onKeyDown={e=>e.key==="Enter"&&lookupMember()}
+                          placeholder="Phone number" type="tel"
+                          style={{ flex:1, border:"1px solid #ddd", borderRadius:8, padding:"10px 12px", fontSize:14, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
+                        <button onClick={lookupMember} style={{ background:"#394c76", color:"#fff", border:"none", borderRadius:8, padding:"0 16px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Find</button>
+                      </div>
+                      {memberLookupMsg && <div style={{ fontSize:12, color:"#c0392b", marginTop:6, fontFamily:"Georgia,serif" }}>{memberLookupMsg}</div>}
+                      <button onClick={() => setShowJoinQR(s=>!s)} style={{ marginTop:8, background:"transparent", border:"none", color:"#394c76", fontSize:12, textDecoration:"underline", cursor:"pointer", fontFamily:"Georgia,serif", padding:0 }}>+ New customer? Join now</button>
+                      {showJoinQR && (
+                        <div style={{ marginTop:10, background:"#f9f9f9", borderRadius:10, padding:14, textAlign:"center" }}>
+                          <QRCode url={`${window.location.origin}${window.location.pathname}?joinMember=1`} size={140} />
+                          <div style={{ fontSize:11, color:"#888", marginTop:8, fontFamily:"Georgia,serif" }}>Scan to join — or enter manually below</div>
+                          <div style={{ display:"flex", gap:6, marginTop:10 }}>
+                            <input value={newMemberName} onChange={e=>setNewMemberName(e.target.value)} placeholder="Name"
+                              style={{ flex:1, border:"1px solid #ddd", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
+                            <input value={newMemberPhone} onChange={e=>setNewMemberPhone(e.target.value)} placeholder="Phone" type="tel"
+                              style={{ flex:1, border:"1px solid #ddd", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
+                          </div>
+                          <button onClick={addNewMember} style={{ marginTop:8, width:"100%", background:"#394c76", color:"#fff", border:"none", borderRadius:8, padding:"9px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Add Member</button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ background:"#eef1f6", borderRadius:10, padding:"10px 14px" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                        <div>
+                          <div style={{ fontSize:14, fontWeight:"bold", color:"#394c76", fontFamily:"Georgia,serif" }}>{payMember.name}</div>
+                          <div style={{ fontSize:12, color:"#666", fontFamily:"Georgia,serif" }}>{payMember.points} points</div>
+                        </div>
+                        <button onClick={() => { setPayMember(null); setRedeemPointsInput(""); }} style={{ background:"transparent", border:"none", color:"#c0392b", fontSize:13, cursor:"pointer", fontFamily:"Georgia,serif" }}>Remove</button>
+                      </div>
+                      {maxRedeemable > 0 && (
+                        <div style={{ marginTop:8 }}>
+                          <div style={{ fontSize:11, color:"#888", marginBottom:4, fontFamily:"Georgia,serif" }}>Redeem points (max {maxRedeemable})</div>
+                          <input type="number" min="0" max={maxRedeemable} value={redeemPointsInput}
+                            onChange={e => {
+                              const v = Math.max(0, Math.min(maxRedeemable, parseInt(e.target.value)||0));
+                              setRedeemPointsInput(v ? String(v) : "");
+                            }}
+                            style={{ width:"100%", border:"1px solid #ccc", borderRadius:8, padding:"8px 12px", fontSize:14, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Items */}
                 <div style={{ background:"#f9f9f9", borderRadius:10, padding:"10px 14px", marginBottom:12, maxHeight:180, overflowY:"auto" }}>
                   {[...(payModal.data.pending||[]),...(payModal.data.done||[])].flatMap(o=>o.items).map((item,i)=>(
@@ -4826,6 +5074,9 @@ function CashierScreen({ goHome }) {
                   </div>
                   {charge>0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#666", marginBottom:4, fontFamily:"Georgia,serif" }}>
                     <span>Service Charge ({charge}%)</span><span>{chargeAmt.toFixed(2)}</span>
+                  </div>}
+                  {discount>0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#2e7d32", marginBottom:4, fontFamily:"Georgia,serif" }}>
+                    <span>Loyalty Discount ({redeemPts} pts)</span><span>-{discount.toFixed(2)}</span>
                   </div>}
                   {roundingDiff!==0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#aaa", marginBottom:4, fontFamily:"Georgia,serif" }}>
                     <span>Rounding</span><span>{roundingDiff>0?"+":""}{roundingDiff.toFixed(2)}</span>
@@ -4857,14 +5108,14 @@ function CashierScreen({ goHome }) {
                   <div style={{ display:"flex", gap:8 }}>
                     <button onClick={() => setPayModal(null)}
                       style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"12px 0", fontSize:13, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif" }}>✕ Cancel</button>
-                    <button onClick={() => { printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null); }}
+                    <button onClick={() => { printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null, discount); }}
                       style={{ flex:2, background:"#555", border:"none", color:"#fff", padding:"12px 0", fontSize:13, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
                       🖨️ Preview Receipt
                     </button>
                   </div>
                   <button onClick={() => {
                     if (!canConfirm) return;
-                    setConfirmModal({ tableNo:payModal.tableNo, data:payModal.data, method:payModal.method, cashReceived:payModal.cashReceived||null, change:payModal.method==="Cash"&&change>=0?change:null, rounded });
+                    setConfirmModal({ tableNo:payModal.tableNo, data:payModal.data, method:payModal.method, cashReceived:payModal.cashReceived||null, change:payModal.method==="Cash"&&change>=0?change:null, rounded, subtotal, discount, member:payMember });
                   }} disabled={!canConfirm}
                     style={{ width:"100%", background:canConfirm?"linear-gradient(135deg,#394c76,#2c3b5e)":"#ccc", border:"none", color:"#fff", padding:"16px 0", fontSize:16, borderRadius:10, cursor:canConfirm?"pointer":"not-allowed", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:canConfirm?"0 4px 12px rgba(25,118,210,0.4)":"none" }}>
                     {payModal.method==="Cash"&&!canConfirm?"Enter Cash Amount Above ↑":`✅ Print & Clear Table — RM ${parseFloat(rounded).toFixed(2)}`}
@@ -5035,6 +5286,11 @@ function CashierScreen({ goHome }) {
                 {confirmModal.change !== null && confirmModal.change >= 0 && (
                   <div style={{ marginTop:6, fontSize:13, color:"#2e7d32", fontWeight:"bold", fontFamily:"Georgia,serif" }}>Change: RM {parseFloat(confirmModal.change).toFixed(2)}</div>
                 )}
+                {confirmModal.member && (
+                  <div style={{ marginTop:8, fontSize:12, color:"#394c76", fontFamily:"Georgia,serif" }}>
+                    Member: {confirmModal.member.name}{confirmModal.discount>0?` · redeeming ${Math.round(confirmModal.discount*pointsRedeemRate)} pts`:""}
+                  </div>
+                )}
               </div>
 
               {/* Warning */}
@@ -5049,9 +5305,16 @@ function CashierScreen({ goHome }) {
                   ✕ Cancel
                 </button>
                 <button onClick={() => {
-                  printReceipt(confirmModal.tableNo, confirmModal.data, confirmModal.method, confirmModal.cashReceived, confirmModal.change);
+                  printReceipt(confirmModal.tableNo, confirmModal.data, confirmModal.method, confirmModal.cashReceived, confirmModal.change, confirmModal.discount||0);
                   if (confirmModal.tableNos) markPaidMulti(confirmModal.tableNos, confirmModal.method);
                   else markPaid(confirmModal.tableNo, confirmModal.method);
+                  if (confirmModal.member) {
+                    const earnBasisAmount = pointsEarnBasis === "subtotal" ? confirmModal.subtotal : confirmModal.rounded;
+                    const earned = Math.floor(earnBasisAmount * pointsEarnRate);
+                    const redeemed = confirmModal.discount>0 ? Math.round(confirmModal.discount * pointsRedeemRate) : 0;
+                    const newPoints = Math.max(0, confirmModal.member.points - redeemed + earned);
+                    supabase.from("members").update({ points:newPoints }).eq("id", confirmModal.member.id);
+                  }
                   setConfirmModal(null);
                   setPayModal(null);
                   setCombineModal(null);
