@@ -104,9 +104,16 @@ const effPrice = (item, isVip, groupSlug) => {
   const promo = isPromoNow(item) && item.promo_price && parseFloat(item.promo_price) > 0;
   return parseFloat(promo ? item.promo_price : item.price);
 };
-// Effective add-on price: same VIP-overrides-promo rule as the base item
-const effAddonPrice = (addon, item, isVip) => {
-  if (isVip && addon.vip_price && parseFloat(addon.vip_price) > 0) return parseFloat(addon.vip_price);
+// Effective add-on price: same VIP-overrides-promo rule as the base item,
+// scoped by the parent item's vip_groups the same way effPrice is (addons
+// don't have their own group picker in the admin UI, so they inherit it)
+const effAddonPrice = (addon, item, isVip, groupSlug) => {
+  if (isVip && addon.vip_price && parseFloat(addon.vip_price) > 0) {
+    const scope = item.vip_groups;
+    if (!scope || scope.length === 0 || (groupSlug && scope.includes(groupSlug))) {
+      return parseFloat(addon.vip_price);
+    }
+  }
   const promo = isPromoNow(item) && addon.promo_price && parseFloat(addon.promo_price) > 0;
   return parseFloat(promo ? addon.promo_price : (addon.price||0));
 };
@@ -1127,6 +1134,7 @@ function TakeawayScreen({ setScreen, setTableNo, goHome }) {
 function VipGroupsField({ value, onChange }) {
   const [groups, setGroups] = useState([]);
   const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
   useEffect(() => {
     // Deliberately does NOT exclude the "__group__" placeholder row: a brand-new
     // group with no members yet still needs to be selectable for pricing scope.
@@ -1137,6 +1145,14 @@ function VipGroupsField({ value, onChange }) {
         setGroups(Object.entries(bySlug).map(([slug, name]) => ({ slug, name })));
       });
   }, []);
+  useEffect(() => {
+    if (!open) return;
+    const onClickOutside = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [open]);
   const toggle = (slug) => {
     onChange(value.includes(slug) ? value.filter(s => s !== slug) : [...value, slug]);
   };
@@ -1144,17 +1160,18 @@ function VipGroupsField({ value, onChange }) {
     ? "All VIP groups"
     : groups.filter(g => value.includes(g.slug)).map(g => g.name).join(", ") || `${value.length} group(s)`;
   return (
-    <div style={{ position:"relative" }}>
+    <div ref={wrapRef} style={{ position:"relative" }}>
       <button type="button" onClick={() => setOpen(o => !o)}
         style={{ width:"100%", textAlign:"left", background:"#f4f6f9", border:"1px solid #d6dbe2", color:"#2b3346", padding:"10px 12px", borderRadius:9, fontSize:14, fontFamily:"Georgia,serif", cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <span>{summary}</span><span>▾</span>
       </button>
       {open && (
-        <div style={{ position:"absolute", top:"100%", left:0, right:0, marginTop:4, background:"#fff", border:"1px solid #d6dbe2", borderRadius:9, boxShadow:"0 8px 24px rgba(0,0,0,0.15)", zIndex:10, padding:8, maxHeight:180, overflowY:"auto" }}>
+        <div style={{ position:"absolute", top:"100%", left:0, right:0, marginTop:4, background:"#fff", border:"1px solid #d6dbe2", borderRadius:9, boxShadow:"0 8px 24px rgba(0,0,0,0.15)", zIndex:10, padding:8, maxHeight:220, overflowY:"auto" }}>
           {groups.length === 0 && <div style={{ fontSize:12, color:"#8c8c8c", padding:6 }}>No VIP groups yet</div>}
           {groups.map(g => (
-            <label key={g.slug} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 4px", fontSize:13, cursor:"pointer" }}>
-              <input type="checkbox" checked={value.includes(g.slug)} onChange={() => toggle(g.slug)} />
+            <label key={g.slug} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 6px", fontSize:14, cursor:"pointer" }}>
+              <input type="checkbox" checked={value.includes(g.slug)} onChange={() => toggle(g.slug)}
+                style={{ width:24, height:24, flexShrink:0, accentColor:"#394c76" }} />
               {g.name}
             </label>
           ))}
@@ -1790,7 +1807,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   }, [tableNo, isVip]);
 
   const addToCart = (item, freeDrink=null, selectedAddons=[], note="", qty=1) => {
-    const addonPrice = selectedAddons.reduce((s,a) => s + effAddonPrice(a, item, isVip), 0);
+    const addonPrice = selectedAddons.reduce((s,a) => s + effAddonPrice(a, item, isVip, vipGroupSlug), 0);
     const basePrice = item.addon_required ? 0 : effPrice(item, isVip, vipGroupSlug);
     const addonNames = selectedAddons.length > 0 ? (item.addon_required ? " " : " +") + selectedAddons.map(a=>a.name).join(" +") : "";
     const cartKey = item.id + (selectedAddons.length > 0 ? "_" + selectedAddons.map(a=>a.name).join("_") : "") + (note ? "_note_"+note.slice(0,20) : "");
@@ -1982,7 +1999,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                               {(() => {
                                 if (item.addon_required && item.addons && item.addons.length > 0) {
                                   const normalMin = Math.min(...item.addons.map(a=>parseFloat(a.price||0)));
-                                  const effMin = Math.min(...item.addons.map(a => effAddonPrice(a, item, isVip)));
+                                  const effMin = Math.min(...item.addons.map(a => effAddonPrice(a, item, isVip, vipGroupSlug)));
                                   return effMin < normalMin
                                     ? <span style={{ display:"flex", flexDirection:"column", lineHeight:1.1 }}><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", fontSize:10, color:C.muted }}>RM {normalMin.toFixed(2)}</span><span>RM {effMin.toFixed(2)}+</span></span>
                                     : `RM ${effMin.toFixed(2)}+`;
@@ -2104,7 +2121,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           const soldOut = item.is_available === false;
           const hasAddons = item.addons && item.addons.length > 0;
           const hasPromo = isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0;
-          const addonPrice = itemModal.selectedAddons.reduce((s,a) => s + effAddonPrice(a, item, isVip), 0);
+          const addonPrice = itemModal.selectedAddons.reduce((s,a) => s + effAddonPrice(a, item, isVip, vipGroupSlug), 0);
           const basePrice = item.addon_required ? 0 : effPrice(item, isVip, vipGroupSlug);
           const unitPrice = basePrice + addonPrice;
           const totalPrice = unitPrice * itemModal.qty;
@@ -2161,7 +2178,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                             <span style={{ fontSize:13, color:C.gold, fontWeight:"bold", flexShrink:0, marginLeft:8 }}>
                               {(() => {
                                 const raw = parseFloat(addon.price||0);
-                                const eff = effAddonPrice(addon, item, isVip);
+                                const eff = effAddonPrice(addon, item, isVip, vipGroupSlug);
                                 if (eff === raw) return raw > 0 ? `+RM ${raw.toFixed(2)}` : "";
                                 return <span><span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>+RM {raw.toFixed(2)}</span>+RM {eff.toFixed(2)}</span>;
                               })()}
@@ -2407,7 +2424,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                               {(() => {
                                 if (item.addon_required && item.addons && item.addons.length > 0) {
                                   const normalMin = Math.min(...item.addons.map(a=>parseFloat(a.price||0)));
-                                  const effMin = Math.min(...item.addons.map(a => effAddonPrice(a, item, isVip)));
+                                  const effMin = Math.min(...item.addons.map(a => effAddonPrice(a, item, isVip, vipGroupSlug)));
                                   return effMin < normalMin
                                     ? <span style={{ display:"flex", flexDirection:"column", lineHeight:1.1 }}><span style={{ textDecoration:"line-through", opacity:0.5, fontWeight:"normal", fontSize:10 }}>RM {normalMin.toFixed(2)}</span><span style={{ color:"#e65100" }}>RM {effMin.toFixed(2)}+</span></span>
                                     : `RM ${effMin.toFixed(2)}+`;
@@ -2449,7 +2466,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             const soldOut = item.is_available === false;
             const hasAddons = item.addons && item.addons.length > 0;
             const hasPromo = isPromoNow(item) && item.promo_drinks && item.promo_drinks.length > 0;
-            const addonPrice = itemModal.selectedAddons.reduce((s,a) => s + effAddonPrice(a, item, isVip), 0);
+            const addonPrice = itemModal.selectedAddons.reduce((s,a) => s + effAddonPrice(a, item, isVip, vipGroupSlug), 0);
             const basePrice = item.addon_required ? 0 : effPrice(item, isVip, vipGroupSlug);
             const unitPrice = basePrice + addonPrice;
             const totalPrice = unitPrice * itemModal.qty;
@@ -2527,7 +2544,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                               <span style={{ fontSize:14, color:T.brown, fontWeight:"bold", flexShrink:0, marginLeft:8, whiteSpace:"nowrap" }}>
                                 {(() => {
                                   const raw = parseFloat(addon.price||0);
-                                  const eff = effAddonPrice(addon, item, isVip);
+                                  const eff = effAddonPrice(addon, item, isVip, vipGroupSlug);
                                   if (eff === raw) return raw > 0 ? `+RM ${raw.toFixed(2)}` : "";
                                   return <span><span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>+RM {raw.toFixed(2)}</span><span style={{ color:"#e65100" }}>+RM {eff.toFixed(2)}</span></span>;
                                 })()}
@@ -2630,7 +2647,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       <span style={{ fontSize:14, color:T.brown, fontWeight:"bold", textAlign:"right" }}>
                         {(() => {
                           const raw = parseFloat(addon.price||0);
-                          const eff = effAddonPrice(addon, addonModal.item, isVip);
+                          const eff = effAddonPrice(addon, addonModal.item, isVip, vipGroupSlug);
                           if (eff === raw) return raw > 0 ? `RM ${raw.toFixed(2)}` : "";
                           return (
                             <span>
@@ -3974,7 +3991,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
 
   const confirmAddonPicker = () => {
     if (!addonPicker) return;
-    const addonPrice = pickerAddons.reduce((s,a) => s + effAddonPrice(a, addonPicker, isVip), 0);
+    const addonPrice = pickerAddons.reduce((s,a) => s + effAddonPrice(a, addonPicker, isVip, vipGroupSlug), 0);
     const basePrice = addonPicker.addon_required ? 0 : effPrice(addonPicker, isVip, vipGroupSlug);
     const totalPrice = basePrice + addonPrice;
     const addonNames = pickerAddons.length > 0 ? " " + pickerAddons.map(a=>a.name).join(" +") : "";
@@ -4312,7 +4329,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                     <span style={{ color:C.gold,fontSize:13,fontWeight:"bold",flexShrink:0 }}>
                       {(() => {
                         const raw = parseFloat(addon.price||0);
-                        const eff = effAddonPrice(addon, addonPicker, isVip);
+                        const eff = effAddonPrice(addon, addonPicker, isVip, vipGroupSlug);
                         if (eff === raw) return raw > 0 ? `+RM ${raw.toFixed(2)}` : "";
                         return <span><span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>+RM {raw.toFixed(2)}</span>+RM {eff.toFixed(2)}</span>;
                       })()}
@@ -4326,7 +4343,7 @@ function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
                 disabled={addonPicker.addon_required && pickerAddons.length===0}
                 style={btn({ width:"100%",background:(!addonPicker.addon_required||pickerAddons.length>0)?C.goldGrad:"#333",border:"none",color:(!addonPicker.addon_required||pickerAddons.length>0)?C.dark:"#666",padding:"14px 0",fontSize:15,fontWeight:"bold",borderRadius:10 })}>
                 {addonPicker.addon_required && pickerAddons.length===0 ? "Please select one ↑" : (() => {
-                  const addonTotal = pickerAddons.reduce((s,a)=>s+effAddonPrice(a, addonPicker, isVip),0);
+                  const addonTotal = pickerAddons.reduce((s,a)=>s+effAddonPrice(a, addonPicker, isVip, vipGroupSlug),0);
                   const base = addonPicker.addon_required ? 0 : effPrice(addonPicker, isVip, vipGroupSlug);
                   return `Add to Cart — RM ${(base+addonTotal).toFixed(2)}`;
                 })()}
