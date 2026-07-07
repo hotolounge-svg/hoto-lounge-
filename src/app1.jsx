@@ -5040,24 +5040,10 @@ function CashierScreen({ goHome }) {
                         <button onClick={lookupMember} style={{ background:"#394c76", color:"#fff", border:"none", borderRadius:8, padding:"0 16px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Find</button>
                       </div>
                       {memberLookupMsg && <div style={{ fontSize:12, color:"#c0392b", marginTop:6, fontFamily:"Georgia,serif" }}>{memberLookupMsg}</div>}
-                      <button onClick={() => setShowJoinQR(s=>!s)}
-                        style={{ marginTop:8, width:"100%", background:showJoinQR?"#eef1f6":"#f7f8fa", border:`1px solid ${showJoinQR?"#394c76":"#e4e7ec"}`, color:"#394c76", fontSize:13, fontWeight:"bold", borderRadius:8, padding:"9px 0", cursor:"pointer", fontFamily:"Georgia,serif" }}>
+                      <button onClick={() => setShowJoinQR(true)}
+                        style={{ marginTop:8, width:"100%", background:"#f7f8fa", border:"1px solid #e4e7ec", color:"#394c76", fontSize:13, fontWeight:"bold", borderRadius:8, padding:"9px 0", cursor:"pointer", fontFamily:"Georgia,serif" }}>
                         Not a member yet? Sign them up
                       </button>
-                      {showJoinQR && (
-                        <div style={{ marginTop:10, background:"#f9f9f9", borderRadius:10, padding:14, textAlign:"center" }}>
-                          <QRCode url={`${window.location.origin}${window.location.pathname}?joinMember=1`} size={140} />
-                          <div style={{ fontSize:11, color:"#888", marginTop:8, fontFamily:"Georgia,serif" }}>Scan to join, print a QR slip to hand over, or enter manually below</div>
-                          <button onClick={printJoinSlip} style={{ marginTop:8, background:"#555", color:"#fff", border:"none", borderRadius:8, padding:"8px 16px", fontSize:12, fontWeight:"bold", cursor:"pointer" }}>🖨️ Print QR</button>
-                          <div style={{ display:"flex", gap:6, marginTop:10 }}>
-                            <input value={newMemberName} onChange={e=>setNewMemberName(e.target.value)} placeholder="Name"
-                              style={{ flex:1, border:"1px solid #ddd", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
-                            <input value={newMemberPhone} onChange={e=>setNewMemberPhone(e.target.value)} placeholder="Phone" type="tel"
-                              style={{ flex:1, border:"1px solid #ddd", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
-                          </div>
-                          <button onClick={addNewMember} style={{ marginTop:8, width:"100%", background:"#394c76", color:"#fff", border:"none", borderRadius:8, padding:"9px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Add Member</button>
-                        </div>
-                      )}
                     </>
                   ) : (
                     <div style={{ background:"#eef1f6", borderRadius:10, padding:"10px 14px" }}>
@@ -5152,6 +5138,41 @@ function CashierScreen({ goHome }) {
           </div>
         );
       })()}
+
+      {/* Sign Up New Member — its own modal so it has room to breathe on top of the pay modal */}
+      {showJoinQR && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)", zIndex:10001, display:"flex", alignItems:"center", justifyContent:"center", padding:16, overflowY:"auto" }}>
+          <div style={{ background:"#fff", borderRadius:20, width:"100%", maxWidth:360, color:"#1a1a1a", boxShadow:"0 20px 60px rgba(0,0,0,0.5)", margin:"auto" }}>
+            <div style={{ background:"linear-gradient(135deg,#394c76,#2c3b5e)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div style={{ fontSize:16, fontWeight:"bold", color:"#fff", fontFamily:"Georgia,serif" }}>🎉 Sign Up New Member</div>
+              <button onClick={() => { setShowJoinQR(false); setNewMemberName(""); setNewMemberPhone(""); setMemberLookupMsg(""); }}
+                style={{ background:"rgba(255,255,255,0.14)", border:"none", color:"#fff", width:30, height:30, borderRadius:8, fontSize:16, cursor:"pointer" }}>✕</button>
+            </div>
+            <div style={{ padding:"20px 24px", textAlign:"center" }}>
+              <QRCode url={`${window.location.origin}${window.location.pathname}?joinMember=1`} size={180} />
+              <div style={{ fontSize:12, color:"#888", marginTop:10, fontFamily:"Georgia,serif" }}>Scan to join on their own phone, or print a slip to hand over</div>
+              <button onClick={printJoinSlip} style={{ marginTop:10, background:"#555", color:"#fff", border:"none", borderRadius:8, padding:"9px 18px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>🖨️ Print QR</button>
+
+              <div style={{ display:"flex", alignItems:"center", gap:10, margin:"20px 0" }}>
+                <div style={{ flex:1, height:1, background:"#eee" }} />
+                <div style={{ fontSize:11, color:"#aaa", fontFamily:"Georgia,serif" }}>OR ENTER MANUALLY</div>
+                <div style={{ flex:1, height:1, background:"#eee" }} />
+              </div>
+
+              <div style={{ textAlign:"left" }}>
+                <div style={{ fontSize:11, color:"#888", marginBottom:5, fontFamily:"Georgia,serif" }}>Name</div>
+                <input value={newMemberName} onChange={e=>setNewMemberName(e.target.value)} placeholder="Customer's name"
+                  style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"12px 14px", fontSize:15, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box", marginBottom:12 }} />
+                <div style={{ fontSize:11, color:"#888", marginBottom:5, fontFamily:"Georgia,serif" }}>Phone</div>
+                <input value={newMemberPhone} onChange={e=>setNewMemberPhone(e.target.value)} placeholder="Phone number" type="tel"
+                  style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"12px 14px", fontSize:15, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
+                {memberLookupMsg && <div style={{ fontSize:12, color:"#c0392b", marginTop:8, fontFamily:"Georgia,serif" }}>{memberLookupMsg}</div>}
+              </div>
+              <button onClick={addNewMember} style={{ marginTop:16, width:"100%", background:"linear-gradient(135deg,#394c76,#2c3b5e)", color:"#fff", border:"none", borderRadius:10, padding:"13px 0", fontSize:15, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>Add Member</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Full Screen Table Detail Modal — live, with tabs, stays open */}
       {tableDetailModal && (() => {
