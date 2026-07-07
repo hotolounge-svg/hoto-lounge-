@@ -720,20 +720,43 @@ function JoinMemberScreen({ goHome }) {
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(null);
   const [error, setError] = useState("");
+  // Lazy initializer reads the URL synchronously on first render, so a plain
+  // visit (no ?checkPhone=) never shows a loading flash before the form.
+  const [checking, setChecking] = useState(() => !!new URLSearchParams(window.location.search).get("checkPhone"));
+  const baseUrl = window.location.origin + window.location.pathname;
+
+  // A personal "?checkPhone=" link (shown after joining, below) auto-looks-up
+  // and shows the balance immediately — no form to fill in — so a member can
+  // bookmark or re-scan it any time instead of re-typing their phone.
+  useEffect(() => {
+    const checkPhone = new URLSearchParams(window.location.search).get("checkPhone");
+    if (!checkPhone) return;
+    supabase.from("members").select("name,points,phone").eq("phone", checkPhone).maybeSingle()
+      .then(({ data }) => {
+        if (data) setDone({ name: data.name, points: data.points, already: true, phone: data.phone });
+        setChecking(false);
+      });
+  }, []);
 
   const register = async () => {
-    if (name.trim().length < 2) { setError("Please enter your name"); return; }
     const dial = PHONE_COUNTRIES.find(c=>c.code===country).dial;
     const phoneNorm = composePhone(phone, dial);
     if (phoneNorm.length < 6) { setError("Please enter a valid phone number"); return; }
     setSaving(true); setError("");
+    // Check phone first, before requiring a name — an existing member just
+    // checking their points shouldn't need to retype their name at all.
     const { data: existing } = await supabase.from("members").select("name,points").eq("phone", phoneNorm).maybeSingle();
-    if (existing) { setDone({ name: existing.name, points: existing.points, already: true }); setSaving(false); return; }
+    if (existing) { setDone({ name: existing.name, points: existing.points, already: true, phone: phoneNorm }); setSaving(false); return; }
+    if (name.trim().length < 2) { setError("Please enter your name to join"); setSaving(false); return; }
     const { data, error: err } = await supabase.from("members").insert({ name: name.trim(), phone: phoneNorm }).select().maybeSingle();
     if (err) { setError("Failed — please try again"); setSaving(false); return; }
-    setDone({ name: data.name, points: data.points, already: false });
+    setDone({ name: data.name, points: data.points, already: false, phone: phoneNorm });
     setSaving(false);
   };
+
+  if (checking) {
+    return <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", color:"#8c8c8c", fontFamily:"Georgia,serif" }}>Loading…</div>;
+  }
 
   if (done) {
     return (
@@ -747,8 +770,20 @@ function JoinMemberScreen({ goHome }) {
         <div style={{ fontSize:14, color:"#8c8c8c", marginBottom:20, textAlign:"center" }}>
           {done.already ? "You're already a member" : "You're now a member"} — you have <strong style={{ color:"#394c76" }}>{done.points} points</strong>
         </div>
-        <div style={{ width:"100%", maxWidth:340, background:"#f4f6f9", border:"1px solid #e3e7f0", borderRadius:14, padding:16, textAlign:"center" }}>
+        <div style={{ width:"100%", maxWidth:340, background:"#f4f6f9", border:"1px solid #e3e7f0", borderRadius:14, padding:16, textAlign:"center", marginBottom:20 }}>
           <div style={{ fontSize:13, color:"#394c76", lineHeight:1.6 }}>Show this screen to the cashier to earn and redeem points on your bill.</div>
+        </div>
+
+        {/* Personal "check my points" link + QR — bookmark or re-scan any time,
+            instead of re-typing your phone number to check your balance. */}
+        <div style={{ width:"100%", maxWidth:340, background:"#fff", border:"1px solid #e3e7f0", borderRadius:16, padding:16, display:"flex", flexDirection:"column", alignItems:"center" }}>
+          <div style={{ fontSize:13, fontWeight:"bold", color:"#394c76", marginBottom:10, textAlign:"center" }}>📲 Check My Points Anytime</div>
+          <QRCode url={`${baseUrl}?joinMember=1&checkPhone=${encodeURIComponent(done.phone)}`} size={140} />
+          <a href={`${baseUrl}?joinMember=1&checkPhone=${encodeURIComponent(done.phone)}`}
+            style={{ display:"block", marginTop:12, width:"100%", background:"linear-gradient(150deg,#394c76,#2c3b5e)", color:"#fff", padding:"12px 0", borderRadius:12, fontWeight:"bold", fontSize:14, textDecoration:"none", textAlign:"center" }}>
+            Open My Points Page
+          </a>
+          <div style={{ fontSize:11, color:"#aaa", textAlign:"center", marginTop:10, lineHeight:1.6 }}>Bookmark this or save the QR — scanning it always shows your latest points, no typing needed.</div>
         </div>
       </div>
     );
@@ -781,7 +816,7 @@ function JoinMemberScreen({ goHome }) {
           {saving?"Joining...":"✓ Join Now"}
         </button>
         <div style={{ fontSize:12, color:"#c9cfd8", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
-          Already a member? Enter the same phone number — we'll find your account.
+          Already a member? Just enter your phone number (name not needed) to check your points balance.
         </div>
       </div>
     </div>
@@ -1460,6 +1495,16 @@ function MembersScreen({ goHome }) {
   const [confirmDelete, setConfirmDelete] = useState(null); // {id, name}
   const [toast, setToast] = useState("");
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 2000); };
+  const [historyMember, setHistoryMember] = useState(null); // member currently viewing item history for
+  const [historyOrders, setHistoryOrders] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const openHistory = async (member) => {
+    setHistoryMember(member); setHistoryLoading(true);
+    const { data } = await supabase.from("orders").select("*").eq("member_id", member.id).eq("status","paid").order("created_at",{ ascending:false });
+    setHistoryOrders(data||[]);
+    setHistoryLoading(false);
+  };
 
   const load = () => supabase.from("members").select("*").order("created_at",{ ascending:false })
     .then(({ data }) => { setMembers(data||[]); setLoading(false); });
@@ -1489,6 +1534,27 @@ function MembersScreen({ goHome }) {
     showToast("Member removed");
   };
 
+  // CSV opens natively in Excel — no extra library needed for a browser-only app.
+  // Exports whatever the current search has filtered to, so clearing the search
+  // exports everyone and typing a name/phone exports just that match.
+  const exportCSV = () => {
+    const header = ["Name","Phone","Points","Total Spent (RM)","VIP","Joined"];
+    const escape = (v) => `"${String(v).replace(/"/g,'""')}"`;
+    const rows = filtered.map(m => [
+      m.name, m.phone, m.points, parseFloat(m.total_spent||0).toFixed(2),
+      m.source_group_id ? "Yes" : "No",
+      new Date(m.created_at).toLocaleDateString("en-MY"),
+    ].map(escape).join(","));
+    const csv = [header.map(escape).join(","), ...rows].join("\r\n");
+    const BOM = String.fromCharCode(0xFEFF);
+    const blob = new Blob([BOM+csv], { type:"text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `members-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
       {toast && (
@@ -1515,8 +1581,14 @@ function MembersScreen({ goHome }) {
         <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
       </div>
       <div style={{ flex:1, padding:20, overflowY:"auto", maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name or phone…"
-          style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"12px 14px", borderRadius:10, fontSize:15, boxSizing:"border-box", marginBottom:16 }} />
+        <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name or phone…"
+            style={{ flex:1, minWidth:0, background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"12px 14px", borderRadius:10, fontSize:15, boxSizing:"border-box" }} />
+          <button onClick={exportCSV} disabled={filtered.length===0}
+            style={btn({ background:filtered.length?"#394c76":"#ccc", border:"none", color:"#fff", padding:"0 16px", fontSize:13, fontWeight:"bold", borderRadius:10, whiteSpace:"nowrap" })}>
+            ⬇️ Export
+          </button>
+        </div>
         {loading ? (
           <div style={{ textAlign:"center", color:C.muted, padding:40 }}>Loading…</div>
         ) : filtered.length === 0 ? (
@@ -1533,6 +1605,7 @@ function MembersScreen({ goHome }) {
               <div style={{ textAlign:"right" }}>
                 <div style={{ fontSize:18, fontWeight:"bold", color:"#394c76" }}>{m.points}</div>
                 <div style={{ fontSize:10, color:C.muted }}>points</div>
+                <div style={{ fontSize:12, color:C.muted, marginTop:4 }}>RM {parseFloat(m.total_spent||0).toFixed(2)} spent</div>
               </div>
             </div>
             {editingId === m.id ? (
@@ -1545,6 +1618,7 @@ function MembersScreen({ goHome }) {
               </div>
             ) : (
               <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                <button onClick={()=>openHistory(m)} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>History</button>
                 <button onClick={()=>{setEditingId(m.id);setAdjustInput("");}} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Adjust Points</button>
                 <button onClick={()=>setConfirmDelete({ id:m.id, name:m.name })} style={{ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", borderRadius:8, padding:"8px 14px", fontSize:13, cursor:"pointer" }}>Remove</button>
               </div>
@@ -1552,6 +1626,38 @@ function MembersScreen({ goHome }) {
           </div>
         ))}
       </div>
+
+      {/* Item-level purchase history for one member */}
+      {historyMember && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:99997, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:420, maxHeight:"80vh", display:"flex", flexDirection:"column" }}>
+            <div style={{ padding:"16px 20px", borderBottom:"1px solid #eee", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
+              <div>
+                <div style={{ fontSize:15, fontWeight:"bold", color:"#1a1a1a" }}>{historyMember.name}</div>
+                <div style={{ fontSize:12, color:"#888" }}>RM {parseFloat(historyMember.total_spent||0).toFixed(2)} lifetime spend</div>
+              </div>
+              <button onClick={()=>setHistoryMember(null)} style={{ background:"#f5f5f5", border:"none", color:"#888", width:30, height:30, borderRadius:8, fontSize:16, cursor:"pointer" }}>✕</button>
+            </div>
+            <div style={{ padding:"12px 20px 20px", overflowY:"auto", flex:1 }}>
+              {historyLoading ? (
+                <div style={{ textAlign:"center", color:"#aaa", padding:20 }}>Loading…</div>
+              ) : historyOrders.length === 0 ? (
+                <div style={{ textAlign:"center", color:"#aaa", padding:20, fontSize:13 }}>No paid orders on record for this member yet — history only covers visits from when they were attached to a bill at checkout.</div>
+              ) : historyOrders.map(o => (
+                <div key={o.id} style={{ borderBottom:"1px solid #f0f0f0", padding:"10px 0" }}>
+                  <div style={{ fontSize:11, color:"#aaa", marginBottom:4 }}>{new Date(o.created_at).toLocaleString("en-MY",{ dateStyle:"medium", timeStyle:"short" })}</div>
+                  {(o.items||[]).map((item,i) => (
+                    <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#333" }}>
+                      <span>{item.name} ×{item.qty}</span>
+                      <span>RM {(item.price*item.qty).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -5023,22 +5129,22 @@ function CashierScreen({ goHome }) {
   const tabFiltered = filterTab==="pending" ? pendingTables : filterTab==="done" ? doneTables : activeTables;
   const displayTables = selectedTable ? tabFiltered.filter(([tno]) => String(tno)===String(selectedTable)) : tabFiltered;
 
-  const markPaid = async (tableNo, paymentMethod="Cash") => {
+  const markPaid = async (tableNo, paymentMethod="Cash", memberId=null) => {
     setPaying(tableNo);
     const sessionId = "paid_" + Date.now();
     const paidAt = new Date().toISOString();
     // Only update status — paid_session_id/paid_at columns may not exist in DB
-    await supabase.from("orders").update({status:"paid"}).eq("table_no",tableNo).in("status",["pending","done"]);
+    await supabase.from("orders").update({status:"paid", member_id:memberId}).eq("table_no",tableNo).in("status",["pending","done"]);
     await supabase.from("table_sessions").upsert({table_no:parseInt(tableNo), session_id:sessionId, updated_at:paidAt});
     setPaying(null); fetchAll();
   };
 
-  const markPaidMulti = async (tableNos, paymentMethod="Cash") => {
+  const markPaidMulti = async (tableNos, paymentMethod="Cash", memberId=null) => {
     setPaying("combine");
     const paidAt = new Date().toISOString();
     for (const tno of tableNos) {
       const sessionId = "paid_" + Date.now();
-      await supabase.from("orders").update({status:"paid"}).eq("table_no",tno).in("status",["pending","done"]);
+      await supabase.from("orders").update({status:"paid", member_id:memberId}).eq("table_no",tno).in("status",["pending","done"]);
       await supabase.from("table_sessions").upsert({table_no:parseInt(tno), session_id:sessionId, updated_at:paidAt});
     }
     setPaying(null); fetchAll();
@@ -5550,14 +5656,15 @@ function CashierScreen({ goHome }) {
                 </button>
                 <button onClick={() => {
                   printReceipt(confirmModal.tableNo, confirmModal.data, confirmModal.method, confirmModal.cashReceived, confirmModal.change, confirmModal.discount||0);
-                  if (confirmModal.tableNos) markPaidMulti(confirmModal.tableNos, confirmModal.method);
-                  else markPaid(confirmModal.tableNo, confirmModal.method);
+                  if (confirmModal.tableNos) markPaidMulti(confirmModal.tableNos, confirmModal.method, confirmModal.member?.id||null);
+                  else markPaid(confirmModal.tableNo, confirmModal.method, confirmModal.member?.id||null);
                   if (confirmModal.member) {
                     const earnBasisAmount = pointsEarnBasis === "subtotal" ? confirmModal.subtotal : confirmModal.rounded;
                     const earned = Math.floor(earnBasisAmount * pointsEarnRate);
                     const redeemed = confirmModal.discount>0 ? Math.round(confirmModal.discount * pointsRedeemRate) : 0;
                     const newPoints = Math.max(0, confirmModal.member.points - redeemed + earned);
-                    supabase.from("members").update({ points:newPoints }).eq("id", confirmModal.member.id);
+                    const newSpent = parseFloat(confirmModal.member.total_spent||0) + confirmModal.rounded;
+                    supabase.from("members").update({ points:newPoints, total_spent:newSpent }).eq("id", confirmModal.member.id);
                   }
                   setConfirmModal(null);
                   setPayModal(null);
