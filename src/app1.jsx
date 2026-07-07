@@ -5,7 +5,6 @@ const SUPABASE_URL = "https://qjbfoooshpvjlqiepxxb.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqYmZvb29zaHB2amxxaWVweHhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NTIxNDAsImV4cCI6MjA5NjEyODE0MH0.5psVFUbii5Wi5MHhoR3FVVs4C8UPMwgt2K1Tzb6VTxQ";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const ADMIN_PASSWORD = localStorage.getItem("admin_pw") || "hotolounge2026";
 const CAFE_ADDRESS1 = "20, Jalan Ambong Kiri 1, Kepong";
 const CAFE_ADDRESS2 = "Baru 52100 Kuala Lumpur";
 const CAFE_TIN = "C60634413060";
@@ -117,15 +116,45 @@ function QRCode({ url, size=160 }) {
   return <img src={src} alt="QR" style={{ width:size, height:size, borderRadius:8 }} />;
 }
 
+// Ensures the single app_settings row (id=1) exists. Runs on every app
+// load (cheap: one indexed select), but only ever inserts once — whichever
+// device happens to load first after this ships seeds the shared row from
+// its own current localStorage values, so nobody's already-customized PIN/
+// password/charge gets silently reset to the hardcoded fallback defaults.
+async function ensureAppSettings() {
+  const { data } = await supabase.from("app_settings").select("id").eq("id", 1).maybeSingle();
+  if (data) return;
+  await supabase.from("app_settings").upsert({
+    id: 1,
+    staff_pin: localStorage.getItem("staff_pin") || "Jack@126",
+    admin_pw: localStorage.getItem("admin_pw") || "hotolounge2026",
+    service_charge: parseFloat(localStorage.getItem("service_charge") || "10"),
+    auto_print_enabled: localStorage.getItem("k_autoprint") === "on",
+  }, { onConflict: "id", ignoreDuplicates: true });
+}
+
 export default function App() {
   const [screen, setScreen] = useState("home");
   const [tableNo, setTableNo] = useState(null);
-  const STAFF_PIN = localStorage.getItem("staff_pin") || "Jack@126";
+  const [staffPin, setStaffPin] = useState("Jack@126");
+  useEffect(() => {
+    const loadPin = () => supabase.from("app_settings").select("staff_pin").eq("id", 1).maybeSingle()
+      .then(({ data }) => { if (data) setStaffPin(data.staff_pin); });
+    // Wait for seeding to finish before the first read, so the device that's
+    // seeding the row from its own localStorage sees its own customized PIN
+    // immediately instead of racing the insert and getting stuck on the
+    // hardcoded default until a reload.
+    ensureAppSettings().then(loadPin);
+    const ch = supabase.channel("app-settings-pin-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"app_settings" }, loadPin)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
   const [pinUnlocked, setPinUnlocked] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState(false);
   const submitPin = () => {
-    if (pinInput === STAFF_PIN) { setPinUnlocked(true); }
+    if (pinInput === staffPin) { setPinUnlocked(true); }
     else { setPinError(true); setPinInput(""); }
   };
   // Ensure a proper mobile viewport so staff/admin screens auto-fit phones
@@ -212,6 +241,7 @@ export default function App() {
       {screen === "qrcodes" && <QRScreen      goHome={() => setScreen("home")} />}
       {screen === "admin"   && <AdminScreen   goHome={() => setScreen("home")} />}
       {screen === "sales"   && <SalesScreen   goHome={() => setScreen("home")} />}
+      {screen === "systemsettings" && <SystemSettingsScreen goHome={() => setScreen("home")} />}
       {screen === "cashier" && <CashierScreen goHome={() => setScreen("home")} />}
       {screen === "join"    && <JoinScreen groupSlug={String(tableNo).replace("JOIN-","")} goHome={() => setScreen("home")} />}
       {screen === "vipscreen" && <VIPScreen setScreen={setScreen} setTableNo={setTableNo} goHome={() => setScreen("home")} />}
@@ -362,6 +392,7 @@ function HomeScreen({ setScreen, setTableNo }) {
               { name:"users", label:"Manage VIP Groups", screen:"groupadmin" },
               { name:"chart", label:"Sales Summary", screen:"sales" },
               { name:"sliders", label:"Admin — Manage Menu", screen:"admin" },
+              { name:"lock", label:"System Settings", screen:"systemsettings" },
             ].map(item => (
               <button key={item.screen} onClick={() => { setMoreOpen(false); setScreen(item.screen); }}
                 style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"#f4f6f9", border:`1px solid ${HP.line}`, color:HP.ink, padding:"13px 16px", fontSize:15, fontWeight:600, borderRadius:14, textAlign:"left", marginBottom:10, display:"flex", alignItems:"center", gap:14 }}>
@@ -1133,6 +1164,94 @@ function VipGroupsField({ value, onChange }) {
   );
 }
 
+function SystemSettingsScreen({ goHome }) {
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
+
+  useEffect(() => {
+    const load = () => supabase.from("app_settings").select("*").eq("id", 1).maybeSingle()
+      .then(({ data }) => { if (data) setForm(f => f || data); });
+    load();
+    const ch = supabase.channel("app-settings-screen-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"app_settings" }, load)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
+
+  const save = async () => {
+    if (!form) return;
+    setSaving(true);
+    await supabase.from("app_settings").update({
+      staff_pin: form.staff_pin,
+      admin_pw: form.admin_pw,
+      service_charge: parseFloat(form.service_charge) || 0,
+      auto_print_enabled: form.auto_print_enabled,
+      updated_at: new Date().toISOString(),
+    }).eq("id", 1);
+    setSaving(false);
+    showToast("Settings saved!");
+  };
+
+  if (!form) {
+    return <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", color:C.muted }}>Loading…</div>;
+  }
+
+  return (
+    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
+      {toast && (
+        <div style={{ position:"fixed", top:24, left:"50%", transform:"translateX(-50%)", zIndex:99999, background:"#394c76", color:"#fff", padding:"14px 28px", borderRadius:12, fontSize:14, fontWeight:"bold", boxShadow:"0 6px 22px rgba(57,76,118,0.3)" }}>
+          {toast}
+        </div>
+      )}
+      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="lock" size={19} color="#fff" /></div>
+          <div className="hl-title" style={{ fontSize:19, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>System Settings</div>
+        </div>
+        <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
+      </div>
+      <div style={{ flex:1, padding:20, overflowY:"auto", maxWidth:520, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
+        <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginBottom:16 }}>
+          <div style={{ fontSize:15, fontWeight:"bold", color:C.text, marginBottom:14 }}>Passwords</div>
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Staff Home PIN</div>
+            <input type="text" value={form.staff_pin} onChange={e => setForm(f => ({ ...f, staff_pin:e.target.value }))}
+              style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+          </div>
+          <div>
+            <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Admin Password</div>
+            <input type="text" value={form.admin_pw} onChange={e => setForm(f => ({ ...f, admin_pw:e.target.value }))}
+              style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+          </div>
+        </div>
+        <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginBottom:16 }}>
+          <div style={{ fontSize:15, fontWeight:"bold", color:C.text, marginBottom:14 }}>Service Charge</div>
+          <div>
+            <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Percentage (%)</div>
+            <input type="number" step="0.5" min="0" max="20" value={form.service_charge} onChange={e => setForm(f => ({ ...f, service_charge:e.target.value }))}
+              style={{ width:120, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:16, fontWeight:"bold", boxSizing:"border-box" }} />
+          </div>
+          <div style={{ fontSize:11, color:C.muted, marginTop:10 }}>Set to 0 for no service charge.</div>
+        </div>
+        <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginBottom:16 }}>
+          <div style={{ fontSize:15, fontWeight:"bold", color:C.text, marginBottom:14 }}>Kitchen Auto Print</div>
+          <button onClick={() => setForm(f => ({ ...f, auto_print_enabled:!f.auto_print_enabled }))}
+            style={btn({ background:form.auto_print_enabled?"#394c76":"#eef1f6", border:form.auto_print_enabled?"none":`1px solid ${C.border}`, color:form.auto_print_enabled?"#fff":"#394c76", padding:"10px 18px", fontSize:13, fontWeight:"bold" })}>
+            {form.auto_print_enabled ? "Auto-Print On" : "Auto-Print Off"}
+          </button>
+          <div style={{ fontSize:11, color:C.muted, marginTop:10 }}>Applies to the Kitchen screen on every device immediately.</div>
+        </div>
+        <button onClick={save} disabled={saving}
+          style={btn({ width:"100%", background:"linear-gradient(150deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:10 })}>
+          {saving ? "Saving…" : "Save Settings"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AdminScreen({ goHome }) {
   const [authed, setAuthed] = useState(true); // no password needed
   const [toast, setToast] = useState(null);
@@ -1149,11 +1268,6 @@ function AdminScreen({ goHome }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", vip_price:"", vip_groups:[], description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[], promo_label:"" });
   const [uploading, setUploading] = useState(false);
-  const [showPwForm, setShowPwForm] = useState(false);
-  const [showChargeForm, setShowChargeForm] = useState(false);
-  const [chargeVal, setChargeVal] = useState(parseFloat(localStorage.getItem("service_charge")||"10"));
-  const [newStaffPin, setNewStaffPin] = useState("");
-  const [newAdminPw, setNewAdminPw] = useState("");
   const fileRef = useRef();
 
   const scrollRef = useRef(null);
@@ -1267,7 +1381,7 @@ function AdminScreen({ goHome }) {
         </div>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
           <button onClick={openAdd} style={{ fontFamily:"Georgia,serif", cursor:"pointer", border:"none", background:"#fff", color:"#394c76", padding:"9px 16px", fontSize:13, fontWeight:700, borderRadius:10 }}>+ Add Item</button>
-          {[["Passwords",showPwForm,()=>setShowPwForm(s=>!s)],["Charges",showChargeForm,()=>setShowChargeForm(s=>!s)],["← Back",false,goHome]].map(([lbl,active,fn]) => (
+          {[["← Back",false,goHome]].map(([lbl,active,fn]) => (
             <button key={lbl} onClick={fn} style={{ fontFamily:"Georgia,serif", cursor:"pointer", background:active?"rgba(255,255,255,0.9)":"rgba(255,255,255,0.12)", border:active?"none":"1px solid rgba(255,255,255,0.28)", color:active?"#394c76":"#fff", padding:"8px 14px", fontSize:13, fontWeight:600, borderRadius:10 }}>{lbl}</button>
           ))}
         </div>
@@ -1418,46 +1532,6 @@ function AdminScreen({ goHome }) {
         </div>
       )}
       <div ref={scrollRef} style={{ flex:1, padding:18, overflowY:"auto" }}>
-        {showChargeForm && (
-          <div style={{ background:A.panel, border:`1px solid ${A.line}`, borderRadius:14, padding:20, marginBottom:20, boxShadow:A.shadow }}>
-            <div className="hl-title" style={{ fontSize:16, color:A.text, fontWeight:700, marginBottom:16 }}>Service Charge Settings</div>
-            <div style={{ display:"flex", gap:14, alignItems:"flex-end", flexWrap:"wrap" }}>
-              <div>
-                <div style={aLabel}>Service Charge (%)</div>
-                <input type="number" step="0.5" min="0" max="20" value={chargeVal}
-                  onChange={e => setChargeVal(e.target.value)}
-                  style={{ ...aInput, width:110, fontSize:16, fontWeight:700 }} />
-              </div>
-              <button onClick={() => { localStorage.setItem("service_charge", chargeVal); setShowChargeForm(false); }}
-                style={aPrimary()}>Save</button>
-              <button onClick={() => setShowChargeForm(false)}
-                style={aGhost()}>Cancel</button>
-            </div>
-            <div style={{ fontSize:11, color:A.sub, marginTop:12 }}>Set to 0 for no service charge. Current: {parseFloat(localStorage.getItem("service_charge")||"10")}%</div>
-          </div>
-        )}
-        {showPwForm && (
-          <div style={{ background:A.panel, border:`1px solid ${A.line}`, borderRadius:14, padding:20, marginBottom:20, boxShadow:A.shadow }}>
-            <div className="hl-title" style={{ fontSize:16, color:A.text, fontWeight:700, marginBottom:16 }}>Change Passwords</div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(260px,1fr))", gap:16 }}>
-              <div style={{ background:"#f4f6f9", border:`1px solid ${A.line}`, borderRadius:12, padding:16 }}>
-                <div style={{ fontSize:13, color:A.text, marginBottom:10, fontWeight:700 }}>Staff Home PIN</div>
-                <input type="password" placeholder="New PIN" value={newStaffPin} onChange={e=>setNewStaffPin(e.target.value)}
-                  style={{ ...aInput, marginBottom:10 }} />
-                <button onClick={() => { if(newStaffPin){ localStorage.setItem("staff_pin", newStaffPin); setNewStaffPin(""); showToast("Staff PIN updated! Reload page to apply."); }}}
-                  style={aPrimary({ width:"100%" })}>Save PIN</button>
-              </div>
-              <div style={{ background:"#f4f6f9", border:`1px solid ${A.line}`, borderRadius:12, padding:16 }}>
-                <div style={{ fontSize:13, color:A.text, marginBottom:10, fontWeight:700 }}>Admin Password</div>
-                <input type="password" placeholder="New Password" value={newAdminPw} onChange={e=>setNewAdminPw(e.target.value)}
-                  style={{ ...aInput, marginBottom:10 }} />
-                <button onClick={() => { if(newAdminPw){ localStorage.setItem("admin_pw", newAdminPw); setNewAdminPw(""); showToast("Admin password updated! Reload page to apply."); }}}
-                  style={aPrimary({ width:"100%" })}>Save Password</button>
-              </div>
-            </div>
-            <div style={{ fontSize:11, color:A.sub, marginTop:12 }}>Passwords saved on this device. Reload page after changing.</div>
-          </div>
-        )}
         {loading ? <div style={{ color:A.sub, textAlign:"center", padding:40 }}>Loading…</div> :
           CATEGORIES.map(cat => {
             const catItems = items.filter(i => i.category===cat);
@@ -2846,17 +2920,17 @@ function KitchenScreen({ goHome }) {
   const soundOnRef = useRef(localStorage.getItem("k_sound") !== "off");
   const voiceOnRef = useRef(localStorage.getItem("k_voice") === "on");
   const voiceLangRef = useRef(localStorage.getItem("k_voice_lang") || "en");
-  const [autoPrintOn, setAutoPrintOn] = useState(() => localStorage.getItem("k_autoprint") === "on");
-  const autoPrintRef = useRef(localStorage.getItem("k_autoprint") === "on");
-
-  const toggleAutoPrint = () => {
-    setAutoPrintOn(v => {
-      const next = !v;
-      autoPrintRef.current = next;
-      localStorage.setItem("k_autoprint", next ? "on" : "off");
-      return next;
-    });
-  };
+  const autoPrintRef = useRef(false);
+  const [printBlocked, setPrintBlocked] = useState(false);
+  useEffect(() => {
+    const load = () => supabase.from("app_settings").select("auto_print_enabled").eq("id", 1).maybeSingle()
+      .then(({ data }) => { if (data) autoPrintRef.current = data.auto_print_enabled; });
+    load();
+    const ch = supabase.channel("app-settings-kitchen-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"app_settings" }, load)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
 
   const toggleSound = () => {
     setSoundOn(s => {
@@ -2944,6 +3018,7 @@ function KitchenScreen({ goHome }) {
       ${i.note ? `<div class="note">${i.note}</div>` : ""}`).join("");
     const foodReq = getFoodReq(order.special_request);
     const win = window.open("","_blank","width=380,height=600");
+    if (!win || win.closed) return false;
     win.document.write(`<!DOCTYPE html><html><head><title>Kitchen Ticket</title><style>
       *{margin:0;padding:0;box-sizing:border-box;}
       body{font-family:"Courier New",monospace;font-size:15px;width:290px;margin:0 auto;padding:12px 8px;}
@@ -2978,6 +3053,7 @@ function KitchenScreen({ goHome }) {
     <script>window.onload = function(){ window.print(); };</script>
     </body></html>`);
     win.document.close();
+    return true;
   };
 
   const fetchAll = async () => {
@@ -2997,7 +3073,10 @@ function KitchenScreen({ goHome }) {
     }
     if (autoPrintRef.current && newlyArrived.length > 0) {
       // Delay so the print popup doesn't steal window focus and cut off the voice/sound alert
-      setTimeout(() => newlyArrived.forEach(printKitchenTicket), 1200);
+      setTimeout(() => {
+        const results = newlyArrived.map(printKitchenTicket);
+        setPrintBlocked(results.some(ok => !ok));
+      }, 1200);
     }
     newlyArrived.forEach(o => printedIdsRef.current.add(o.id));
     localStorage.setItem("k_printed_ids", JSON.stringify([...printedIdsRef.current]));
@@ -3039,13 +3118,15 @@ function KitchenScreen({ goHome }) {
               {voiceLang === "en" ? "EN" : "中文"}
             </button>
           )}
-          <button onClick={toggleAutoPrint} style={btn({ background:autoPrintOn?"#fff":"rgba(255,255,255,0.1)", border:autoPrintOn?"none":"1px solid rgba(255,255,255,0.28)", color:autoPrintOn?"#394c76":"rgba(255,255,255,0.8)", padding:"7px 13px", fontSize:12, fontWeight:autoPrintOn?"bold":"normal" })}>
-            {autoPrintOn ? "Auto-Print On" : "Auto-Print Off"}
-          </button>
           {cancelled.length>0 && <button onClick={clearFinished} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"rgba(255,255,255,0.8)", padding:"7px 12px", fontSize:12 })}>Clear Cancelled</button>}
           <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
         </div>
       </div>
+      {printBlocked && (
+        <div style={{ background:"#c0392b", color:"#fff", padding:"10px 20px", fontSize:13, fontWeight:"bold", textAlign:"center" }}>
+          ⚠️ Auto-print was blocked by the browser — allow pop-ups for this site in the browser's settings to fix this permanently
+        </div>
+      )}
       <div style={{ flex:1, padding:16, overflowY:"auto" }}>
         <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:700 }}>Pending Food ({pending.length})</div>
         {pending.length===0 && <div style={{ color:C.muted, textAlign:"center", padding:40 }}>All clear!</div>}
@@ -3219,6 +3300,16 @@ function SalesScreen({ goHome }) {
   const [pickingEnd, setPickingEnd] = useState(false); // false = next click starts a new range, true = next click sets the end
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(todayMYT.slice(0,7)); // "YYYY-MM" shown in the popup
+  const [serviceCharge, setServiceCharge] = useState(10);
+  useEffect(() => {
+    const load = () => supabase.from("app_settings").select("service_charge").eq("id", 1).maybeSingle()
+      .then(({ data }) => { if (data) setServiceCharge(data.service_charge); });
+    load();
+    const ch = supabase.channel("app-settings-sales-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"app_settings" }, load)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
 
   // Mon-first day grid for the popup calendar; null = blank leading cell
   const buildCalendarDays = (yearMonth) => {
@@ -3283,7 +3374,7 @@ function SalesScreen({ goHome }) {
 
 
 
-  const charge = parseFloat(localStorage.getItem("service_charge")||"10");
+  const charge = serviceCharge;
   const subtotalRevenue = orders.reduce((s,o) => s+o.total, 0);
   const chargeRevenue = +(subtotalRevenue * charge / 100).toFixed(2);
   // Apply Malaysian rounding (nearest 0.05) per bill — same as what cashier actually collected
@@ -4367,6 +4458,16 @@ async function undoSplit(subTableNo, rows) {
 
 function CashierScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
+  const [serviceCharge, setServiceCharge] = useState(10);
+  useEffect(() => {
+    const load = () => supabase.from("app_settings").select("service_charge").eq("id", 1).maybeSingle()
+      .then(({ data }) => { if (data) setServiceCharge(data.service_charge); });
+    load();
+    const ch = supabase.channel("app-settings-cashier-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"app_settings" }, load)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
   const [waiterCalls, setWaiterCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(null);
@@ -4554,7 +4655,7 @@ function CashierScreen({ goHome }) {
   };
 
   const printReceipt = (tableNo, data, paymentMethod=null, cashReceived=null, changeAmt=null) => {
-    const charge = parseFloat(localStorage.getItem("service_charge")||"10");
+    const charge = serviceCharge;
     const subtotal = data.total;
     const chargeAmt = +(subtotal * charge / 100).toFixed(2);
     const grandTotal = +(subtotal + chargeAmt).toFixed(2);
@@ -4654,7 +4755,7 @@ function CashierScreen({ goHome }) {
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
       {payModal && (() => {
-        const charge = parseFloat(localStorage.getItem("service_charge")||"10");
+        const charge = serviceCharge;
         const subtotal = payModal.data.total;
         const chargeAmt = +(subtotal * charge / 100).toFixed(2);
         const grandTotal = +(subtotal + chargeAmt).toFixed(2);
@@ -4812,7 +4913,7 @@ function CashierScreen({ goHome }) {
       })()}
 
       {combineModal && (() => {
-        const charge = parseFloat(localStorage.getItem("service_charge")||"10");
+        const charge = serviceCharge;
         const mergedOrders = combineModal.tableNos.flatMap(tno => [...(byTable[tno]?.pending||[]), ...(byTable[tno]?.done||[])]);
         const subtotal = combineModal.tableNos.reduce((s,tno) => s + (byTable[tno]?.total||0), 0);
         const chargeAmt = +(subtotal * charge / 100).toFixed(2);
