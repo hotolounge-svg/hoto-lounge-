@@ -3713,7 +3713,7 @@ function SplitBillModal({ tableNo, tableOrders, allTableNos, onClose, onSplitOff
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <span style={{ fontWeight:"bold", color:C.goldLight }}>RM {bucketTotal(bucket).toFixed(2)}</span>
                 <button onClick={() => removeBucket(bi)} disabled={buckets.length <= 2} title="Remove this bill"
-                  style={btn({ width:22, height:22, borderRadius:50, border:"none", background:buckets.length<=2?"#ddd":"#f6d3d3", color:buckets.length<=2?"#999":"#c0392b", fontSize:12, fontWeight:"bold", cursor:buckets.length<=2?"default":"pointer", padding:0, lineHeight:"22px" })}>✕</button>
+                  style={btn({ width:40, height:40, borderRadius:50, border:"none", background:buckets.length<=2?"#ddd":"#f6d3d3", color:buckets.length<=2?"#999":"#c0392b", fontSize:18, fontWeight:"bold", cursor:buckets.length<=2?"default":"pointer", padding:0, lineHeight:"40px" })}>✕</button>
               </div>
             </div>
             <div style={{ flex:1, overflowY:"auto", padding:"10px 14px" }}>
