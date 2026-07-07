@@ -118,6 +118,12 @@ const effAddonPrice = (addon, item, isVip, groupSlug) => {
   return parseFloat(promo ? addon.promo_price : (addon.price||0));
 };
 
+// Loyalty phone numbers are looked up by exact match, so strip spaces/dashes/
+// parentheses (which vary by how someone types the same number) before saving
+// or searching. No country restriction — Singapore, Malaysian, or any other
+// number works the same way; only the punctuation is normalized, not the digits.
+const normalizePhone = (phone) => String(phone).replace(/[\s\-()]/g, "");
+
 function QRCode({ url, size=160 }) {
   const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=394c76&margin=10`;
   return <img src={src} alt="QR" style={{ width:size, height:size, borderRadius:8 }} />;
@@ -703,11 +709,12 @@ function JoinMemberScreen({ goHome }) {
 
   const register = async () => {
     if (name.trim().length < 2) { setError("Please enter your name"); return; }
-    if (phone.trim().length < 6) { setError("Please enter a valid phone number"); return; }
+    const phoneNorm = normalizePhone(phone.trim());
+    if (phoneNorm.length < 6) { setError("Please enter a valid phone number"); return; }
     setSaving(true); setError("");
-    const { data: existing } = await supabase.from("members").select("name,points").eq("phone", phone.trim()).maybeSingle();
+    const { data: existing } = await supabase.from("members").select("name,points").eq("phone", phoneNorm).maybeSingle();
     if (existing) { setDone({ name: existing.name, points: existing.points, already: true }); setSaving(false); return; }
-    const { data, error: err } = await supabase.from("members").insert({ name: name.trim(), phone: phone.trim() }).select().maybeSingle();
+    const { data, error: err } = await supabase.from("members").insert({ name: name.trim(), phone: phoneNorm }).select().maybeSingle();
     if (err) { setError("Failed — please try again"); setSaving(false); return; }
     setDone({ name: data.name, points: data.points, already: false });
     setSaving(false);
@@ -788,7 +795,7 @@ function GroupAdminScreen({ goHome }) {
   };
 
   const linkPhone = async (member) => {
-    const phone = phoneInput.trim();
+    const phone = normalizePhone(phoneInput.trim());
     if (phone.length < 6) { showToast("Enter a valid phone number"); return; }
     const existing = loyaltyByGroupId[member.id];
     if (existing) {
@@ -4662,7 +4669,7 @@ function CashierScreen({ goHome }) {
     }
   };
   const lookupMember = async () => {
-    const phone = memberPhoneInput.trim();
+    const phone = normalizePhone(memberPhoneInput.trim());
     if (!phone) return;
     setMemberLookupMsg("");
     const { data } = await supabase.from("members").select("*").eq("phone", phone).maybeSingle();
@@ -4670,7 +4677,7 @@ function CashierScreen({ goHome }) {
     else { setPayMember(null); setMemberLookupMsg("No member found with this phone."); }
   };
   const addNewMember = async () => {
-    const name = newMemberName.trim(), phone = newMemberPhone.trim();
+    const name = newMemberName.trim(), phone = normalizePhone(newMemberPhone.trim());
     if (name.length < 2 || phone.length < 6) { setMemberLookupMsg("Enter a valid name and phone."); return; }
     const { data, error } = await supabase.from("members").insert({ name, phone }).select().maybeSingle();
     if (error) { setMemberLookupMsg(error.code === "23505" ? "This phone is already a member — search instead." : "Could not add member."); return; }
