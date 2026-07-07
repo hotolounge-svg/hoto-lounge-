@@ -4676,6 +4676,28 @@ function CashierScreen({ goHome }) {
     if (error) { setMemberLookupMsg(error.code === "23505" ? "This phone is already a member — search instead." : "Could not add member."); return; }
     setPayMember(data); setNewMemberName(""); setNewMemberPhone(""); setMemberLookupMsg(""); setShowJoinQR(false);
   };
+  const printJoinSlip = () => {
+    const url = `${window.location.origin}${window.location.pathname}?joinMember=1`;
+    const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=000000&margin=10`;
+    const win = window.open("","_blank","width=380,height=520");
+    if (!win || win.closed) return;
+    win.document.write(`<!DOCTYPE html><html><head><title>Join as Member</title><style>
+      *{margin:0;padding:0;box-sizing:border-box;}
+      body{font-family:"Courier New",monospace;text-align:center;padding:24px 16px;}
+      img{width:250px;height:250px;margin:14px auto;display:block;}
+      h2{font-size:17px;letter-spacing:2px;margin-bottom:8px;}
+      p{font-size:12px;color:#333;margin:0 auto 6px;max-width:260px;}
+      .close-btn{position:fixed;top:12px;right:12px;background:#c0392b;color:#fff;border:none;border-radius:50%;width:40px;height:40px;font-size:18px;cursor:pointer;}
+      @media print{.no-print{display:none;}body{padding:0;}}
+    </style></head><body>
+    <button class="close-btn no-print" onclick="window.close()">✕</button>
+    <h2>HOTO LOUNGE</h2>
+    <p>Scan to join as a member — earn &amp; redeem points on every visit!</p>
+    <img src="${qrImg}" alt="Join QR" />
+    <div class="no-print" style="margin-top:16px;"><button onclick="window.print()" style="padding:10px 20px;font-size:14px;cursor:pointer;">🖨️ Print</button></div>
+    </body></html>`);
+    win.document.close();
+  };
   const [waiterCalls, setWaiterCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(null);
@@ -5007,7 +5029,7 @@ function CashierScreen({ goHome }) {
 
                 {/* Member / Loyalty */}
                 <div style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:11, color:"#888", marginBottom:8, fontFamily:"Georgia,serif", fontWeight:"bold", letterSpacing:1 }}>MEMBER (OPTIONAL)</div>
+                  <div style={{ fontSize:13, color:"#394c76", marginBottom:8, fontFamily:"Georgia,serif", fontWeight:"bold" }}>🎉 Ask: Is the customer a member?</div>
                   {!payMember ? (
                     <>
                       <div style={{ display:"flex", gap:8 }}>
@@ -5018,11 +5040,15 @@ function CashierScreen({ goHome }) {
                         <button onClick={lookupMember} style={{ background:"#394c76", color:"#fff", border:"none", borderRadius:8, padding:"0 16px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Find</button>
                       </div>
                       {memberLookupMsg && <div style={{ fontSize:12, color:"#c0392b", marginTop:6, fontFamily:"Georgia,serif" }}>{memberLookupMsg}</div>}
-                      <button onClick={() => setShowJoinQR(s=>!s)} style={{ marginTop:8, background:"transparent", border:"none", color:"#394c76", fontSize:12, textDecoration:"underline", cursor:"pointer", fontFamily:"Georgia,serif", padding:0 }}>+ New customer? Join now</button>
+                      <button onClick={() => setShowJoinQR(s=>!s)}
+                        style={{ marginTop:8, width:"100%", background:showJoinQR?"#eef1f6":"#f7f8fa", border:`1px solid ${showJoinQR?"#394c76":"#e4e7ec"}`, color:"#394c76", fontSize:13, fontWeight:"bold", borderRadius:8, padding:"9px 0", cursor:"pointer", fontFamily:"Georgia,serif" }}>
+                        Not a member yet? Sign them up
+                      </button>
                       {showJoinQR && (
                         <div style={{ marginTop:10, background:"#f9f9f9", borderRadius:10, padding:14, textAlign:"center" }}>
                           <QRCode url={`${window.location.origin}${window.location.pathname}?joinMember=1`} size={140} />
-                          <div style={{ fontSize:11, color:"#888", marginTop:8, fontFamily:"Georgia,serif" }}>Scan to join — or enter manually below</div>
+                          <div style={{ fontSize:11, color:"#888", marginTop:8, fontFamily:"Georgia,serif" }}>Scan to join, print a QR slip to hand over, or enter manually below</div>
+                          <button onClick={printJoinSlip} style={{ marginTop:8, background:"#555", color:"#fff", border:"none", borderRadius:8, padding:"8px 16px", fontSize:12, fontWeight:"bold", cursor:"pointer" }}>🖨️ Print QR</button>
                           <div style={{ display:"flex", gap:6, marginTop:10 }}>
                             <input value={newMemberName} onChange={e=>setNewMemberName(e.target.value)} placeholder="Name"
                               style={{ flex:1, border:"1px solid #ddd", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
