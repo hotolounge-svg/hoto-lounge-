@@ -1398,12 +1398,40 @@ function SystemSettingsScreen({ goHome }) {
       auto_print_enabled: form.auto_print_enabled,
       points_earn_rate: parseFloat(form.points_earn_rate) || 0,
       points_earn_basis: form.points_earn_basis,
-      points_redeem_rate: parseFloat(form.points_redeem_rate) || 0,
       updated_at: new Date().toISOString(),
     }).eq("id", 1);
     setSaving(false);
     showToast("Settings saved!");
   };
+
+  // ── Rewards Catalog — named things a member can redeem points for ──
+  const [rewards, setRewards] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [newReward, setNewReward] = useState({ name:"", points_cost:"", reward_type:"discount", discount_amount:"", menu_item_id:"" });
+  const loadRewards = () => supabase.from("rewards").select("*").order("points_cost",{ ascending:true })
+    .then(({ data }) => setRewards(data||[]));
+  useEffect(() => {
+    loadRewards();
+    const ch = supabase.channel("rewards-settings-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"rewards" }, loadRewards)
+      .subscribe();
+    supabase.from("menu_items").select("id,name,item_no").order("item_no",{ ascending:true })
+      .then(({ data }) => setMenuItems(data||[]));
+    return () => supabase.removeChannel(ch);
+  }, []);
+
+  const addReward = async () => {
+    const name = newReward.name.trim();
+    const pointsCost = parseFloat(newReward.points_cost);
+    if (!name || !pointsCost || pointsCost <= 0) return;
+    if (newReward.reward_type === "free_item" && !newReward.menu_item_id) return;
+    const discountAmount = newReward.reward_type === "discount" ? parseFloat(newReward.discount_amount)||0 : null;
+    const menuItemId = newReward.reward_type === "free_item" ? parseInt(newReward.menu_item_id) : null;
+    await supabase.from("rewards").insert({ name, points_cost:pointsCost, reward_type:newReward.reward_type, discount_amount:discountAmount, menu_item_id:menuItemId });
+    setNewReward({ name:"", points_cost:"", reward_type:"discount", discount_amount:"", menu_item_id:"" });
+  };
+  const toggleRewardActive = (reward) => supabase.from("rewards").update({ is_active: !reward.is_active }).eq("id", reward.id);
+  const deleteReward = (id) => supabase.from("rewards").delete().eq("id", id);
 
   if (!form) {
     return <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", color:C.muted }}>Loading…</div>;
@@ -1469,12 +1497,67 @@ function SystemSettingsScreen({ goHome }) {
               <option value="subtotal">Subtotal (before service charge)</option>
             </select>
           </div>
-          <div>
-            <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Redeem Rate (points needed per RM1 discount)</div>
-            <input type="number" step="1" min="0" value={form.points_redeem_rate} onChange={e => setForm(f => ({ ...f, points_redeem_rate:e.target.value }))}
-              style={{ width:120, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:16, fontWeight:"bold", boxSizing:"border-box" }} />
+          <div style={{ fontSize:11, color:C.muted, marginTop:10 }}>Earning applies at the Cashier's payment screen when a member is attached to a bill. What members can redeem points for is set up below.</div>
+        </div>
+        <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginBottom:16 }}>
+          <div style={{ fontSize:15, fontWeight:"bold", color:C.text, marginBottom:14 }}>Rewards Catalog</div>
+          {rewards.length === 0 && <div style={{ fontSize:13, color:C.muted, marginBottom:14 }}>No rewards yet — add one below.</div>}
+          {rewards.map(r => (
+            <div key={r.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:`1px solid ${C.border}`, opacity:r.is_active?1:0.5 }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:14, fontWeight:"bold", color:C.text }}>{r.name}</div>
+                <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>
+                  {r.points_cost} pts · {r.reward_type === "discount" ? `RM${parseFloat(r.discount_amount||0).toFixed(2)} off` : `Free item${menuItems.find(mi=>mi.id===r.menu_item_id) ? ": "+menuItems.find(mi=>mi.id===r.menu_item_id).name : ""}`}
+                  {!r.is_active && " · Inactive"}
+                </div>
+              </div>
+              <button onClick={() => toggleRewardActive(r)} style={btn({ background:"#eef1f6", border:`1px solid ${C.border}`, color:"#394c76", padding:"7px 12px", fontSize:12, fontWeight:"bold", whiteSpace:"nowrap" })}>
+                {r.is_active ? "Deactivate" : "Activate"}
+              </button>
+              <button onClick={() => deleteReward(r.id)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>✕</button>
+            </div>
+          ))}
+          <div style={{ marginTop:16, paddingTop:16, borderTop:`1px solid ${C.border}` }}>
+            <div style={{ fontSize:12, fontWeight:"bold", color:C.text, marginBottom:10 }}>Add New Reward</div>
+            <div style={{ marginBottom:10 }}>
+              <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Name</div>
+              <input value={newReward.name} onChange={e => setNewReward(f => ({ ...f, name:e.target.value }))} placeholder="e.g. Free Coffee"
+                style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+            </div>
+            <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Points Cost</div>
+                <input type="number" step="1" min="0" value={newReward.points_cost} onChange={e => setNewReward(f => ({ ...f, points_cost:e.target.value }))}
+                  style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Type</div>
+                <select value={newReward.reward_type} onChange={e => setNewReward(f => ({ ...f, reward_type:e.target.value }))}
+                  style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
+                  <option value="discount">Cash off</option>
+                  <option value="free_item">Free item</option>
+                </select>
+              </div>
+            </div>
+            {newReward.reward_type === "discount" ? (
+              <div style={{ marginBottom:10 }}>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Discount Amount (RM)</div>
+                <input type="number" step="0.5" min="0" value={newReward.discount_amount} onChange={e => setNewReward(f => ({ ...f, discount_amount:e.target.value }))}
+                  style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+              </div>
+            ) : (
+              <div style={{ marginBottom:10 }}>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Menu Item to Give Free</div>
+                <select value={newReward.menu_item_id} onChange={e => setNewReward(f => ({ ...f, menu_item_id:e.target.value }))}
+                  style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
+                  <option value="">Select an item…</option>
+                  {menuItems.map(mi => <option key={mi.id} value={mi.id}>{mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}</option>)}
+                </select>
+                <div style={{ fontSize:11, color:C.muted, marginTop:6 }}>Redeeming this sends it straight to the Kitchen/Cashier at RM0, just like a normal order.</div>
+              </div>
+            )}
+            <button onClick={addReward} style={btn({ width:"100%", background:"#394c76", border:"none", color:"#fff", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>+ Add Reward</button>
           </div>
-          <div style={{ fontSize:11, color:C.muted, marginTop:10 }}>Used at the Cashier's payment screen when a member is attached to a bill.</div>
         </div>
         <button onClick={save} disabled={saving}
           style={btn({ width:"100%", background:"linear-gradient(150deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:"14px 0", fontSize:15, fontWeight:"bold", borderRadius:10 })}>
@@ -2064,6 +2147,91 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [promoModal, setPromoModal] = useState(null); // {item, selectedDrink:""}
   const [lang, setLang] = useState("en");
+  // Member identity + rewards, checked/picked from the customer's own phone
+  const [memberBannerOpen, setMemberBannerOpen] = useState(false);
+  const [phoneMember, setPhoneMember] = useState(null);
+  const [memberPhoneInput, setMemberPhoneInput] = useState("");
+  const [memberPhoneCountry, setMemberPhoneCountry] = useState("MY");
+  const [memberChecking, setMemberChecking] = useState(false);
+  const [memberCheckMsg, setMemberCheckMsg] = useState("");
+  const [joiningNew, setJoiningNew] = useState(false);
+  const [newMemberNameInline, setNewMemberNameInline] = useState("");
+  const [rewards, setRewards] = useState([]);
+  const [selectedRewardId, setSelectedRewardId] = useState(null);
+
+  // Restore an existing member/reward pick for this table (e.g. after a page reload)
+  useEffect(() => {
+    if (isStaff) return;
+    supabase.from("table_sessions").select("member_id, pending_reward_id").eq("table_no", String(tableNo)).maybeSingle()
+      .then(({ data }) => {
+        if (data?.member_id) {
+          supabase.from("members").select("*").eq("id", data.member_id).maybeSingle()
+            .then(({ data:m }) => { if (m) setPhoneMember(m); });
+        }
+        if (data?.pending_reward_id) setSelectedRewardId(data.pending_reward_id);
+      });
+    supabase.from("rewards").select("*").eq("is_active", true).order("points_cost",{ ascending:true })
+      .then(({ data }) => setRewards(data||[]));
+  }, [tableNo, isStaff]);
+
+  const checkMemberPhone = async () => {
+    const dial = PHONE_COUNTRIES.find(c=>c.code===memberPhoneCountry).dial;
+    const phone = composePhone(memberPhoneInput, dial);
+    if (phone.length < 6) { setMemberCheckMsg("Enter a valid phone number"); return; }
+    setMemberChecking(true); setMemberCheckMsg("");
+    const { data } = await supabase.from("members").select("*").eq("phone", phone).maybeSingle();
+    if (data) {
+      setPhoneMember(data);
+      await supabase.from("table_sessions").upsert({ table_no:String(tableNo), member_id:data.id });
+    } else {
+      setJoiningNew(true);
+    }
+    setMemberChecking(false);
+  };
+
+  const joinAsNewMember = async () => {
+    const dial = PHONE_COUNTRIES.find(c=>c.code===memberPhoneCountry).dial;
+    const phone = composePhone(memberPhoneInput, dial);
+    const name = newMemberNameInline.trim();
+    if (name.length < 2) { setMemberCheckMsg("Enter your name to join"); return; }
+    setMemberChecking(true);
+    const { data, error } = await supabase.from("members").insert({ name, phone }).select().maybeSingle();
+    if (error) { setMemberCheckMsg("Could not join — try again"); setMemberChecking(false); return; }
+    setPhoneMember(data);
+    await supabase.from("table_sessions").upsert({ table_no:String(tableNo), member_id:data.id });
+    setMemberChecking(false); setJoiningNew(false);
+  };
+
+  // Cash-off rewards are just a preference until the cashier finalizes the bill.
+  // Free-item rewards need the kitchen to actually make the thing, so tapping one
+  // redeems it immediately — same trust model as placing a normal order.
+  const pickReward = async (reward) => {
+    if (reward.reward_type === "free_item") { redeemFreeItem(reward); return; }
+    const next = selectedRewardId === reward.id ? null : reward.id;
+    setSelectedRewardId(next);
+    await supabase.from("table_sessions").upsert({ table_no:String(tableNo), pending_reward_id:next });
+  };
+
+  const redeemFreeItem = async (reward) => {
+    if (!phoneMember || phoneMember.points < reward.points_cost) return;
+    const menuItem = Object.values(menu).flat().find(i => i.id === reward.menu_item_id);
+    if (!menuItem) { setMemberCheckMsg("This reward's item isn't available right now."); return; }
+    if (!window.confirm(`Redeem "${reward.name}" for ${reward.points_cost} points? It'll be sent to the kitchen now.`)) return;
+    const now = new Date();
+    const time = now.toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Kuala_Lumpur"});
+    const mytNow = new Date(now.toLocaleString("en-US",{timeZone:"Asia/Kuala_Lumpur"}));
+    const seq = String(mytNow.getHours()*60 + mytNow.getMinutes()).padStart(3,"0");
+    const rewardItem = { name:menuItem.name, item_no:menuItem.item_no, emoji:menuItem.emoji, category:menuItem.category, price:0, qty:1, is_reward:true };
+    const { error } = await supabase.from("orders").insert({
+      table_no:tableNo, items:[rewardItem], subtotal:0, tax:0, total:0,
+      status:"pending", special_request:`🎁 Redeemed: ${reward.name}`, time, order_seq:seq,
+    });
+    if (error) { setMemberCheckMsg("Could not redeem — try again."); return; }
+    const newPoints = phoneMember.points - reward.points_cost;
+    await supabase.from("members").update({ points:newPoints }).eq("id", phoneMember.id);
+    setPhoneMember(m => ({ ...m, points:newPoints }));
+    setMemberCheckMsg(`🎉 Redeemed ${reward.name}! It's on its way.`);
+  };
   const t = {
     en: {
       menu:"Menu", myOrders:"My Orders", callWaiter:"Call Waiter", coming:"✅ Coming!",
@@ -2694,6 +2862,78 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           </button>
         </div>
       </div>
+
+      {/* Member / Rewards banner */}
+      {!isStaff && (
+        <div style={{ background:T.panel, borderBottom:`1px solid ${T.border}`, flexShrink:0 }}>
+          {!phoneMember ? (
+            !memberBannerOpen ? (
+              <button onClick={() => setMemberBannerOpen(true)}
+                style={{ width:"100%", fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", color:T.brown, padding:"10px 16px", fontSize:13, fontWeight:"bold", textAlign:"left" }}>
+                🎉 Are you a member? Tap to check your points & rewards
+              </button>
+            ) : (
+              <div style={{ padding:"12px 16px" }}>
+                {!joiningNew ? (
+                  <>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                      <div style={{ fontSize:13, fontWeight:"bold", color:T.brown, fontFamily:"Georgia,serif" }}>Enter your phone number</div>
+                      <button onClick={() => setMemberBannerOpen(false)} style={{ background:"transparent", border:"none", color:T.muted, fontSize:16, cursor:"pointer" }}>✕</button>
+                    </div>
+                    <div style={{ display:"flex", gap:6 }}>
+                      <select value={memberPhoneCountry} onChange={e=>setMemberPhoneCountry(e.target.value)}
+                        style={{ border:`1px solid ${T.border}`, borderRadius:8, padding:"0 8px", fontSize:15, fontFamily:"Georgia,serif", color:T.text, background:"#fff" }}>
+                        {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} +{c.dial}</option>)}
+                      </select>
+                      <input value={memberPhoneInput} onChange={e=>setMemberPhoneInput(e.target.value)} placeholder="Phone number" type="tel"
+                        style={{ flex:1, minWidth:0, border:`1px solid ${T.border}`, borderRadius:8, padding:"10px 12px", fontSize:15, fontFamily:"Georgia,serif", color:T.text, boxSizing:"border-box" }} />
+                      <button onClick={checkMemberPhone} disabled={memberChecking}
+                        style={{ background:T.brown, color:"#fff", border:"none", borderRadius:8, padding:"0 16px", fontSize:14, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>
+                        {memberChecking ? "…" : "Check"}
+                      </button>
+                    </div>
+                    {memberCheckMsg && <div style={{ fontSize:12, color:T.red, marginTop:6, fontFamily:"Georgia,serif" }}>{memberCheckMsg}</div>}
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize:13, fontWeight:"bold", color:T.brown, marginBottom:8, fontFamily:"Georgia,serif" }}>No member found — join now?</div>
+                    <input value={newMemberNameInline} onChange={e=>setNewMemberNameInline(e.target.value)} placeholder="Your name" autoFocus
+                      style={{ width:"100%", border:`1px solid ${T.border}`, borderRadius:8, padding:"10px 12px", fontSize:15, fontFamily:"Georgia,serif", color:T.text, boxSizing:"border-box", marginBottom:8 }} />
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={() => setJoiningNew(false)} style={{ flex:1, background:"transparent", border:`1px solid ${T.border}`, color:T.muted, borderRadius:8, padding:"10px 0", fontSize:13, cursor:"pointer", fontFamily:"Georgia,serif" }}>Cancel</button>
+                      <button onClick={joinAsNewMember} disabled={memberChecking} style={{ flex:2, background:T.brown, color:"#fff", border:"none", borderRadius:8, padding:"10px 0", fontSize:13, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>Join & Continue</button>
+                    </div>
+                    {memberCheckMsg && <div style={{ fontSize:12, color:T.red, marginTop:6, fontFamily:"Georgia,serif" }}>{memberCheckMsg}</div>}
+                  </>
+                )}
+              </div>
+            )
+          ) : (
+            <div style={{ padding:"10px 16px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div style={{ fontSize:13, fontFamily:"Georgia,serif" }}><span style={{ fontWeight:"bold", color:T.brown }}>{phoneMember.name}</span> <span style={{ color:T.muted }}>· {phoneMember.points} pts</span></div>
+                <button onClick={() => { setPhoneMember(null); setSelectedRewardId(null); setMemberBannerOpen(false); }} style={{ background:"transparent", border:"none", color:T.muted, fontSize:12, cursor:"pointer", fontFamily:"Georgia,serif" }}>Not you?</button>
+              </div>
+              {memberCheckMsg && <div style={{ fontSize:12, color:T.green, marginTop:6, fontFamily:"Georgia,serif" }}>{memberCheckMsg}</div>}
+              {rewards.length > 0 && (
+                <div style={{ marginTop:8, display:"flex", flexDirection:"column", gap:6 }}>
+                  {rewards.map(r => {
+                    const affordable = phoneMember.points >= r.points_cost;
+                    const selected = selectedRewardId === r.id;
+                    return (
+                      <button key={r.id} disabled={!affordable} onClick={() => pickReward(r)}
+                        style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", background:selected?T.brown:"#fff", border:`1.5px solid ${selected?T.brown:T.border}`, color:selected?"#fff":affordable?T.text:"#bbb", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", cursor:affordable?"pointer":"not-allowed" }}>
+                        <span>{r.reward_type==="discount"?"💰":"🎁"} {r.name}</span>
+                        <span style={{ fontWeight:"bold" }}>{r.points_cost} pts{!affordable?" (not enough)":""}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tab bar */}
       <div style={{ display:"flex", background:"#2c1a0e", borderBottom:"2px solid #c8973a", flexShrink:0 }}>
@@ -4389,473 +4629,6 @@ function SplitBillModal({ tableNo, tableOrders, allTableNos, onClose, onSplitOff
   );
 }
 
-function EditTableModal({ tableNo: initialTableNo, onClose, onSaved }) {
-  const [step, setStep] = useState(initialTableNo === "pick" ? "pick" : "edit");
-  const [pickedTable, setPickedTable] = useState(initialTableNo === "pick" ? null : initialTableNo);
-  const [menuItems, setMenuItems] = useState([]);
-  const [menuLoading, setMenuLoading] = useState(false);
-  const [searchQ, setSearchQ] = useState("");
-  const [cart, setCart] = useState([]); // new items to add
-  const [saving, setSaving] = useState(false);
-  const [activeOrders, setActiveOrders] = useState([]); // existing orders on table
-  const [editTab, setEditTab] = useState("existing"); // "existing" | "add"
-  const [editingNote, setEditingNote] = useState(null); // {orderId, itemIdx, note}
-  const [editingPrice, setEditingPrice] = useState(null); // {orderId, itemIdx, price}
-  const [cartNote, setCartNote] = useState(""); // note for new order being added
-  const [addonPicker, setAddonPicker] = useState(null); // item needing addon selection
-  const [pickerAddons, setPickerAddons] = useState([]);
-  const tableNo = pickedTable;
-  const isVip = String(tableNo).startsWith("GRP-");
-
-  const loadData = () => {
-    if (!tableNo) return;
-    setMenuLoading(true);
-    Promise.all([
-      supabase.from("menu_items").select("*").order("item_no", { ascending:true }),
-      supabase.from("orders").select("*").in("status",["pending","done"]).eq("table_no", String(tableNo))
-    ]).then(([{data:items},{data:orders}]) => {
-      setMenuItems(items||[]);
-      setActiveOrders(orders||[]);
-      setMenuLoading(false);
-    });
-  };
-
-  useEffect(() => { if (step === "edit" && tableNo) loadData(); }, [step, tableNo]);
-
-  // Resolve which VIP group this table belongs to, so vip_groups-scoped
-  // prices (effPrice, App1.jsx) only apply to the customer's own group
-  const [vipGroupSlug, setVipGroupSlug] = useState(null);
-  useEffect(() => {
-    if (!isVip) { setVipGroupSlug(null); return; }
-    const memberId = String(tableNo).split("·")[0].replace(/^GRP-/,"");
-    supabase.from("groups").select("group_slug").eq("id", memberId).maybeSingle()
-      .then(({ data }) => setVipGroupSlug(data?.group_slug || null));
-  }, [tableNo, isVip]);
-
-  const filtered = menuItems.filter(m => m.name.toLowerCase().includes(searchQ.toLowerCase()) || (m.item_no||'').toLowerCase().includes(searchQ.toLowerCase()));
-  const cats = [...new Set(menuItems.map(m=>m.category))];
-  const grouped = cats.reduce((acc, cat) => {
-    const items = filtered.filter(m => m.category === cat);
-    if (items.length) acc[cat] = items;
-    return acc;
-  }, {});
-
-  const addToCart = (item) => {
-    if (item.addons && item.addons.length > 0) {
-      // Show addon picker
-      setAddonPicker(item);
-      setPickerAddons([]);
-      return;
-    }
-    setCart(prev => {
-      const ex = prev.find(c=>c.name===item.name);
-      if (ex) return prev.map(c=>c.name===item.name?{...c,qty:c.qty+1}:c);
-      return [...prev,{name:item.name,price:effPrice(item, isVip, vipGroupSlug),qty:1,category:item.category||""}];
-    });
-  };
-
-  const confirmAddonPicker = () => {
-    if (!addonPicker) return;
-    const addonPrice = pickerAddons.reduce((s,a) => s + effAddonPrice(a, addonPicker, isVip, vipGroupSlug), 0);
-    const basePrice = addonPicker.addon_required ? 0 : effPrice(addonPicker, isVip, vipGroupSlug);
-    const totalPrice = basePrice + addonPrice;
-    const addonNames = pickerAddons.length > 0 ? " " + pickerAddons.map(a=>a.name).join(" +") : "";
-    const cartName = addonPicker.name + addonNames;
-    setCart(prev => {
-      const ex = prev.find(c=>c.name===cartName);
-      if (ex) return prev.map(c=>c.name===cartName?{...c,qty:c.qty+1}:c);
-      return [...prev,{name:cartName,price:totalPrice,qty:1,category:addonPicker.category||""}];
-    });
-    setAddonPicker(null);
-    setPickerAddons([]);
-  };
-  const removeFromCart = (name) => setCart(prev=>prev.map(c=>c.name===name?{...c,qty:c.qty-1}:c).filter(c=>c.qty>0));
-  const cartTotal = cart.reduce((s,c)=>s+c.price*c.qty,0);
-
-  // Update qty of an item in an existing order
-  const updateExistingQty = async (order, itemIdx, delta) => {
-    const newItems = order.items.map((it,i) => i===itemIdx ? {...it,qty:Math.max(0,it.qty+delta)} : it).filter(it=>it.qty>0);
-    const newTotal = newItems.reduce((s,it)=>s+it.price*it.qty,0);
-    if (newItems.length===0) {
-      await supabase.from("orders").delete().eq("id",order.id);
-    } else {
-      await supabase.from("orders").update({items:newItems,total:newTotal}).eq("id",order.id);
-    }
-    loadData();
-    onSaved();
-  };
-
-  const updateExistingNote = async (order, itemIdx, note) => {
-    const newItems = order.items.map((it,i) => i===itemIdx ? {...it, note} : it);
-    await supabase.from("orders").update({items:newItems}).eq("id",order.id);
-    setEditingNote(null); loadData(); onSaved();
-  };
-
-  const updateExistingTakeaway = async (order, itemIdx, val) => {
-    const newItems = order.items.map((it,i) => i===itemIdx ? {...it, is_takeaway:val} : it);
-    await supabase.from("orders").update({items:newItems}).eq("id",order.id);
-    loadData(); onSaved();
-  };
-
-  const updateExistingPrice = async (order, itemIdx, price) => {
-    const newPrice = parseFloat(price);
-    if (isNaN(newPrice) || newPrice < 0) return;
-    const newItems = order.items.map((it,i) => i===itemIdx ? {...it, price:newPrice} : it);
-    const newTotal = newItems.reduce((s,it)=>s+it.price*it.qty,0);
-    await supabase.from("orders").update({items:newItems, total:newTotal}).eq("id",order.id);
-    setEditingPrice(null); loadData(); onSaved();
-  };
-
-  const cancelExistingOrder = async (orderId) => {
-    await supabase.from("orders").update({status:"cancelled"}).eq("id",orderId);
-    loadData();
-    onSaved();
-  };
-
-  const saveNewItems = async () => {
-    if (!cart.length) return;
-    setSaving(true);
-    const maxSeq = activeOrders.reduce((m,o)=>Math.max(m,o.order_seq||0),0);
-    const now = new Date();
-    const timeStr = now.toLocaleString("en-MY",{hour:"2-digit",minute:"2-digit",hour12:true,timeZone:"Asia/Kuala_Lumpur"});
-    // Attach cartNote to all items
-    const itemsWithNote = cart.map(i => cartNote.trim() ? {...i, note:cartNote.trim()} : i);
-    await supabase.from("orders").insert({
-      table_no: tableNo, items: itemsWithNote, total: cartTotal,
-      status:"pending", order_seq:maxSeq+1, time:timeStr, created_at:now.toISOString()
-    });
-    setCart([]);
-    setCartNote("");
-    setSaving(false);
-    loadData();
-    onSaved();
-  };
-
-  // ── PICK TABLE ───────────────────────────────────────────────────────────
-  if (step === "pick") {
-    return (
-      <div style={{ position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.9)",zIndex:10000,display:"flex",alignItems:"center",justifyContent:"center",padding:16 }}>
-        <div style={{ background:C.panel,border:`1px solid ${C.gold}`,borderRadius:20,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto" }}>
-          <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:1 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10 }}><Icon name="pen" size={17} color="#fff" /><div className="hl-title" style={{ fontSize:17,fontWeight:700,color:"#fff" }}>Edit Table — Pick Table</div></div>
-            <button onClick={onClose} style={btn({ background:"rgba(255,255,255,0.14)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",width:36,height:36,fontSize:18,borderRadius:50 })}>✕</button>
-          </div>
-          <div style={{ padding:20 }}>
-            <div style={{ fontSize:12,color:C.muted,marginBottom:12,fontWeight:"bold" }}>DINE IN TABLES</div>
-            <div style={{ display:"flex",flexWrap:"wrap",gap:10,marginBottom:20 }}>
-              {TABLES.map(t=>(
-                <button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}}
-                  style={btn({ background:"#e3e7f0",border:`2px solid ${C.gold}`,color:C.goldLight,padding:"14px 20px",fontSize:16,fontWeight:"bold",minWidth:60 })}>
-                  {t}
-                </button>
-              ))}
-            </div>
-            <div style={{ fontSize:12,color:C.muted,marginBottom:8,fontWeight:"bold" }}>TAKEAWAY</div>
-            <div style={{ display:"flex",flexWrap:"wrap",gap:8,marginBottom:20 }}>
-              {TW_SLOTS.map(t=>(<button key={t} onClick={()=>{setPickedTable(t);setStep("edit");}} style={btn({ background:"#eef1f6",border:`2px solid #394c76`,color:"#394c76",padding:"10px 14px",fontSize:13,fontWeight:"bold" })}>{t}</button>))}
-            </div>
-            <VIPTableButtons setPickedTable={setPickedTable} setStep={setStep} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── EDIT TABLE ───────────────────────────────────────────────────────────
-  const tableLabel = isTakeaway(tableNo)?takeawayLabel(tableNo):`Table ${tableNo}`;
-  return (
-    <div style={{ position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.95)",zIndex:10000,display:"flex",flexDirection:"column" }}>
-      {/* Header */}
-      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)",padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <Icon name="pen" size={17} color="#fff" />
-          <div>
-            <div className="hl-title" style={{ fontSize:17,fontWeight:700,color:"#fff" }}>{tableLabel}</div>
-            <div style={{ fontSize:12,color:"#aeb8cc" }}>{activeOrders.length} order(s) on this table</div>
-          </div>
-        </div>
-        <button onClick={onClose} style={btn({ background:"rgba(255,255,255,0.14)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",width:40,height:40,fontSize:20,borderRadius:50 })}>✕</button>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display:"flex",background:"#f4f6f9",borderBottom:`2px solid ${C.border}`,flexShrink:0 }}>
-        {[["existing","Current Orders"],["add","Add Items"]].map(([key,label])=>(
-          <button key={key} onClick={()=>setEditTab(key)}
-            style={btn({ flex:1,background:"transparent",border:"none",borderBottom:editTab===key?`3px solid ${C.gold}`:"3px solid transparent",
-              color:editTab===key?C.goldLight:C.muted,padding:"12px 8px",fontSize:14,fontWeight:editTab===key?"bold":"normal",borderRadius:0 })}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {menuLoading ? (
-        <div style={{ color:C.muted,textAlign:"center",padding:60,fontSize:16 }}>Loading…</div>
-      ) : editTab==="existing" ? (
-        /* ── EXISTING ORDERS TAB ── */
-        <div style={{ flex:1,overflowY:"auto",padding:14 }}>
-          {activeOrders.length===0
-            ? <div style={{ color:C.muted,textAlign:"center",padding:40 }}>No current orders on this table</div>
-            : activeOrders.map(order=>(
-              <div key={order.id} style={{ background:order.status==="pending"?"#eef1f6":"#eef1f6",border:`2px solid ${order.status==="pending"?C.gold:"#394c76"}`,borderRadius:14,padding:14,marginBottom:12 }}>
-                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
-                  <span style={{ background:order.status==="pending"?"#394c76":"#394c76",color:"#fff",borderRadius:8,padding:"3px 10px",fontSize:12,fontWeight:"bold" }}>
-                    {order.status==="pending"?"Pending":"Served"}
-                  </span>
-                  <button onClick={()=>cancelExistingOrder(order.id)}
-                    style={btn({ background:"#fbeaea",border:"1px solid #e6c3c3",color:"#c0392b",padding:"6px 12px",fontSize:12,fontWeight:"bold",borderRadius:8,display:"flex",alignItems:"center",gap:6 })}>
-                    <Icon name="trash" size={13} color="#c0392b" /> Remove Order
-                  </button>
-                </div>
-                {order.items.map((item,ii)=>{
-                  const isEditNote = editingNote?.orderId===order.id && editingNote?.itemIdx===ii;
-                  const isEditPrice = editingPrice?.orderId===order.id && editingPrice?.itemIdx===ii;
-                  return (
-                  <div key={ii} style={{ padding:"8px 0",borderBottom:`1px solid ${C.border}` }}>
-                    <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-                      <div style={{ flex:1,minWidth:0 }}>
-                        <div style={{ color:C.text,fontSize:14,fontWeight:"bold" }}>{item.name}</div>
-                        {isEditPrice ? (
-                          <div style={{ display:"flex",alignItems:"center",gap:6,marginTop:4 }}>
-                            <span style={{ color:C.gold,fontSize:12 }}>RM</span>
-                            <input type="number" step="0.10" value={editingPrice.price}
-                              onChange={e=>setEditingPrice(p=>({...p,price:e.target.value}))}
-                              style={{ width:70,background:C.bg,border:`1px solid ${C.gold}`,color:C.text,padding:"3px 6px",borderRadius:6,fontSize:13,outline:"none" }} />
-                            <button onClick={()=>updateExistingPrice(order,ii,editingPrice.price)}
-                              style={btn({ background:C.gold,border:"none",color:"#fff",padding:"4px 9px",fontSize:11,fontWeight:"bold",borderRadius:6,display:"flex",alignItems:"center" })}><Icon name="check" size={13} color="#fff" stroke={2.5} /></button>
-                            <button onClick={()=>setEditingPrice(null)}
-                              style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,padding:"3px 6px",fontSize:11,borderRadius:6 })}>✕</button>
-                          </div>
-                        ) : (
-                          <div style={{ display:"flex",alignItems:"center",gap:6,marginTop:2 }}>
-                            <span style={{ color:C.gold,fontSize:12 }}>RM {parseFloat(item.price).toFixed(2)} each</span>
-                            <button onClick={()=>setEditingPrice({orderId:order.id,itemIdx:ii,price:item.price})}
-                              style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,padding:"1px 6px",fontSize:10,borderRadius:5 })}>price</button>
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ display:"flex",alignItems:"center",gap:6,flexShrink:0 }}>
-                        <button onClick={()=>updateExistingQty(order,ii,-1)}
-                          style={btn({ background:"#fbeaea",border:"1px solid #e6c3c3",color:"#c0392b",width:32,height:32,fontSize:18,borderRadius:8,fontWeight:"bold" })}>−</button>
-                        <span style={{ color:C.goldLight,fontWeight:"bold",fontSize:15,minWidth:22,textAlign:"center" }}>{item.qty}</span>
-                        <button onClick={()=>updateExistingQty(order,ii,+1)}
-                          style={btn({ background:"#394c76",border:"none",color:"#fff",width:32,height:32,fontSize:18,borderRadius:8,fontWeight:"bold" })}>+</button>
-                        <span style={{ color:"#394c76",fontWeight:"bold",fontSize:12,minWidth:55,textAlign:"right" }}>RM {(item.price*item.qty).toFixed(2)}</span>
-                      </div>
-                    </div>
-                    {isEditNote ? (
-                      <div style={{ marginTop:6,display:"flex",gap:6 }}>
-                        <input value={editingNote.note} onChange={e=>setEditingNote(n=>({...n,note:e.target.value}))}
-                          placeholder="e.g. no sugar, less ice..."
-                          style={{ flex:1,background:C.bg,border:`1px solid ${C.gold}`,color:C.text,padding:"6px 10px",borderRadius:8,fontSize:13,outline:"none" }} />
-                        <button onClick={()=>updateExistingNote(order,ii,editingNote.note)}
-                          style={btn({ background:C.gold,border:"none",color:"#fff",padding:"6px 11px",fontSize:12,fontWeight:"bold",borderRadius:8,display:"flex",alignItems:"center" })}><Icon name="check" size={14} color="#fff" stroke={2.5} /></button>
-                        <button onClick={()=>setEditingNote(null)}
-                          style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,padding:"6px 10px",fontSize:12,borderRadius:8 })}>✕</button>
-                      </div>
-                    ) : (
-                      <div style={{ marginTop:4,display:"flex",alignItems:"center",gap:8 }}>
-                        {item.note && <span style={{ color:C.muted,fontSize:12 }}>{item.note}</span>}
-                        <button onClick={()=>setEditingNote({orderId:order.id,itemIdx:ii,note:item.note||""})}
-                          style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,padding:"2px 8px",fontSize:11,borderRadius:6 })}>
-                          {item.note?"edit note":"add note"}
-                        </button>
-                      </div>
-                    )}
-                    {/* Takeaway toggle */}
-                    <div onClick={()=>updateExistingTakeaway(order,ii,!item.is_takeaway)}
-                      style={{ display:"inline-flex",alignItems:"center",gap:8,marginTop:6,cursor:"pointer",userSelect:"none",
-                        background:item.is_takeaway?"#eef1f6":"transparent",
-                        border:`1.5px solid ${item.is_takeaway?"#394c76":C.border}`,
-                        borderRadius:8,padding:"5px 10px",transition:"all 0.15s" }}>
-                      <div style={{ width:18,height:18,borderRadius:5,border:`2px solid ${item.is_takeaway?"#394c76":C.muted}`,background:item.is_takeaway?"#394c76":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-                        {item.is_takeaway && <Icon name="check" size={12} color="#fff" stroke={2.6} />}
-                      </div>
-                      <span style={{ fontSize:12,color:item.is_takeaway?"#394c76":C.muted,fontWeight:item.is_takeaway?"bold":"normal",display:"flex",alignItems:"center",gap:5 }}><Icon name="bag" size={12} color={item.is_takeaway?"#394c76":C.muted} /> Takeaway</span>
-                    </div>
-                  </div>
-                  );
-                })}
-                <div style={{ textAlign:"right",marginTop:8,color:C.goldLight,fontWeight:"bold",fontSize:14 }}>
-                  Order Total: RM {order.items.reduce((s,i)=>s+i.price*i.qty,0).toFixed(2)}
-                </div>
-              </div>
-            ))
-          }
-        </div>
-      ) : (
-        /* ── ADD ITEMS TAB — single column + floating cart ── */
-        <div style={{ flex:1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
-          {/* Sticky search bar */}
-          <div style={{ padding:"10px 12px",background:C.bg,borderBottom:`1px solid ${C.border}`,flexShrink:0 }}>
-            <div style={{ position:"relative" }}>
-              <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Search menu..."
-                style={{ width:"100%",background:C.panel,border:`1px solid ${C.border}`,color:C.text,padding:"10px 14px",borderRadius:10,fontSize:16,fontFamily:"Georgia,serif",boxSizing:"border-box" }} />
-              {searchQ && (
-                <button onClick={() => setSearchQ("")} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", fontSize:20, color:C.muted, cursor:"pointer" }}>×</button>
-              )}
-            </div>
-          </div>
-          <div style={{ flex:1,overflowY:"auto",padding:"12px 12px 100px" }}>
-          {Object.keys(grouped).length===0
-            ? <div style={{ color:C.muted,textAlign:"center",padding:40 }}>No menu items found</div>
-            : Object.entries(grouped).map(([cat,items])=>(
-              <div key={cat} style={{ marginBottom:16 }}>
-                <div style={{ fontSize:11,color:C.gold,fontWeight:"bold",letterSpacing:2,textTransform:"uppercase",marginBottom:8 }}>{cat}</div>
-                {items.map(item=>{
-                  const inCart=cart.find(c=>c.name===item.name);
-                  return (
-                    <div key={item.id} onClick={()=>addToCart(item)} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:inCart?"#eef1f6":C.bg,border:`1px solid ${inCart?C.gold:C.border}`,borderRadius:10,marginBottom:8,cursor:"pointer" }}>
-                      <div style={{ flex:1,minWidth:0 }}>
-                        <div style={{ color:C.text,fontSize:14,fontWeight:inCart?"bold":"normal" }}>{item.item_no && <span style={{ color:C.gold,fontSize:11,fontWeight:"bold",marginRight:5 }}>{item.item_no}</span>}{item.name}</div>
-                        <div style={{ color:C.gold,fontSize:13 }}>
-                          {(() => {
-                            if (item.addons && item.addons.length > 0) return `RM ${parseFloat(item.price).toFixed(2)}${item.addon_required?"+":""}`;
-                            const raw = parseFloat(item.price);
-                            const eff = effPrice(item, isVip, vipGroupSlug);
-                            return eff === raw ? `RM ${raw.toFixed(2)}` : <span><span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>RM {raw.toFixed(2)}</span>RM {eff.toFixed(2)}</span>;
-                          })()}
-                        </div>
-                      </div>
-                      <div style={{ display:"flex",alignItems:"center",gap:8,flexShrink:0 }}>
-                        {inCart&&<button onClick={e=>{e.stopPropagation();removeFromCart(item.name);}} style={btn({ background:"#fbeaea",border:"1px solid #e6c3c3",color:"#c0392b",width:36,height:36,fontSize:20,borderRadius:8 })}>−</button>}
-                        {inCart&&<span style={{ color:C.goldLight,fontWeight:"bold",minWidth:24,textAlign:"center",fontSize:16 }}>{inCart.qty}</span>}
-                        <div style={{ background:C.gold,borderRadius:8,width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:"bold",color:C.dark,flexShrink:0 }}>+</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ))
-          }
-          {/* Floating cart summary + note + Send to Kitchen */}
-          {cart.length > 0 && (
-            <div style={{ position:"sticky",bottom:0,left:0,right:0,padding:"10px 0 4px",background:`linear-gradient(to top,${C.bg} 60%,transparent)` }}>
-              <div style={{ background:C.panel,border:`1px solid ${C.gold}`,borderRadius:12,padding:"10px 12px",marginBottom:8 }}>
-                <div style={{ fontSize:12,color:C.goldLight,fontWeight:"bold",marginBottom:8 }}>🛒 Order Summary</div>
-                {cart.map((item,i)=>(
-                  <div key={i} style={{ padding:"8px 0",borderBottom:`1px solid ${C.border}` }}>
-                    <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-                      <div style={{ flex:1,minWidth:0 }}>
-                        <span style={{ color:C.text,fontSize:13 }}>{item.name}</span>
-                        <span style={{ color:C.muted,fontSize:12,marginLeft:6 }}>×{item.qty}</span>
-                      </div>
-                      <div style={{ display:"flex",alignItems:"center",gap:8,flexShrink:0 }}>
-                        <span style={{ color:C.gold,fontSize:13 }}>RM {(item.price*item.qty).toFixed(2)}</span>
-                        <button onClick={()=>removeFromCart(item.name)}
-                          style={btn({ background:"#fbeaea",border:"1px solid #e6c3c3",color:"#c0392b",width:26,height:26,fontSize:14,borderRadius:6 })}>✕</button>
-                      </div>
-                    </div>
-                    <div onClick={()=>setCart(prev=>prev.map((it,idx)=>idx===i?{...it,is_takeaway:!it.is_takeaway}:it))}
-                      style={{ display:"inline-flex",alignItems:"center",gap:6,marginTop:5,cursor:"pointer",userSelect:"none",
-                        background:item.is_takeaway?"#eef1f6":"transparent",
-                        border:`1.5px solid ${item.is_takeaway?"#394c76":C.border}`,
-                        borderRadius:7,padding:"4px 9px",transition:"all 0.15s" }}>
-                      <div style={{ width:16,height:16,borderRadius:4,border:`2px solid ${item.is_takeaway?"#394c76":C.muted}`,background:item.is_takeaway?"#394c76":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-                        {item.is_takeaway && <Icon name="check" size={11} color="#fff" stroke={2.6} />}
-                      </div>
-                      <span style={{ fontSize:11,color:item.is_takeaway?"#394c76":C.muted,fontWeight:item.is_takeaway?"bold":"normal",display:"flex",alignItems:"center",gap:5 }}><Icon name="bag" size={11} color={item.is_takeaway?"#394c76":C.muted} /> Takeaway</span>
-                    </div>
-                  </div>
-                ))}
-                <div style={{ fontSize:12,color:C.muted,marginTop:10,marginBottom:4 }}>Special request (optional)</div>
-                <input value={cartNote} onChange={e=>setCartNote(e.target.value)}
-                  placeholder="e.g. no sugar, less ice, extra spicy..."
-                  style={{ width:"100%",background:C.bg,border:`1px solid ${C.border}`,color:C.text,padding:"7px 10px",borderRadius:8,fontSize:14,fontFamily:"Georgia,serif",boxSizing:"border-box",outline:"none" }} />
-              </div>
-              <button onClick={saveNewItems} disabled={saving}
-                style={btn({ width:"100%",background:C.goldGrad,border:"none",color:C.dark,padding:"16px 0",fontSize:15,fontWeight:"bold",borderRadius:12 })}>
-                {saving?"Saving…":`Send to Kitchen — RM ${cartTotal.toFixed(2)} (${cart.reduce((s,i)=>s+i.qty,0)} items)`}
-              </button>
-            </div>
-          )}
-          </div>
-        </div>
-      )}
-      {/* Addon Picker Modal */}
-      {addonPicker && (
-        <div style={{ position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",zIndex:20000,display:"flex",alignItems:"center",justifyContent:"center",padding:16 }}>
-          <div style={{ background:C.panel,border:`2px solid ${C.gold}`,borderRadius:16,width:"100%",maxWidth:440,maxHeight:"80vh",display:"flex",flexDirection:"column",overflow:"hidden" }}>
-            <div style={{ padding:"14px 16px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-              <div>
-                <div style={{ color:C.goldLight,fontSize:16,fontWeight:"bold" }}>{addonPicker.name}</div>
-                <div style={{ color:C.muted,fontSize:12 }}>{addonPicker.addon_required?"Select one (required)":"Select extras (optional)"}</div>
-              </div>
-              <button onClick={()=>setAddonPicker(null)} style={btn({ background:"transparent",border:`1px solid ${C.border}`,color:C.muted,width:32,height:32,borderRadius:50,fontSize:16 })}>✕</button>
-            </div>
-            <div style={{ overflowY:"auto",padding:12,flex:1 }}>
-              {addonPicker.addons.map((addon,ai)=>{
-                const selected = pickerAddons.some(a=>a.name===addon.name);
-                return (
-                  <div key={ai} onClick={()=>{
-                    if (addonPicker.addon_required) setPickerAddons([addon]);
-                    else setPickerAddons(prev=>selected?prev.filter(a=>a.name!==addon.name):[...prev,addon]);
-                  }} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",marginBottom:8,borderRadius:10,border:`2px solid ${selected?C.gold:C.border}`,background:selected?"#eef1f6":C.bg,cursor:"pointer" }}>
-                    <div style={{ display:"flex",alignItems:"center",gap:10 }}>
-                      <div style={{ width:22,height:22,borderRadius:addonPicker.addon_required?11:5,border:`2px solid ${selected?C.gold:C.border}`,background:selected?C.gold:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-                        {selected && <Icon name="check" size={14} color="#fff" stroke={2.6} />}
-                      </div>
-                      <span style={{ color:C.text,fontSize:14 }}>{addon.name}</span>
-                    </div>
-                    <span style={{ color:C.gold,fontSize:13,fontWeight:"bold",flexShrink:0 }}>
-                      {(() => {
-                        const raw = parseFloat(addon.price||0);
-                        const eff = effAddonPrice(addon, addonPicker, isVip, vipGroupSlug);
-                        if (eff === raw) return raw > 0 ? `+RM ${raw.toFixed(2)}` : "";
-                        return <span><span style={{ textDecoration:"line-through", opacity:0.5, fontSize:11, marginRight:4 }}>+RM {raw.toFixed(2)}</span>+RM {eff.toFixed(2)}</span>;
-                      })()}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ padding:"12px 16px",borderTop:`1px solid ${C.border}` }}>
-              <button onClick={confirmAddonPicker}
-                disabled={addonPicker.addon_required && pickerAddons.length===0}
-                style={btn({ width:"100%",background:(!addonPicker.addon_required||pickerAddons.length>0)?C.goldGrad:"#333",border:"none",color:(!addonPicker.addon_required||pickerAddons.length>0)?C.dark:"#666",padding:"14px 0",fontSize:15,fontWeight:"bold",borderRadius:10 })}>
-                {addonPicker.addon_required && pickerAddons.length===0 ? "Please select one ↑" : (() => {
-                  const addonTotal = pickerAddons.reduce((s,a)=>s+effAddonPrice(a, addonPicker, isVip, vipGroupSlug),0);
-                  const base = addonPicker.addon_required ? 0 : effPrice(addonPicker, isVip, vipGroupSlug);
-                  return `Add to Cart — RM ${(base+addonTotal).toFixed(2)}`;
-                })()}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── VIPTableButtons — shows VIP members in Edit table picker ──
-function VIPTableButtons({ setPickedTable, setStep }) {
-  const [vips, setVips] = useState([]);
-  useEffect(() => {
-    supabase.from("groups").select("id,display_name,group_name")
-      .neq("display_name","__group__")
-      .then(({ data }) => setVips(data||[]));
-  }, []);
-  if (!vips.length) return null;
-  return (
-    <>
-      <div style={{ display:"flex",alignItems:"center",gap:7,fontSize:12,color:"#394c76",marginBottom:8,fontWeight:"bold",letterSpacing:1 }}><Icon name="users" size={14} color="#394c76" /> VIP MEMBERS</div>
-      <div style={{ display:"flex",flexWrap:"wrap",gap:8 }}>
-        {vips.map(v => (
-          <button key={v.id} onClick={async ()=>{
-            // Use same table_no as VIP's active order for full sync
-            const { data } = await supabase.from("orders").select("table_no")
-              .like("table_no",`GRP-${v.id}%`).not("status","in",'("cancelled","paid")').limit(1);
-            const tno = data&&data.length ? data[0].table_no : `GRP-${v.id}`;
-            setPickedTable(tno); setStep("edit");
-          }}
-            style={btn({ background:"#fff",border:`1.5px solid #d6dbe2`,color:"#2b3346",padding:"10px 14px",fontSize:13,fontWeight:"bold",display:"flex",alignItems:"center",gap:7 })}>
-            <Icon name="user" size={14} color="#394c76" /> {v.display_name}
-          </button>
-        ))}
-      </div>
-    </>
-  );
-}
-
 // Returns the next unused "<tableNo>·B{n}" suffix (n starts at 2) so a
 // table can be split more than once without colliding with an existing,
 // still-unpaid sub-bill.
@@ -4959,19 +4732,28 @@ function CashierScreen({ goHome }) {
   const [serviceCharge, setServiceCharge] = useState(10);
   const [pointsEarnRate, setPointsEarnRate] = useState(1);
   const [pointsEarnBasis, setPointsEarnBasis] = useState("final_total");
-  const [pointsRedeemRate, setPointsRedeemRate] = useState(100);
   useEffect(() => {
-    const load = () => supabase.from("app_settings").select("service_charge,points_earn_rate,points_earn_basis,points_redeem_rate").eq("id", 1).maybeSingle()
+    const load = () => supabase.from("app_settings").select("service_charge,points_earn_rate,points_earn_basis").eq("id", 1).maybeSingle()
       .then(({ data }) => {
         if (!data) return;
         setServiceCharge(data.service_charge);
         setPointsEarnRate(data.points_earn_rate ?? 1);
         setPointsEarnBasis(data.points_earn_basis || "final_total");
-        setPointsRedeemRate(data.points_redeem_rate ?? 100);
       });
     load();
     const ch = supabase.channel("app-settings-cashier-watch")
       .on("postgres_changes", { event:"*", schema:"public", table:"app_settings" }, load)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
+  // Rewards Catalog — what a member can redeem points for at checkout
+  const [rewards, setRewards] = useState([]);
+  useEffect(() => {
+    const load = () => supabase.from("rewards").select("*").eq("is_active", true).order("points_cost",{ ascending:true })
+      .then(({ data }) => setRewards(data||[]));
+    load();
+    const ch = supabase.channel("rewards-cashier-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"rewards" }, load)
       .subscribe();
     return () => supabase.removeChannel(ch);
   }, []);
@@ -4981,7 +4763,7 @@ function CashierScreen({ goHome }) {
   const [memberSearchQuery, setMemberSearchQuery] = useState("");
   const [memberSearchResults, setMemberSearchResults] = useState([]);
   const [memberLookupMsg, setMemberLookupMsg] = useState("");
-  const [redeemPointsInput, setRedeemPointsInput] = useState("");
+  const [selectedRewardId, setSelectedRewardId] = useState(null);
   const [showJoinQR, setShowJoinQR] = useState(false);
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberPhone, setNewMemberPhone] = useState("");
@@ -4991,7 +4773,18 @@ function CashierScreen({ goHome }) {
     setPayModalRaw(v);
     if (!v) {
       setPayMember(null); setShowMemberSearchModal(false); setMemberSearchQuery(""); setMemberSearchResults([]); setMemberLookupMsg("");
-      setRedeemPointsInput(""); setShowJoinQR(false); setNewMemberName(""); setNewMemberPhone("");
+      setSelectedRewardId(null); setShowJoinQR(false); setNewMemberName(""); setNewMemberPhone("");
+    } else {
+      // Pre-fill whatever the customer already identified/picked on their own phone —
+      // cashier can still remove/change either before confirming.
+      supabase.from("table_sessions").select("member_id, pending_reward_id").eq("table_no", String(v.tableNo)).maybeSingle()
+        .then(({ data }) => {
+          if (data?.member_id) {
+            supabase.from("members").select("*").eq("id", data.member_id).maybeSingle()
+              .then(({ data:m }) => { if (m) setPayMember(m); });
+          }
+          if (data?.pending_reward_id) setSelectedRewardId(data.pending_reward_id);
+        });
     }
   };
   // Live search as the cashier types — matches partial name OR partial phone,
@@ -5049,7 +4842,6 @@ function CashierScreen({ goHome }) {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
-  const [editTableModal, setEditTableModal] = useState(null); // tableNo to edit
   const [splitBillModal, setSplitBillModal] = useState(null); // tableNo, or null
   const [selectMode, setSelectMode] = useState(false);
   const [selectedForCombine, setSelectedForCombine] = useState([]);
@@ -5215,7 +5007,8 @@ function CashierScreen({ goHome }) {
     const paidAt = new Date().toISOString();
     // Only update status — paid_session_id/paid_at columns may not exist in DB
     await supabase.from("orders").update({status:"paid", member_id:memberId}).eq("table_no",tableNo).in("status",["pending","done"]);
-    await supabase.from("table_sessions").upsert({table_no:parseInt(tableNo), session_id:sessionId, updated_at:paidAt});
+    // member_id/pending_reward_id reset to null so the next customer at this table doesn't inherit this one's identity/pick
+    await supabase.from("table_sessions").upsert({table_no:String(tableNo), session_id:sessionId, updated_at:paidAt, member_id:null, pending_reward_id:null});
     setPaying(null); fetchAll();
   };
 
@@ -5225,12 +5018,12 @@ function CashierScreen({ goHome }) {
     for (const tno of tableNos) {
       const sessionId = "paid_" + Date.now();
       await supabase.from("orders").update({status:"paid", member_id:memberId}).eq("table_no",tno).in("status",["pending","done"]);
-      await supabase.from("table_sessions").upsert({table_no:parseInt(tno), session_id:sessionId, updated_at:paidAt});
+      await supabase.from("table_sessions").upsert({table_no:String(tno), session_id:sessionId, updated_at:paidAt, member_id:null, pending_reward_id:null});
     }
     setPaying(null); fetchAll();
   };
 
-  const printReceipt = (tableNo, data, paymentMethod=null, cashReceived=null, changeAmt=null, discount=0) => {
+  const printReceipt = (tableNo, data, paymentMethod=null, cashReceived=null, changeAmt=null, discount=0, rewardName=null) => {
     const charge = serviceCharge;
     const subtotal = data.total;
     const chargeAmt = +(subtotal * charge / 100).toFixed(2);
@@ -5288,7 +5081,7 @@ function CashierScreen({ goHome }) {
     <div class="row bold"><span>Subtotal</span><span></span><span>${subtotal.toFixed(2)}</span></div>
     <div class="divider"></div>
     ${charge>0?`<div class="row"><span>+Service Charge, ${charge}%</span><span></span><span>${chargeAmt.toFixed(2)}</span></div><div class="divider"></div>`:""}
-    ${discount>0?`<div class="row"><span>-Loyalty Discount</span><span></span><span>${discount.toFixed(2)}</span></div><div class="divider"></div>`:""}
+    ${rewardName?`<div class="row"><span>Redeemed: ${rewardName}</span><span></span><span>${discount>0?"-"+discount.toFixed(2):"FREE"}</span></div><div class="divider"></div>`:discount>0?`<div class="row"><span>-Loyalty Discount</span><span></span><span>${discount.toFixed(2)}</span></div><div class="divider"></div>`:""}
     <div class="row grand"><span>Grand total</span><span></span><span>${parseFloat(rounded).toFixed(2)}</span></div>
     <div class="divider"></div>
     ${paymentMethod ? `
@@ -5337,9 +5130,8 @@ function CashierScreen({ goHome }) {
         const subtotal = payModal.data.total;
         const chargeAmt = +(subtotal * charge / 100).toFixed(2);
         const grandTotal = +(subtotal + chargeAmt).toFixed(2);
-        const maxRedeemable = payMember ? Math.floor(Math.min(payMember.points, grandTotal * pointsRedeemRate)) : 0;
-        const redeemPts = Math.min(parseInt(redeemPointsInput)||0, maxRedeemable);
-        const discount = pointsRedeemRate > 0 ? +(redeemPts / pointsRedeemRate).toFixed(2) : 0;
+        const selectedReward = payMember ? rewards.find(r => r.id === selectedRewardId) || null : null;
+        const discount = selectedReward && selectedReward.reward_type === "discount" ? Math.min(parseFloat(selectedReward.discount_amount)||0, grandTotal) : 0;
         const netTotal = +(grandTotal - discount).toFixed(2);
         const rounded = +(Math.round(netTotal * 20) / 20).toFixed(2);
         const roundingDiff = +(rounded - netTotal).toFixed(2);
@@ -5395,17 +5187,24 @@ function CashierScreen({ goHome }) {
                           <div style={{ fontSize:14, fontWeight:"bold", color:"#394c76", fontFamily:"Georgia,serif" }}>{payMember.name}</div>
                           <div style={{ fontSize:12, color:"#666", fontFamily:"Georgia,serif" }}>{payMember.points} points</div>
                         </div>
-                        <button onClick={() => { setPayMember(null); setRedeemPointsInput(""); }} style={{ background:"transparent", border:"none", color:"#c0392b", fontSize:13, cursor:"pointer", fontFamily:"Georgia,serif" }}>Remove</button>
+                        <button onClick={() => { setPayMember(null); setSelectedRewardId(null); }} style={{ background:"transparent", border:"none", color:"#c0392b", fontSize:13, cursor:"pointer", fontFamily:"Georgia,serif" }}>Remove</button>
                       </div>
-                      {maxRedeemable > 0 && (
-                        <div style={{ marginTop:8 }}>
-                          <div style={{ fontSize:11, color:"#888", marginBottom:4, fontFamily:"Georgia,serif" }}>Redeem points (max {maxRedeemable})</div>
-                          <input type="number" min="0" max={maxRedeemable} value={redeemPointsInput}
-                            onChange={e => {
-                              const v = Math.max(0, Math.min(maxRedeemable, parseInt(e.target.value)||0));
-                              setRedeemPointsInput(v ? String(v) : "");
-                            }}
-                            style={{ width:"100%", border:"1px solid #ccc", borderRadius:8, padding:"8px 12px", fontSize:14, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
+                      {rewards.filter(r => r.reward_type === "discount").length > 0 && (
+                        <div style={{ marginTop:10 }}>
+                          <div style={{ fontSize:11, color:"#888", marginBottom:6, fontFamily:"Georgia,serif" }}>Redeem cash off this bill</div>
+                          {rewards.filter(r => r.reward_type === "discount").map(r => {
+                            const affordable = payMember.points >= r.points_cost;
+                            const selected = selectedRewardId === r.id;
+                            return (
+                              <button key={r.id} disabled={!affordable}
+                                onClick={() => setSelectedRewardId(selected ? null : r.id)}
+                                style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", background:selected?"#394c76":"#fff", border:`1.5px solid ${selected?"#394c76":"#ddd"}`, color:selected?"#fff":affordable?"#1a1a1a":"#bbb", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", cursor:affordable?"pointer":"not-allowed", marginBottom:6 }}>
+                                <span>{r.name} — RM{parseFloat(r.discount_amount||0).toFixed(2)} off</span>
+                                <span style={{ fontWeight:"bold" }}>{r.points_cost} pts{!affordable?" (not enough)":""}</span>
+                              </button>
+                            );
+                          })}
+                          <div style={{ fontSize:11, color:"#aaa", marginTop:2, fontFamily:"Georgia,serif" }}>Free-item rewards are redeemed on the customer's own phone during their visit, so the kitchen gets it in time.</div>
                         </div>
                       )}
                     </div>
@@ -5430,8 +5229,8 @@ function CashierScreen({ goHome }) {
                   {charge>0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#666", marginBottom:4, fontFamily:"Georgia,serif" }}>
                     <span>Service Charge ({charge}%)</span><span>{chargeAmt.toFixed(2)}</span>
                   </div>}
-                  {discount>0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#2e7d32", marginBottom:4, fontFamily:"Georgia,serif" }}>
-                    <span>Loyalty Discount ({redeemPts} pts)</span><span>-{discount.toFixed(2)}</span>
+                  {selectedReward && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#2e7d32", marginBottom:4, fontFamily:"Georgia,serif" }}>
+                    <span>Redeemed: {selectedReward.name} ({selectedReward.points_cost} pts)</span><span>{discount>0?`-${discount.toFixed(2)}`:"FREE"}</span>
                   </div>}
                   {roundingDiff!==0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#aaa", marginBottom:4, fontFamily:"Georgia,serif" }}>
                     <span>Rounding</span><span>{roundingDiff>0?"+":""}{roundingDiff.toFixed(2)}</span>
@@ -5463,14 +5262,14 @@ function CashierScreen({ goHome }) {
                   <div style={{ display:"flex", gap:8 }}>
                     <button onClick={() => setPayModal(null)}
                       style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"12px 0", fontSize:13, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif" }}>✕ Cancel</button>
-                    <button onClick={() => { printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null, discount); }}
+                    <button onClick={() => { printReceipt(payModal.tableNo, payModal.data, payModal.method, payModal.cashReceived||null, payModal.method==="Cash"&&change>=0?change:null, discount, selectedReward?.name||null); }}
                       style={{ flex:2, background:"#555", border:"none", color:"#fff", padding:"12px 0", fontSize:13, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
                       🖨️ Preview Receipt
                     </button>
                   </div>
                   <button onClick={() => {
                     if (!canConfirm) return;
-                    setConfirmModal({ tableNo:payModal.tableNo, data:payModal.data, method:payModal.method, cashReceived:payModal.cashReceived||null, change:payModal.method==="Cash"&&change>=0?change:null, rounded, subtotal, discount, member:payMember });
+                    setConfirmModal({ tableNo:payModal.tableNo, data:payModal.data, method:payModal.method, cashReceived:payModal.cashReceived||null, change:payModal.method==="Cash"&&change>=0?change:null, rounded, subtotal, discount, reward:selectedReward, member:payMember });
                   }} disabled={!canConfirm}
                     style={{ width:"100%", background:canConfirm?"linear-gradient(135deg,#394c76,#2c3b5e)":"#ccc", border:"none", color:"#fff", padding:"16px 0", fontSize:16, borderRadius:10, cursor:canConfirm?"pointer":"not-allowed", fontFamily:"Georgia,serif", fontWeight:"bold", boxShadow:canConfirm?"0 4px 12px rgba(25,118,210,0.4)":"none" }}>
                     {payModal.method==="Cash"&&!canConfirm?"Enter Cash Amount Above ↑":`✅ Print & Clear Table — RM ${parseFloat(rounded).toFixed(2)}`}
@@ -5579,11 +5378,6 @@ function CashierScreen({ goHome }) {
             setTableDetailModal={setTableDetailModal} />
         );
       })()}
-
-      {/* Edit Table Modal */}
-      {editTableModal && (
-        <EditTableModal tableNo={editTableModal} onClose={() => setEditTableModal(null)} onSaved={() => { setEditTableModal(null); fetchAll(); }} />
-      )}
 
       {splitBillModal && (() => {
         const tableOrders = orders.filter(o => String(o.table_no) === String(splitBillModal));
@@ -5718,7 +5512,7 @@ function CashierScreen({ goHome }) {
                 )}
                 {confirmModal.member && (
                   <div style={{ marginTop:8, fontSize:12, color:"#394c76", fontFamily:"Georgia,serif" }}>
-                    Member: {confirmModal.member.name}{confirmModal.discount>0?` · redeeming ${Math.round(confirmModal.discount*pointsRedeemRate)} pts`:""}
+                    Member: {confirmModal.member.name}{confirmModal.reward?` · redeeming ${confirmModal.reward.name} (${confirmModal.reward.points_cost} pts)`:""}
                   </div>
                 )}
               </div>
@@ -5735,13 +5529,13 @@ function CashierScreen({ goHome }) {
                   ✕ Cancel
                 </button>
                 <button onClick={async () => {
-                  printReceipt(confirmModal.tableNo, confirmModal.data, confirmModal.method, confirmModal.cashReceived, confirmModal.change, confirmModal.discount||0);
+                  printReceipt(confirmModal.tableNo, confirmModal.data, confirmModal.method, confirmModal.cashReceived, confirmModal.change, confirmModal.discount||0, confirmModal.reward?.name||null);
                   if (confirmModal.tableNos) markPaidMulti(confirmModal.tableNos, confirmModal.method, confirmModal.member?.id||null);
                   else markPaid(confirmModal.tableNo, confirmModal.method, confirmModal.member?.id||null);
                   if (confirmModal.member) {
                     const earnBasisAmount = pointsEarnBasis === "subtotal" ? confirmModal.subtotal : confirmModal.rounded;
                     const earned = Math.floor(earnBasisAmount * pointsEarnRate);
-                    const redeemed = confirmModal.discount>0 ? Math.round(confirmModal.discount * pointsRedeemRate) : 0;
+                    const redeemed = confirmModal.reward ? confirmModal.reward.points_cost : 0;
                     const newPoints = Math.max(0, confirmModal.member.points - redeemed + earned);
                     const newSpent = parseFloat(confirmModal.member.total_spent||0) + confirmModal.rounded;
                     const { error: ptsErr } = await supabase.from("members").update({ points:newPoints, total_spent:newSpent }).eq("id", confirmModal.member.id);
@@ -5784,7 +5578,6 @@ function CashierScreen({ goHome }) {
             style={btn({ background:selectMode?"#fff":"rgba(255,255,255,0.1)", border:selectMode?"none":"1px solid rgba(255,255,255,0.28)", color:selectMode?"#394c76":"rgba(255,255,255,0.8)", padding:"7px 12px", fontSize:11, fontWeight:selectMode?"bold":"normal" })}>
             {selectMode ? "Cancel Select" : "Select"}
           </button>
-          <button onClick={() => setEditTableModal("pick")} style={btn({ background:"rgba(255,255,255,0.16)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"7px 12px", fontSize:11, fontWeight:"bold" })}>Edit</button>
           <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:11 })}>← Back</button>
         </div>
       </div>
