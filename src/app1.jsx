@@ -834,6 +834,8 @@ function GroupScreen({ tableNo, setTableNo, onBack }) {
 function JoinScreen({ groupSlug, goHome }) {
   const [groupName, setGroupName] = useState("");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState("MY");
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(null);
   const [error, setError] = useState("");
@@ -846,12 +848,23 @@ function JoinScreen({ groupSlug, goHome }) {
 
   const register = async () => {
     if (name.trim().length < 3) { setError("Name must be at least 3 letters"); return; }
+    const dial = PHONE_COUNTRIES.find(c=>c.code===country).dial;
+    const phoneNorm = composePhone(phone, dial);
+    if (phoneNorm.length < 6) { setError("Please enter a valid phone number"); return; }
     setSaving(true); setError("");
     const id = `${groupSlug}-${name.trim().toLowerCase().replace(/[^a-z0-9]+/g,"-")}`;
     const { error: err } = await supabase.from("groups").upsert({
       id, display_name: name.trim(), group_name: groupName||groupSlug, group_slug: groupSlug
     });
     if (err) { setError("Failed — please try again"); setSaving(false); return; }
+    // Registering as a VIP also makes you a loyalty member in the same step —
+    // no separate "add loyalty phone" visit needed like the bulk-added path.
+    const { data: existingMember } = await supabase.from("members").select("id").eq("phone", phoneNorm).maybeSingle();
+    if (existingMember) {
+      await supabase.from("members").update({ source_group_id: id, name: name.trim() }).eq("id", existingMember.id);
+    } else {
+      await supabase.from("members").insert({ name: name.trim(), phone: phoneNorm, source_group_id: id });
+    }
     setDone({ name: name.trim(), url: `${baseUrl}?group=${id}` });
     setSaving(false);
   };
@@ -950,13 +963,24 @@ function JoinScreen({ groupSlug, goHome }) {
           placeholder="Your name (e.g. Ahmad)"
           autoFocus
           style={{ width:"100%", background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:C.text, padding:"16px 18px", borderRadius:14, fontSize:18, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"center", marginBottom:8, outline:"none" }} />
+        <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+          <select value={country} onChange={e=>setCountry(e.target.value)}
+            style={{ width:135, flexShrink:0, background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:"#2b3346", padding:"0 10px", borderRadius:14, fontSize:16, fontFamily:"Georgia,serif", outline:"none" }}>
+            {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.code} +{c.dial} {c.name}</option>)}
+          </select>
+          <input value={phone} onChange={e=>{setPhone(e.target.value);setError("");}}
+            onKeyDown={e=>e.key==="Enter"&&register()}
+            placeholder="Phone number" type="tel"
+            style={{ flex:1, minWidth:0, background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:"#2b3346", padding:"16px 14px", borderRadius:14, fontSize:16, fontFamily:"Georgia,serif", boxSizing:"border-box", outline:"none" }} />
+        </div>
+        <div style={{ fontSize:11, color:"#c9cfd8", textAlign:"center", marginBottom:8 }}>Also makes you a loyalty member — earn &amp; redeem points on every visit.</div>
         {error && <div style={{ color:"#ff7777", fontSize:13, textAlign:"center", marginBottom:8 }}>{error}</div>}
         <button onClick={register} disabled={saving||name.trim().length<3}
           style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:name.trim().length>=3?"linear-gradient(150deg,#394c76,#2c3b5e)":"#dfe3ea", border:"none", color:name.trim().length>=3?"#fff":"#9a9fab", padding:"16px 0", borderRadius:14, fontSize:18, fontWeight:"bold", marginTop:4 }}>
           {saving?"Saving...":"✓ Get My QR Code"}
         </button>
         <div style={{ fontSize:12, color:"#c9cfd8", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
-          Already registered before? Just type your name again — we will find your QR! 😊
+          Already registered before? Just type your name and phone again — we will find your QR! 😊
         </div>
         <div style={{ marginTop:20, background:"#f4f6f9", border:"1px solid #e3e7f0", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
           <div style={{ fontSize:11, color:"#c9cfd8", marginBottom:4 }}>Lost your shortcut or QR?</div>
@@ -1289,7 +1313,7 @@ function GroupAdminScreen({ goHome }) {
             onClick={()=>setQrTarget(null)}>
             <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:20, padding:24, textAlign:"center", maxWidth:340, width:"92%" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginBottom:2 }}><Icon name="user" size={18} color="#394c76" /><div className="hl-title" style={{ fontSize:18, fontWeight:700, color:"#2b3346" }}>{qrTarget.name}</div></div>
-              <div style={{ fontSize:12, color:"#8c8c8c", marginBottom:14 }}>VIP scans this — or send the link (works on any phone)</div>
+              <div style={{ fontSize:12, color:"#8c8c8c", marginBottom:14 }}>{qrTarget.subtitle || "VIP scans this — or send the link (works on any phone)"}</div>
               <img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrTarget.url)}&bgcolor=ffffff&color=000000&margin=10`}
                 style={{ width:220, height:220, borderRadius:8, border:"2px solid #d6dbe2" }} alt="QR" />
               {/* Clickable link */}
@@ -1298,7 +1322,7 @@ function GroupAdminScreen({ goHome }) {
                 {qrTarget.url}
               </a>
               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                <a href={`https://wa.me/?text=${encodeURIComponent("Hi "+qrTarget.name+"! Here is your personal Hoto Lounge menu — tap to open: "+qrTarget.url)}`}
+                <a href={`https://wa.me/?text=${encodeURIComponent(qrTarget.waText || ("Hi "+qrTarget.name+"! Here is your personal Hoto Lounge menu — tap to open: "+qrTarget.url))}`}
                   target="_blank" rel="noreferrer"
                   style={{ display:"block", background:"#394c76", color:"#fff", padding:"13px 0", borderRadius:10, fontWeight:"bold", fontSize:15, textDecoration:"none" }}>
                   Send Link via WhatsApp
@@ -1362,6 +1386,12 @@ function GroupAdminScreen({ goHome }) {
                   <div style={{ fontSize:11, color:"#394c76", letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>VIP Self-Register Link</div>
                   <div style={{ fontSize:11, color:"#8c8c8c", fontFamily:"monospace", wordBreak:"break-all", marginBottom:10 }}>{baseUrl}?join={grp.slug}</div>
                   <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={()=>setQrTarget({
+                        name:`${grp.name} — Register`, url:`${baseUrl}?join=${grp.slug}`,
+                        subtitle:"Scan to register your name & phone as a VIP member",
+                        waText:"Hi! Register your name to order at Hoto Lounge — tap this link, type your name and save your personal QR code: "+baseUrl+"?join="+grp.slug,
+                      })}
+                      style={btn({ background:C.gold, border:"none", color:"#fff", padding:"8px 0", fontSize:13, fontWeight:"bold", borderRadius:8, flex:1 })}>📱 Show QR</button>
                     <button onClick={()=>{ navigator.clipboard?.writeText(`${baseUrl}?join=${grp.slug}`); showToast("Link copied!"); }}
                       style={btn({ background:"#fff", border:`1px solid #394c76`, color:"#394c76", padding:"8px 0", fontSize:13, borderRadius:8, flex:1 })}>Copy Link</button>
                     <a href={`https://wa.me/?text=${encodeURIComponent("Hi! Register your name to order at Hoto Lounge — tap this link, type your name and save your personal QR code: "+baseUrl+"?join="+grp.slug)}`}
@@ -1690,8 +1720,8 @@ function SystemSettingsScreen({ goHome }) {
     });
     setNewReward({ name:"", points_cost:"", reward_type:"discount", discount_amount:"", menu_item_id:"", valid_from:"", valid_until:"" });
   };
-  const toggleRewardActive = (reward) => supabase.from("rewards").update({ is_active: !reward.is_active }).eq("id", reward.id);
-  const deleteReward = (id) => supabase.from("rewards").delete().eq("id", id);
+  const toggleRewardActive = (reward) => supabase.from("rewards").update({ is_active: !reward.is_active }).eq("id", reward.id).then(loadRewards);
+  const deleteReward = (id) => supabase.from("rewards").delete().eq("id", id).then(loadRewards);
 
   if (!form) {
     return <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", color:C.muted }}>Loading…</div>;
@@ -5618,7 +5648,7 @@ function CashierScreen({ goHome }) {
         const subtotal = payModal.data.total;
         const chargeAmt = +(subtotal * charge / 100).toFixed(2);
         const grandTotal = +(subtotal + chargeAmt).toFixed(2);
-        const selectedReward = payMember ? rewards.find(r => r.id === selectedRewardId) || null : null;
+        const selectedReward = payMember ? rewards.find(r => r.id === selectedRewardId && payMember.points >= r.points_cost) || null : null;
         const discount = selectedReward && selectedReward.reward_type === "discount" ? Math.min(parseFloat(selectedReward.discount_amount)||0, grandTotal) : 0;
         const netTotal = +(grandTotal - discount).toFixed(2);
         const rounded = +(Math.round(netTotal * 20) / 20).toFixed(2);
@@ -5677,24 +5707,31 @@ function CashierScreen({ goHome }) {
                         </div>
                         <button onClick={async () => { setPayMember(null); setSelectedRewardId(null); await supabase.from("table_sessions").upsert({ table_no:String(payModal.tableNo), member_id:null, pending_reward_id:null }); }} style={{ background:"transparent", border:"none", color:"#c0392b", fontSize:13, cursor:"pointer", fontFamily:"Georgia,serif" }}>Remove</button>
                       </div>
-                      {rewards.filter(r => r.reward_type === "discount").length > 0 && (
-                        <div style={{ marginTop:10 }}>
-                          <div style={{ fontSize:11, color:"#888", marginBottom:6, fontFamily:"Georgia,serif" }}>Redeem cash off this bill</div>
-                          {rewards.filter(r => r.reward_type === "discount").map(r => {
-                            const affordable = payMember.points >= r.points_cost;
-                            const selected = selectedRewardId === r.id;
-                            return (
-                              <button key={r.id} disabled={!affordable}
-                                onClick={() => setSelectedRewardId(selected ? null : r.id)}
-                                style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", background:selected?"#394c76":"#fff", border:`1.5px solid ${selected?"#394c76":"#ddd"}`, color:selected?"#fff":affordable?"#1a1a1a":"#bbb", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", cursor:affordable?"pointer":"not-allowed", marginBottom:6 }}>
-                                <span>{r.name} — RM{parseFloat(r.discount_amount||0).toFixed(2)} off</span>
-                                <span style={{ fontWeight:"bold" }}>{r.points_cost} pts{!affordable?" (not enough)":""}</span>
-                              </button>
-                            );
-                          })}
-                          <div style={{ fontSize:11, color:"#aaa", marginTop:2, fontFamily:"Georgia,serif" }}>Free-item rewards are redeemed on the customer's own phone during their visit, so the kitchen gets it in time.</div>
-                        </div>
-                      )}
+                      {(() => {
+                        const pickedDiscount = rewards.find(r => r.id === selectedRewardId && r.reward_type === "discount");
+                        if (pickedDiscount) {
+                          const affordable = payMember.points >= pickedDiscount.points_cost;
+                          return (
+                            <div style={{ marginTop:10, background:"#fff", border:`1.5px solid ${affordable?"#394c76":"#c0392b"}`, borderRadius:8, padding:"9px 12px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                              <div>
+                                <div style={{ fontSize:13, fontWeight:"bold", color:affordable?"#394c76":"#c0392b", fontFamily:"Georgia,serif" }}>
+                                  🎁 {pickedDiscount.name} — RM{parseFloat(pickedDiscount.discount_amount||0).toFixed(2)} off
+                                </div>
+                                <div style={{ fontSize:11, color:"#888", fontFamily:"Georgia,serif" }}>
+                                  {affordable ? "Picked by the customer on their own phone" : "Not enough points anymore — won't be applied"} · {pickedDiscount.points_cost} pts
+                                </div>
+                              </div>
+                              <button onClick={async () => { setSelectedRewardId(null); await supabase.from("table_sessions").upsert({ table_no:String(payModal.tableNo), pending_reward_id:null }); }}
+                                style={{ background:"transparent", border:"none", color:"#c0392b", fontSize:12, cursor:"pointer", fontFamily:"Georgia,serif" }}>Remove</button>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div style={{ fontSize:11, color:"#aaa", marginTop:10, fontFamily:"Georgia,serif", lineHeight:1.5 }}>
+                            No reward selected yet — rewards (cash off or free item) are redeemed on the customer's own phone during their visit, and appear here automatically once picked.
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
