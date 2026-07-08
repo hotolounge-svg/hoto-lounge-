@@ -863,11 +863,19 @@ function JoinScreen({ groupSlug, goHome }) {
     if (err) { setError("Failed — please try again"); setSaving(false); return; }
     // Registering as a VIP also makes you a loyalty member in the same step —
     // no separate "add loyalty phone" visit needed like the bulk-added path.
-    const { data: existingMember } = await supabase.from("members").select("id").eq("phone", phoneNorm).maybeSingle();
-    if (existingMember) {
-      await supabase.from("members").update({ source_group_id: id, name: name.trim() }).eq("id", existingMember.id);
+    // IMPORTANT: check ownership by THIS group entry's own id, not by phone —
+    // looking up by phone first and reassigning whatever row matched would let
+    // a mistyped or reused number silently steal another member's points.
+    const { data: ownLink } = await supabase.from("members").select("id").eq("source_group_id", id).maybeSingle();
+    if (ownLink) {
+      await supabase.from("members").update({ phone: phoneNorm, name: name.trim() }).eq("id", ownLink.id);
     } else {
-      await supabase.from("members").insert({ name: name.trim(), phone: phoneNorm, source_group_id: id });
+      const { error: memErr } = await supabase.from("members").insert({ name: name.trim(), phone: phoneNorm, source_group_id: id });
+      if (memErr && memErr.code === "23505") {
+        setError("This phone number is already registered to another member — please double-check it.");
+        setSaving(false);
+        return;
+      }
     }
     setDone({ name: name.trim(), url: `${baseUrl}?group=${id}` });
     setSaving(false);
@@ -1280,19 +1288,34 @@ function GroupAdminScreen({ goHome }) {
 
   const deleteGroup = (slug, name) => {
     setConfirmModal({
-      msg: `Delete group "${name}" and all members?`,
+      msg: `Delete group "${name}", all its members, and any loyalty points they've earned? This can't be undone.`,
       onConfirm: async () => {
         setConfirmModal(null);
+        const memberIds = groups.filter(g => g.group_slug === slug).map(g => g.id);
         setGroups(prev => prev.filter(g => g.group_slug !== slug));
+        await supabase.from("members").delete().in("source_group_id", memberIds);
         await supabase.from("groups").delete().eq("group_slug", slug);
         showToast("Group deleted");
       }
     });
   };
 
-  const deleteMember = async (id) => {
-    setGroups(prev => prev.filter(g => g.id !== id)); // instant UI
-    await supabase.from("groups").delete().eq("id", id);
+  // Deleting a VIP also deletes their linked loyalty account (points + history) —
+  // one action removes both, instead of leaving an orphaned points record behind.
+  const deleteMember = (member) => {
+    const loyalty = loyaltyByGroupId[member.id];
+    setConfirmModal({
+      msg: loyalty
+        ? `Remove ${member.display_name} and delete their loyalty points (${loyalty.points} pts)? This can't be undone.`
+        : `Remove ${member.display_name}?`,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        setGroups(prev => prev.filter(g => g.id !== member.id)); // instant UI
+        await supabase.from("members").delete().eq("source_group_id", member.id);
+        await supabase.from("groups").delete().eq("id", member.id);
+        showToast("Member removed");
+      }
+    });
   };
 
   const grouped = groups.reduce((acc,g) => {
@@ -1460,7 +1483,7 @@ function GroupAdminScreen({ goHome }) {
                         <div style={{ display:"flex", gap:8 }}>
                           <button onClick={()=>setQrTarget({ name:m.display_name, url })}
                             style={btn({ background:C.gold, border:"none", color:"#fff", padding:"6px 14px", fontSize:12, fontWeight:"bold", borderRadius:6, display:"flex", alignItems:"center", gap:6 })}><Icon name="grid" size={13} color="#fff" /> Show QR</button>
-                          <button onClick={()=>deleteMember(m.id)}
+                          <button onClick={()=>deleteMember(m)}
                             style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"6px 10px", fontSize:12, borderRadius:6 })}>✕</button>
                         </div>
                       </div>
