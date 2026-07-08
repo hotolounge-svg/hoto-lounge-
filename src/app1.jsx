@@ -1171,6 +1171,12 @@ function GroupAdminScreen({ goHome }) {
   const [phoneEditing, setPhoneEditing] = useState(null); // groups.id currently linking a phone
   const [phoneInput, setPhoneInput] = useState("");
   const [phoneCountry, setPhoneCountry] = useState("MY");
+  const [bottlesByVip, setBottlesByVip] = useState({}); // groups.id -> array of bottle_storage rows
+  const [bottleModal, setBottleModal] = useState(null); // { id, display_name } of VIP being viewed
+  const [newBottleBrand, setNewBottleBrand] = useState("");
+  const [newBottleNote, setNewBottleNote] = useState("");
+  const [newBottlePhoto, setNewBottlePhoto] = useState("");
+  const [bottleUploading, setBottleUploading] = useState(false);
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 2000); };
 
@@ -1181,6 +1187,48 @@ function GroupAdminScreen({ goHome }) {
         (data||[]).forEach(r => { map[r.source_group_id] = r; });
         setLoyaltyByGroupId(map);
       });
+  };
+
+  const loadBottles = () => {
+    supabase.from("bottle_storage").select("*").order("created_at",{ ascending:false })
+      .then(({ data }) => {
+        const map = {};
+        (data||[]).forEach(b => { (map[b.vip_id] = map[b.vip_id] || []).push(b); });
+        setBottlesByVip(map);
+      });
+  };
+
+  const handleBottlePhotoUpload = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    setBottleUploading(true);
+    const path = `bottles/${Date.now()}.${file.name.split(".").pop()}`;
+    const { error } = await supabase.storage.from("menu-images").upload(path, file, { upsert:true });
+    if (error) { showToast("Upload failed: " + error.message); setBottleUploading(false); return; }
+    const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
+    setNewBottlePhoto(data.publicUrl);
+    setBottleUploading(false);
+  };
+
+  const addBottle = async () => {
+    if (!newBottleBrand.trim() || !bottleModal) return;
+    await supabase.from("bottle_storage").insert({
+      vip_id: bottleModal.id, brand: newBottleBrand.trim(), photo_url: newBottlePhoto || null, note: newBottleNote.trim() || null,
+    });
+    setNewBottleBrand(""); setNewBottleNote(""); setNewBottlePhoto("");
+    showToast("Bottle added");
+  };
+
+  const adjustBottle = async (bottle, delta) => {
+    const next = Math.max(0, Math.min(100, bottle.remaining_pct + delta));
+    await supabase.from("bottle_storage").update({ remaining_pct: next, updated_at: new Date().toISOString() }).eq("id", bottle.id);
+  };
+
+  const setBottleStatus = async (bottle, status) => {
+    await supabase.from("bottle_storage").update({ status, updated_at: new Date().toISOString() }).eq("id", bottle.id);
+  };
+
+  const deleteBottle = async (id) => {
+    await supabase.from("bottle_storage").delete().eq("id", id);
   };
 
   const linkPhone = async (member) => {
@@ -1208,11 +1256,15 @@ function GroupAdminScreen({ goHome }) {
   };
   useEffect(() => {
     load(true); // show loader only on first load
+    loadBottles();
     // Realtime — silently update without showing loader
     const ch = supabase.channel("groups-watch")
       .on("postgres_changes", { event:"*", schema:"public", table:"groups" }, () => load(false))
       .subscribe();
-    return () => supabase.removeChannel(ch);
+    const bottleCh = supabase.channel("bottles-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"bottle_storage" }, loadBottles)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); supabase.removeChannel(bottleCh); };
   }, []);
 
   const save = async () => {
@@ -1416,6 +1468,76 @@ function GroupAdminScreen({ goHome }) {
           </div>
         )}
 
+        {/* Bottle Storage modal — VIP/Brothers members who bring their own bottles */}
+        {bottleModal && (() => {
+          const bottles = bottlesByVip[bottleModal.id] || [];
+          const statusLabel = { stored:"🥃 Stored", finished:"✅ Finished", collected:"📦 Collected" };
+          return (
+            <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
+              onClick={()=>setBottleModal(null)}>
+              <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:18, width:"100%", maxWidth:400, maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
+                <div style={{ padding:"16px 20px", borderBottom:"1px solid #eee", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
+                  <div style={{ fontSize:16, fontWeight:"bold", color:"#1a1a1a", fontFamily:"Georgia,serif" }}>🥃 {bottleModal.display_name}'s Bottles</div>
+                  <button onClick={()=>setBottleModal(null)} style={{ background:"#f5f5f5", border:"none", color:"#888", width:30, height:30, borderRadius:8, fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
+                </div>
+                <div style={{ padding:"14px 20px", overflowY:"auto", flex:1 }}>
+                  {bottles.length === 0 && <div style={{ fontSize:13, color:"#aaa", textAlign:"center", padding:"10px 0 18px", fontFamily:"Georgia,serif" }}>No bottles stored yet.</div>}
+                  {bottles.map(b => (
+                    <div key={b.id} style={{ display:"flex", gap:10, padding:"10px 0", borderBottom:"1px solid #f0f0f0" }}>
+                      {b.photo_url
+                        ? <img src={b.photo_url} alt="" style={{ width:56, height:56, borderRadius:8, objectFit:"cover", flexShrink:0 }} />
+                        : <div style={{ width:56, height:56, borderRadius:8, background:"#f4f6f9", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:22 }}>🍾</div>}
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+                          <div style={{ fontSize:14, fontWeight:"bold", color:"#1a1a1a", fontFamily:"Georgia,serif" }}>{b.brand}</div>
+                          <button onClick={()=>deleteBottle(b.id)} style={{ background:"transparent", border:"none", color:"#c0392b", fontSize:12, cursor:"pointer", flexShrink:0 }}>✕</button>
+                        </div>
+                        <div style={{ fontSize:11, color:"#888", marginTop:1, fontFamily:"Georgia,serif" }}>{statusLabel[b.status] || b.status}{b.note ? ` · ${b.note}` : ""}</div>
+                        {b.status === "stored" && (
+                          <>
+                            <div style={{ background:"#f0f0f0", borderRadius:6, height:8, marginTop:6, overflow:"hidden" }}>
+                              <div style={{ width:`${b.remaining_pct}%`, height:"100%", background:b.remaining_pct>25?"#5a3d2b":"#c0392b", transition:"width 0.2s" }} />
+                            </div>
+                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:6 }}>
+                              <div style={{ fontSize:11, color:"#666", fontFamily:"Georgia,serif" }}>{b.remaining_pct}% left</div>
+                              <div style={{ display:"flex", gap:5 }}>
+                                <button onClick={()=>adjustBottle(b,-25)} style={{ background:"#f7f8fa", border:"1px solid #e4e7ec", color:"#5a3d2b", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:"bold", cursor:"pointer" }}>-25%</button>
+                                <button onClick={()=>adjustBottle(b,-10)} style={{ background:"#f7f8fa", border:"1px solid #e4e7ec", color:"#5a3d2b", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:"bold", cursor:"pointer" }}>-10%</button>
+                                <button onClick={()=>setBottleStatus(b,"finished")} style={{ background:"#eaf5ea", border:"1px solid #cde6cd", color:"#2e7d32", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:"bold", cursor:"pointer" }}>Finished</button>
+                                <button onClick={()=>setBottleStatus(b,"collected")} style={{ background:"#eef1f6", border:"1px solid #d6dbe2", color:"#394c76", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:"bold", cursor:"pointer" }}>Collected</button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ padding:"14px 20px", borderTop:"1px solid #eee", flexShrink:0 }}>
+                  <div style={{ fontSize:12, fontWeight:"bold", color:"#1a1a1a", marginBottom:8, fontFamily:"Georgia,serif" }}>+ Add Bottle</div>
+                  <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:8 }}>
+                    {newBottlePhoto
+                      ? <img src={newBottlePhoto} alt="" style={{ width:44, height:44, borderRadius:8, objectFit:"cover", flexShrink:0 }} />
+                      : <div style={{ width:44, height:44, borderRadius:8, background:"#f4f6f9", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:18 }}>🍾</div>}
+                    <label style={{ flex:1, textAlign:"center", background:"#f7f8fa", border:"1px solid #e4e7ec", color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:12, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>
+                      {bottleUploading ? "Uploading…" : "📷 Choose Photo"}
+                      <input type="file" accept="image/*" onChange={handleBottlePhotoUpload} style={{ display:"none" }} disabled={bottleUploading} />
+                    </label>
+                  </div>
+                  <input value={newBottleBrand} onChange={e=>setNewBottleBrand(e.target.value)} placeholder="Brand (e.g. Chivas Regal 18)"
+                    style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box", marginBottom:8 }} />
+                  <input value={newBottleNote} onChange={e=>setNewBottleNote(e.target.value)} placeholder="Note (optional)"
+                    style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box", marginBottom:10 }} />
+                  <button onClick={addBottle} disabled={!newBottleBrand.trim()||bottleUploading}
+                    style={{ fontFamily:"Georgia,serif", cursor:newBottleBrand.trim()?"pointer":"not-allowed", width:"100%", background:newBottleBrand.trim()?"#5a3d2b":"#dfe3ea", border:"none", color:newBottleBrand.trim()?"#fff":"#9a9fab", padding:"11px 0", borderRadius:8, fontSize:13, fontWeight:"bold" }}>
+                    + Add Bottle
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Toast notification */}
         {toast && (
           <div style={{ position:"fixed", bottom:30, left:"50%", transform:"translateX(-50%)", background:"#eef1f6", border:"1.5px solid #394c76", color:"#394c76", padding:"10px 24px", borderRadius:12, fontSize:14, fontWeight:"bold", zIndex:9999, pointerEvents:"none", boxShadow:"0 4px 20px rgba(0,0,0,0.4)" }}>
@@ -1476,11 +1598,17 @@ function GroupAdminScreen({ goHome }) {
                 {grp.members.filter(m=>m.display_name!=="__group__").map(m => {
                   const url = `${baseUrl}?group=${m.id}`;
                   const loyalty = loyaltyByGroupId[m.id];
+                  const bottles = bottlesByVip[m.id] || [];
+                  const activeBottles = bottles.filter(b => b.status === "stored");
                   return (
                     <div key={m.id} style={{ padding:"10px 16px", borderTop:`1px solid ${C.border}` }}>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:6 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:8, color:C.text }}><Icon name="user" size={15} color="#8c8c8c" /><span style={{ fontSize:14, fontWeight:"bold" }}>{m.display_name}</span></div>
                         <div style={{ display:"flex", gap:8 }}>
+                          <button onClick={()=>setBottleModal({ id:m.id, display_name:m.display_name })}
+                            style={btn({ background:activeBottles.length?"#5a3d2b":"#f7f8fa", border:activeBottles.length?"none":`1px solid ${C.border}`, color:activeBottles.length?"#fff":"#5a3d2b", padding:"6px 14px", fontSize:12, fontWeight:"bold", borderRadius:6, display:"flex", alignItems:"center", gap:6 })}>
+                            🥃 {activeBottles.length > 0 ? `${activeBottles.length} bottle${activeBottles.length===1?"":"s"}` : "Bottles"}
+                          </button>
                           <button onClick={()=>setQrTarget({ name:m.display_name, url })}
                             style={btn({ background:C.gold, border:"none", color:"#fff", padding:"6px 14px", fontSize:12, fontWeight:"bold", borderRadius:6, display:"flex", alignItems:"center", gap:6 })}><Icon name="grid" size={13} color="#fff" /> Show QR</button>
                           <button onClick={()=>deleteMember(m)}
