@@ -5654,7 +5654,7 @@ function CashierScreen({ goHome }) {
                   style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"13px 0", fontSize:14, borderRadius:10, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>
                   ✕ Cancel
                 </button>
-                <button onClick={() => {
+                <button onClick={async () => {
                   printReceipt(confirmModal.tableNo, confirmModal.data, confirmModal.method, confirmModal.cashReceived, confirmModal.change, confirmModal.discount||0);
                   if (confirmModal.tableNos) markPaidMulti(confirmModal.tableNos, confirmModal.method, confirmModal.member?.id||null);
                   else markPaid(confirmModal.tableNo, confirmModal.method, confirmModal.member?.id||null);
@@ -5664,7 +5664,8 @@ function CashierScreen({ goHome }) {
                     const redeemed = confirmModal.discount>0 ? Math.round(confirmModal.discount * pointsRedeemRate) : 0;
                     const newPoints = Math.max(0, confirmModal.member.points - redeemed + earned);
                     const newSpent = parseFloat(confirmModal.member.total_spent||0) + confirmModal.rounded;
-                    supabase.from("members").update({ points:newPoints, total_spent:newSpent }).eq("id", confirmModal.member.id);
+                    const { error: ptsErr } = await supabase.from("members").update({ points:newPoints, total_spent:newSpent }).eq("id", confirmModal.member.id);
+                    if (ptsErr) alert(`Bill was paid, but points could not be saved for ${confirmModal.member.name} (${ptsErr.message}). Use Members > Adjust Points to fix manually: +${earned} pts.`);
                   }
                   setConfirmModal(null);
                   setPayModal(null);
