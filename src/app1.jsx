@@ -2190,10 +2190,10 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       .then(({ data }) => setRewards(data||[]));
   }, [tableNo, isStaff]);
 
-  const checkMemberPhone = async () => {
+  const checkMemberPhone = async (opts = {}) => {
     const dial = PHONE_COUNTRIES.find(c=>c.code===memberPhoneCountry).dial;
     const phone = composePhone(memberPhoneInput, dial);
-    if (phone.length < 6) { setMemberCheckMsg("Enter a valid phone number"); return; }
+    if (phone.length < 6) { if (!opts.silent) setMemberCheckMsg("Enter a valid phone number"); return; }
     setMemberChecking(true); setMemberCheckMsg("");
     const { data } = await supabase.from("members").select("*").eq("phone", phone).maybeSingle();
     if (data) {
@@ -2204,6 +2204,16 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     }
     setMemberChecking(false);
   };
+
+  // Auto-checks once the customer pauses typing a plausible phone number, in the
+  // customer-facing Rewards tab — no need to hunt for a "Check" button.
+  useEffect(() => {
+    if (isStaff || view !== "rewards" || phoneMember || joiningNew) return;
+    const dial = PHONE_COUNTRIES.find(c=>c.code===memberPhoneCountry).dial;
+    if (composePhone(memberPhoneInput, dial).length < 6) return;
+    const id = setTimeout(() => checkMemberPhone({ silent:true }), 700);
+    return () => clearTimeout(id);
+  }, [memberPhoneInput, memberPhoneCountry, view, phoneMember, joiningNew, isStaff]);
 
   const joinAsNewMember = async () => {
     const dial = PHONE_COUNTRIES.find(c=>c.code===memberPhoneCountry).dial;
@@ -2692,7 +2702,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
               <div style={{ padding:"10px 18px" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <div style={{ fontSize:13 }}><span style={{ fontWeight:"bold", color:C.text }}>{phoneMember.name}</span> <span style={{ color:C.muted }}>· {phoneMember.points} pts</span></div>
-                  <button onClick={() => { setPhoneMember(null); setSelectedRewardId(null); setMemberBannerOpen(false); }} style={{ background:"transparent", border:"none", color:C.muted, fontSize:12, cursor:"pointer" }}>Remove</button>
+                  <button onClick={async () => { setPhoneMember(null); setSelectedRewardId(null); setMemberBannerOpen(false); await supabase.from("table_sessions").upsert({ table_no:String(tableNo), member_id:null, pending_reward_id:null }); }} style={{ background:"transparent", border:"none", color:C.muted, fontSize:12, cursor:"pointer" }}>Remove</button>
                 </div>
                 {memberCheckMsg && <div style={{ fontSize:12, color:"#2e7d32", marginTop:6 }}>{memberCheckMsg}</div>}
                 {rewards.length > 0 && (
@@ -2953,82 +2963,6 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         </div>
       </div>
 
-      {/* Member / Rewards banner */}
-      {!isStaff && (
-        <div style={{ background:T.panel, borderBottom:`1px solid ${T.border}`, flexShrink:0 }}>
-          {!phoneMember ? (
-            !memberBannerOpen ? (
-              <button onClick={() => setMemberBannerOpen(true)}
-                style={{ width:"100%", fontFamily:"Georgia,serif", cursor:"pointer", background:"transparent", border:"none", color:T.brown, padding:"10px 16px", fontSize:13, fontWeight:"bold", textAlign:"left" }}>
-                🎉 Are you a member? Tap to check your points & rewards
-              </button>
-            ) : (
-              <div style={{ padding:"12px 16px" }}>
-                {!joiningNew ? (
-                  <>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                      <div style={{ fontSize:13, fontWeight:"bold", color:T.brown, fontFamily:"Georgia,serif" }}>Enter your phone number</div>
-                      <button onClick={() => setMemberBannerOpen(false)} style={{ background:"transparent", border:"none", color:T.muted, fontSize:16, cursor:"pointer" }}>✕</button>
-                    </div>
-                    <div style={{ display:"flex", gap:6 }}>
-                      <select value={memberPhoneCountry} onChange={e=>setMemberPhoneCountry(e.target.value)}
-                        style={{ border:`1px solid ${T.border}`, borderRadius:8, padding:"0 8px", fontSize:15, fontFamily:"Georgia,serif", color:T.text, background:"#fff" }}>
-                        {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} +{c.dial}</option>)}
-                      </select>
-                      <input value={memberPhoneInput} onChange={e=>setMemberPhoneInput(e.target.value)} placeholder="Phone number" type="tel"
-                        style={{ flex:1, minWidth:0, border:`1px solid ${T.border}`, borderRadius:8, padding:"10px 12px", fontSize:15, fontFamily:"Georgia,serif", color:T.text, boxSizing:"border-box" }} />
-                      <button onClick={checkMemberPhone} disabled={memberChecking}
-                        style={{ background:T.brown, color:"#fff", border:"none", borderRadius:8, padding:"0 16px", fontSize:14, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>
-                        {memberChecking ? "…" : "Check"}
-                      </button>
-                    </div>
-                    {memberCheckMsg && <div style={{ fontSize:12, color:T.red, marginTop:6, fontFamily:"Georgia,serif" }}>{memberCheckMsg}</div>}
-                  </>
-                ) : (
-                  <>
-                    <div style={{ fontSize:13, fontWeight:"bold", color:T.brown, marginBottom:8, fontFamily:"Georgia,serif" }}>No member found — join now?</div>
-                    <input value={newMemberNameInline} onChange={e=>setNewMemberNameInline(e.target.value)} placeholder="Your name" autoFocus
-                      style={{ width:"100%", border:`1px solid ${T.border}`, borderRadius:8, padding:"10px 12px", fontSize:15, fontFamily:"Georgia,serif", color:T.text, boxSizing:"border-box", marginBottom:8 }} />
-                    <div style={{ display:"flex", gap:8 }}>
-                      <button onClick={() => setJoiningNew(false)} style={{ flex:1, background:"transparent", border:`1px solid ${T.border}`, color:T.muted, borderRadius:8, padding:"10px 0", fontSize:13, cursor:"pointer", fontFamily:"Georgia,serif" }}>Cancel</button>
-                      <button onClick={joinAsNewMember} disabled={memberChecking} style={{ flex:2, background:T.brown, color:"#fff", border:"none", borderRadius:8, padding:"10px 0", fontSize:13, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>Join & Continue</button>
-                    </div>
-                    {memberCheckMsg && <div style={{ fontSize:12, color:T.red, marginTop:6, fontFamily:"Georgia,serif" }}>{memberCheckMsg}</div>}
-                  </>
-                )}
-              </div>
-            )
-          ) : (
-            <div style={{ padding:"10px 16px" }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div style={{ fontSize:13, fontFamily:"Georgia,serif" }}><span style={{ fontWeight:"bold", color:T.brown }}>{phoneMember.name}</span> <span style={{ color:T.muted }}>· {phoneMember.points} pts</span></div>
-                <button onClick={() => { setPhoneMember(null); setSelectedRewardId(null); setMemberBannerOpen(false); }} style={{ background:"transparent", border:"none", color:T.muted, fontSize:12, cursor:"pointer", fontFamily:"Georgia,serif" }}>Not you?</button>
-              </div>
-              {memberCheckMsg && <div style={{ fontSize:12, color:T.green, marginTop:6, fontFamily:"Georgia,serif" }}>{memberCheckMsg}</div>}
-              {rewards.length > 0 && (
-                <div style={{ marginTop:8, display:"flex", flexDirection:"column", gap:6 }}>
-                  {rewards.map(r => {
-                    const affordable = phoneMember.points >= r.points_cost;
-                    const selected = selectedRewardId === r.id;
-                    const linkedItem = r.reward_type === "free_item" ? Object.values(menu).flat().find(mi => mi.id === r.menu_item_id) : null;
-                    return (
-                      <button key={r.id} disabled={!affordable} onClick={() => pickReward(r)}
-                        style={{ width:"100%", display:"flex", alignItems:"center", gap:10, background:selected?T.brown:"#fff", border:`1.5px solid ${selected?T.brown:T.border}`, color:selected?"#fff":affordable?T.text:"#bbb", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", cursor:affordable?"pointer":"not-allowed" }}>
-                        {linkedItem?.image_url
-                          ? <img src={linkedItem.image_url} alt="" style={{ width:38, height:38, borderRadius:8, objectFit:"cover", flexShrink:0 }} />
-                          : <span style={{ fontSize:18, flexShrink:0 }}>{r.reward_type==="discount"?"💰":"🎁"}</span>}
-                        <span style={{ flex:1, textAlign:"left" }}>{r.name}</span>
-                        <span style={{ fontWeight:"bold", flexShrink:0 }}>{r.points_cost} pts{!affordable?" (not enough)":""}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Tab bar */}
       <div style={{ display:"flex", background:"#2c1a0e", borderBottom:"2px solid #c8973a", flexShrink:0 }}>
         <button onClick={() => setView("menu")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:"transparent", border:"none", borderBottom:view==="menu"?"3px solid #c8973a":"3px solid transparent", color:view==="menu"?"#c8973a":"#a07060", padding:"14px 0", fontSize:17, fontWeight:view==="menu"?"bold":"normal" }}>
@@ -3037,7 +2971,108 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         <button onClick={() => setView("orders")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:"transparent", border:"none", borderBottom:view==="orders"?"3px solid #c8973a":"3px solid transparent", color:view==="orders"?"#c8973a":"#a07060", padding:"14px 0", fontSize:17, fontWeight:view==="orders"?"bold":"normal" }}>
           {t.myOrders} {hasOrders && <span style={{ background:pendingOrders.length>0?T.orange:T.green, color:"#fff", borderRadius:12, padding:"2px 9px", fontSize:13, marginLeft:6 }}>{myOrders.length}</span>}
         </button>
+        <button onClick={() => setView("rewards")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:"transparent", border:"none", borderBottom:view==="rewards"?"3px solid #c8973a":"3px solid transparent", color:view==="rewards"?"#c8973a":"#a07060", padding:"14px 0", fontSize:17, fontWeight:view==="rewards"?"bold":"normal" }}>
+          🎁 Rewards {phoneMember && <span style={{ background:T.goldGrad, color:"#2a1a0a", borderRadius:12, padding:"2px 9px", fontSize:13, marginLeft:6, fontWeight:"bold" }}>{phoneMember.points}</span>}
+        </button>
       </div>
+
+      {/* REWARDS */}
+      {view === "rewards" && (
+        <div style={{ flex:1, overflowY:"auto", padding:20, background:T.bg }}>
+          {!phoneMember ? (
+            <div style={{ maxWidth:380, margin:"20px auto" }}>
+              <div style={{ textAlign:"center", marginBottom:24 }}>
+                <div style={{ fontSize:44, marginBottom:10 }}>🎉</div>
+                <div style={{ fontSize:20, fontWeight:"bold", color:T.brown }}>Are you a member?</div>
+                <div style={{ fontSize:13, color:T.muted, marginTop:6 }}>Check your points, or join in seconds — just your phone number.</div>
+              </div>
+              <div style={{ background:T.panel, borderRadius:16, padding:20, boxShadow:T.shadow }}>
+                {!joiningNew ? (
+                  <>
+                    <div style={{ fontSize:12, color:T.muted, marginBottom:8, letterSpacing:0.5 }}>PHONE NUMBER</div>
+                    <div style={{ display:"flex", gap:8 }}>
+                      <select value={memberPhoneCountry} onChange={e=>setMemberPhoneCountry(e.target.value)}
+                        style={{ border:`1px solid ${T.border}`, borderRadius:10, padding:"0 10px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, background:"#fff" }}>
+                        {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} +{c.dial}</option>)}
+                      </select>
+                      <input value={memberPhoneInput} onChange={e=>setMemberPhoneInput(e.target.value)}
+                        onKeyDown={e => { if (e.key==="Enter") checkMemberPhone(); }}
+                        placeholder="e.g. 12 345 6789" type="tel" autoFocus
+                        style={{ flex:1, minWidth:0, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, boxSizing:"border-box" }} />
+                    </div>
+                    <button onClick={() => checkMemberPhone()} disabled={memberChecking}
+                      style={{ width:"100%", marginTop:12, background:T.goldGrad, color:"#2a1a0a", border:"none", borderRadius:10, padding:"13px 0", fontSize:15, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>
+                      {memberChecking ? "Checking…" : "Check My Points"}
+                    </button>
+                    <div style={{ fontSize:11, color:T.muted, textAlign:"center", marginTop:10 }}>We'll check automatically as you type, too</div>
+                    {memberCheckMsg && <div style={{ fontSize:12, color:T.red, marginTop:10, textAlign:"center" }}>{memberCheckMsg}</div>}
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize:16, fontWeight:"bold", color:T.brown, marginBottom:4 }}>No member found</div>
+                    <div style={{ fontSize:13, color:T.muted, marginBottom:14 }}>Join now — it only takes your name.</div>
+                    <input value={newMemberNameInline} onChange={e=>setNewMemberNameInline(e.target.value)}
+                      onKeyDown={e => { if (e.key==="Enter") joinAsNewMember(); }}
+                      placeholder="Your name" autoFocus
+                      style={{ width:"100%", border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, boxSizing:"border-box", marginBottom:12 }} />
+                    <div style={{ display:"flex", gap:10 }}>
+                      <button onClick={() => setJoiningNew(false)} style={{ flex:1, background:"transparent", border:`1px solid ${T.border}`, color:T.muted, borderRadius:10, padding:"12px 0", fontSize:14, cursor:"pointer", fontFamily:"Georgia,serif" }}>Back</button>
+                      <button onClick={joinAsNewMember} disabled={memberChecking} style={{ flex:2, background:T.goldGrad, color:"#2a1a0a", border:"none", borderRadius:10, padding:"12px 0", fontSize:14, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>Join & Continue</button>
+                    </div>
+                    {memberCheckMsg && <div style={{ fontSize:12, color:T.red, marginTop:10, textAlign:"center" }}>{memberCheckMsg}</div>}
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div style={{ maxWidth:460, margin:"0 auto" }}>
+              <div style={{ background:"linear-gradient(135deg,#2a1a0a,#1a0808)", borderRadius:18, padding:"22px 24px", marginBottom:20, boxShadow:T.shadow, textAlign:"center" }}>
+                <div style={{ fontSize:13, color:"#ffe099", letterSpacing:2, textTransform:"uppercase" }}>Welcome back</div>
+                <div style={{ fontSize:22, fontWeight:"bold", color:"#fff", marginTop:4 }}>{phoneMember.name}</div>
+                <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:T.goldGrad, color:"#2a1a0a", borderRadius:20, padding:"6px 18px", marginTop:12, fontSize:15, fontWeight:"bold" }}>
+                  ✨ {phoneMember.points} points
+                </div>
+                <div style={{ marginTop:10 }}>
+                  <button onClick={async () => { setPhoneMember(null); setSelectedRewardId(null); setMemberPhoneInput(""); await supabase.from("table_sessions").upsert({ table_no:String(tableNo), member_id:null, pending_reward_id:null }); }} style={{ background:"transparent", border:"none", color:"#c9a86a", fontSize:12, cursor:"pointer" }}>Not you? Switch account</button>
+                </div>
+              </div>
+              {memberCheckMsg && <div style={{ background:"#eafaf0", color:"#2e7d32", borderRadius:10, padding:"10px 14px", fontSize:13, marginBottom:16, textAlign:"center" }}>{memberCheckMsg}</div>}
+              <div style={{ fontSize:12, color:T.muted, letterSpacing:1.5, textTransform:"uppercase", marginBottom:12, fontWeight:700 }}>Redeem a Reward</div>
+              {rewards.length === 0 ? (
+                <div style={{ textAlign:"center", color:T.muted, padding:"30px 0" }}>No rewards available right now.</div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                  {rewards.map(r => {
+                    const affordable = phoneMember.points >= r.points_cost;
+                    const selected = selectedRewardId === r.id;
+                    const linkedItem = r.reward_type === "free_item" ? Object.values(menu).flat().find(mi => mi.id === r.menu_item_id) : null;
+                    return (
+                      <button key={r.id} disabled={!affordable} onClick={() => pickReward(r)}
+                        style={{ width:"100%", display:"flex", alignItems:"center", gap:14, background:selected?"#fff8ec":T.panel, border:selected?`2px solid #c8973a`:`1px solid ${T.border}`, color:affordable?T.text:"#bbb", borderRadius:14, padding:14, boxShadow:T.shadow, cursor:affordable?"pointer":"not-allowed", opacity:affordable?1:0.6, textAlign:"left" }}>
+                        {linkedItem?.image_url
+                          ? <img src={linkedItem.image_url} alt="" style={{ width:56, height:56, borderRadius:12, objectFit:"cover", flexShrink:0 }} />
+                          : <div style={{ width:56, height:56, borderRadius:12, background:"#f5f0e8", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{r.reward_type==="discount"?"💰":"🎁"}</div>}
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:15, fontWeight:"bold" }}>{r.name}</div>
+                          <div style={{ fontSize:12, color:T.muted, marginTop:2 }}>{r.reward_type==="discount"?"Cash off your bill":"Free item — sent to kitchen now"}</div>
+                        </div>
+                        <div style={{ textAlign:"right", flexShrink:0 }}>
+                          <div style={{ fontSize:15, fontWeight:"bold", color:affordable?T.brown:"#bbb" }}>{r.points_cost} pts</div>
+                          {!affordable && <div style={{ fontSize:11, color:"#bbb" }}>not enough</div>}
+                          {selected && <div style={{ fontSize:11, color:"#2e7d32", fontWeight:"bold" }}>✓ Selected</div>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {selectedRewardId && (
+                <div style={{ fontSize:12, color:T.muted, textAlign:"center", marginTop:14 }}>Show this to the cashier at checkout to apply it</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* MY ORDERS */}
       {view === "orders" && (
@@ -5281,7 +5316,7 @@ function CashierScreen({ goHome }) {
                           <div style={{ fontSize:14, fontWeight:"bold", color:"#394c76", fontFamily:"Georgia,serif" }}>{payMember.name}</div>
                           <div style={{ fontSize:12, color:"#666", fontFamily:"Georgia,serif" }}>{payMember.points} points</div>
                         </div>
-                        <button onClick={() => { setPayMember(null); setSelectedRewardId(null); }} style={{ background:"transparent", border:"none", color:"#c0392b", fontSize:13, cursor:"pointer", fontFamily:"Georgia,serif" }}>Remove</button>
+                        <button onClick={async () => { setPayMember(null); setSelectedRewardId(null); await supabase.from("table_sessions").upsert({ table_no:String(payModal.tableNo), member_id:null, pending_reward_id:null }); }} style={{ background:"transparent", border:"none", color:"#c0392b", fontSize:13, cursor:"pointer", fontFamily:"Georgia,serif" }}>Remove</button>
                       </div>
                       {rewards.filter(r => r.reward_type === "discount").length > 0 && (
                         <div style={{ marginTop:10 }}>
