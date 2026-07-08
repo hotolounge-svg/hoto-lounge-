@@ -1052,7 +1052,7 @@ function JoinMemberScreen({ goHome }) {
         <div style={{ display:"flex", gap:8, marginBottom:8 }}>
           <select value={country} onChange={e=>setCountry(e.target.value)}
             style={{ width:135, flexShrink:0, background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:"#2b3346", padding:"0 10px", borderRadius:14, fontSize:16, fontFamily:"Georgia,serif", outline:"none" }}>
-            {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.code} +{c.dial} {c.name}</option>)}
+            {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.code} +{c.dial} {c.name}</option>)}
           </select>
           <input value={phone} onChange={e=>{setPhone(e.target.value);setError("");}}
             onKeyDown={e=>e.key==="Enter"&&register()}
@@ -3314,7 +3314,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     <div style={{ display:"flex", gap:8 }}>
                       <select value={memberPhoneCountry} onChange={e=>setMemberPhoneCountry(e.target.value)}
                         style={{ width:135, flexShrink:0, border:`1px solid ${T.border}`, borderRadius:10, padding:"0 10px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, background:"#fff" }}>
-                        {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.code} +{c.dial} {c.name}</option>)}
+                        {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.code} +{c.dial} {c.name}</option>)}
                       </select>
                       <input value={memberPhoneInput} onChange={e=>setMemberPhoneInput(e.target.value)}
                         onKeyDown={e => { if (e.key==="Enter") checkMemberPhone(); }}
