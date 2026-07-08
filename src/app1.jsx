@@ -384,6 +384,10 @@ const composePhone = (raw, dial) => {
   return digits ? `+${dial}${digits}` : "";
 };
 
+// wa.me needs bare digits (no "+"), and just pre-fills the message —
+// the person who taps it still has to press send in WhatsApp themselves.
+const waLink = (phone, text) => `https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
+
 function QRCode({ url, size=160 }) {
   const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=394c76&margin=10`;
   return <img src={src} alt="QR" style={{ width:size, height:size, borderRadius:8 }} />;
@@ -2016,6 +2020,9 @@ function MembersScreen({ goHome }) {
               <div style={{ display:"flex", gap:8, marginTop:12 }}>
                 <button onClick={()=>openHistory(m)} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>History</button>
                 <button onClick={()=>{setEditingId(m.id);setAdjustInput("");}} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Adjust Points</button>
+                <a href={waLink(m.phone, `Hi ${m.name}! 🎉 Welcome to HOTO LOUNGE — thanks for joining our loyalty program. You'll earn points on every visit and can redeem them for rewards!`)}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ background:"#25D366", border:"none", color:"#fff", borderRadius:8, padding:"8px 12px", fontSize:13, fontWeight:"bold", cursor:"pointer", textDecoration:"none", display:"flex", alignItems:"center", whiteSpace:"nowrap" }}>💬</a>
                 <button onClick={()=>setConfirmDelete({ id:m.id, name:m.name })} style={{ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", borderRadius:8, padding:"8px 14px", fontSize:13, cursor:"pointer" }}>Remove</button>
               </div>
             )}
