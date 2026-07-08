@@ -1415,7 +1415,7 @@ function SystemSettingsScreen({ goHome }) {
     const ch = supabase.channel("rewards-settings-watch")
       .on("postgres_changes", { event:"*", schema:"public", table:"rewards" }, loadRewards)
       .subscribe();
-    supabase.from("menu_items").select("id,name,item_no").order("item_no",{ ascending:true })
+    supabase.from("menu_items").select("id,name,item_no,image_url").order("item_no",{ ascending:true })
       .then(({ data }) => setMenuItems(data||[]));
     return () => supabase.removeChannel(ch);
   }, []);
@@ -1502,12 +1502,19 @@ function SystemSettingsScreen({ goHome }) {
         <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginBottom:16 }}>
           <div style={{ fontSize:15, fontWeight:"bold", color:C.text, marginBottom:14 }}>Rewards Catalog</div>
           {rewards.length === 0 && <div style={{ fontSize:13, color:C.muted, marginBottom:14 }}>No rewards yet — add one below.</div>}
-          {rewards.map(r => (
+          {rewards.map(r => {
+            const linkedItem = menuItems.find(mi=>mi.id===r.menu_item_id);
+            return (
             <div key={r.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:`1px solid ${C.border}`, opacity:r.is_active?1:0.5 }}>
+              {r.reward_type === "free_item" && (
+                linkedItem?.image_url
+                  ? <img src={linkedItem.image_url} alt="" style={{ width:40, height:40, borderRadius:8, objectFit:"cover", flexShrink:0 }} />
+                  : <div style={{ width:40, height:40, borderRadius:8, background:"#eef1f6", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:18 }}>🎁</div>
+              )}
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:14, fontWeight:"bold", color:C.text }}>{r.name}</div>
                 <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>
-                  {r.points_cost} pts · {r.reward_type === "discount" ? `RM${parseFloat(r.discount_amount||0).toFixed(2)} off` : `Free item${menuItems.find(mi=>mi.id===r.menu_item_id) ? ": "+menuItems.find(mi=>mi.id===r.menu_item_id).name : ""}`}
+                  {r.points_cost} pts · {r.reward_type === "discount" ? `RM${parseFloat(r.discount_amount||0).toFixed(2)} off` : `Free item${linkedItem ? ": "+linkedItem.name : ""}`}
                   {!r.is_active && " · Inactive"}
                 </div>
               </div>
@@ -1516,7 +1523,8 @@ function SystemSettingsScreen({ goHome }) {
               </button>
               <button onClick={() => deleteReward(r.id)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"7px 12px", fontSize:12, fontWeight:"bold" })}>✕</button>
             </div>
-          ))}
+            );
+          })}
           <div style={{ marginTop:16, paddingTop:16, borderTop:`1px solid ${C.border}` }}>
             <div style={{ fontSize:12, fontWeight:"bold", color:C.text, marginBottom:10 }}>Add New Reward</div>
             <div style={{ marginBottom:10 }}>
@@ -1548,11 +1556,19 @@ function SystemSettingsScreen({ goHome }) {
             ) : (
               <div style={{ marginBottom:10 }}>
                 <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Menu Item to Give Free</div>
-                <select value={newReward.menu_item_id} onChange={e => setNewReward(f => ({ ...f, menu_item_id:e.target.value }))}
-                  style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
-                  <option value="">Select an item…</option>
-                  {menuItems.map(mi => <option key={mi.id} value={mi.id}>{mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}</option>)}
-                </select>
+                <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+                  <select value={newReward.menu_item_id} onChange={e => setNewReward(f => ({ ...f, menu_item_id:e.target.value }))}
+                    style={{ flex:1, minWidth:0, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
+                    <option value="">Select an item…</option>
+                    {menuItems.map(mi => <option key={mi.id} value={mi.id}>{mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}</option>)}
+                  </select>
+                  {newReward.menu_item_id && (() => {
+                    const picked = menuItems.find(mi => mi.id === parseInt(newReward.menu_item_id));
+                    return picked?.image_url
+                      ? <img src={picked.image_url} alt="" style={{ width:44, height:44, borderRadius:9, objectFit:"cover", flexShrink:0 }} />
+                      : <div style={{ width:44, height:44, borderRadius:9, background:"#eef1f6", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:18 }}>🎁</div>;
+                  })()}
+                </div>
                 <div style={{ fontSize:11, color:C.muted, marginTop:6 }}>Redeeming this sends it straight to the Kitchen/Cashier at RM0, just like a normal order.</div>
               </div>
             )}
@@ -2628,6 +2644,80 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             <span style={{ background:cartItems.length>0?C.gold:C.border, color:"#fff", borderRadius:20, padding:"3px 11px", fontSize:13, fontWeight:"bold" }}>{cartItems.reduce((s,i)=>s+i.qty,0)}</span>
           </div>
 
+          {/* Member / Rewards — same lookup used on the customer's own phone, so staff can check it too when placing a VIP/takeaway order */}
+          <div style={{ borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+            {!phoneMember ? (
+              !memberBannerOpen ? (
+                <button onClick={() => setMemberBannerOpen(true)}
+                  style={{ width:"100%", cursor:"pointer", background:"transparent", border:"none", color:C.gold, padding:"10px 18px", fontSize:13, fontWeight:"bold", textAlign:"left" }}>
+                  🎉 Is the customer a member? Tap to check
+                </button>
+              ) : (
+                <div style={{ padding:"12px 18px" }}>
+                  {!joiningNew ? (
+                    <>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                        <div style={{ fontSize:13, fontWeight:"bold", color:C.text }}>Enter phone number</div>
+                        <button onClick={() => setMemberBannerOpen(false)} style={{ background:"transparent", border:"none", color:C.muted, fontSize:16, cursor:"pointer" }}>✕</button>
+                      </div>
+                      <div style={{ display:"flex", gap:6 }}>
+                        <select value={memberPhoneCountry} onChange={e=>setMemberPhoneCountry(e.target.value)}
+                          style={{ border:`1px solid ${C.border}`, borderRadius:8, padding:"0 8px", fontSize:14, color:C.text, background:"#fff" }}>
+                          {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} +{c.dial}</option>)}
+                        </select>
+                        <input value={memberPhoneInput} onChange={e=>setMemberPhoneInput(e.target.value)} placeholder="Phone number" type="tel"
+                          style={{ flex:1, minWidth:0, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 12px", fontSize:14, color:C.text, boxSizing:"border-box" }} />
+                        <button onClick={checkMemberPhone} disabled={memberChecking}
+                          style={{ background:C.gold, color:"#fff", border:"none", borderRadius:8, padding:"0 14px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>
+                          {memberChecking ? "…" : "Check"}
+                        </button>
+                      </div>
+                      {memberCheckMsg && <div style={{ fontSize:12, color:"#c0392b", marginTop:6 }}>{memberCheckMsg}</div>}
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize:13, fontWeight:"bold", color:C.text, marginBottom:8 }}>No member found — join now?</div>
+                      <input value={newMemberNameInline} onChange={e=>setNewMemberNameInline(e.target.value)} placeholder="Customer's name" autoFocus
+                        style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 12px", fontSize:14, color:C.text, boxSizing:"border-box", marginBottom:8 }} />
+                      <div style={{ display:"flex", gap:8 }}>
+                        <button onClick={() => setJoiningNew(false)} style={{ flex:1, background:"transparent", border:`1px solid ${C.border}`, color:C.muted, borderRadius:8, padding:"9px 0", fontSize:13, cursor:"pointer" }}>Cancel</button>
+                        <button onClick={joinAsNewMember} disabled={memberChecking} style={{ flex:2, background:C.gold, color:"#fff", border:"none", borderRadius:8, padding:"9px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Join & Continue</button>
+                      </div>
+                      {memberCheckMsg && <div style={{ fontSize:12, color:"#c0392b", marginTop:6 }}>{memberCheckMsg}</div>}
+                    </>
+                  )}
+                </div>
+              )
+            ) : (
+              <div style={{ padding:"10px 18px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div style={{ fontSize:13 }}><span style={{ fontWeight:"bold", color:C.text }}>{phoneMember.name}</span> <span style={{ color:C.muted }}>· {phoneMember.points} pts</span></div>
+                  <button onClick={() => { setPhoneMember(null); setSelectedRewardId(null); setMemberBannerOpen(false); }} style={{ background:"transparent", border:"none", color:C.muted, fontSize:12, cursor:"pointer" }}>Remove</button>
+                </div>
+                {memberCheckMsg && <div style={{ fontSize:12, color:"#2e7d32", marginTop:6 }}>{memberCheckMsg}</div>}
+                {rewards.length > 0 && (
+                  <div style={{ marginTop:8, display:"flex", flexDirection:"column", gap:6 }}>
+                    {rewards.map(r => {
+                      const affordable = phoneMember.points >= r.points_cost;
+                      const selected = selectedRewardId === r.id;
+                      const linkedItem = r.reward_type === "free_item" ? Object.values(menu).flat().find(mi => mi.id === r.menu_item_id) : null;
+                      return (
+                        <button key={r.id} disabled={!affordable} onClick={() => pickReward(r)}
+                          style={{ width:"100%", display:"flex", alignItems:"center", gap:8, background:selected?C.gold:"#fff", border:`1.5px solid ${selected?C.gold:C.border}`, color:selected?"#fff":affordable?C.text:"#bbb", borderRadius:8, padding:"8px 10px", fontSize:13, cursor:affordable?"pointer":"not-allowed" }}>
+                          {linkedItem?.image_url
+                            ? <img src={linkedItem.image_url} alt="" style={{ width:32, height:32, borderRadius:6, objectFit:"cover", flexShrink:0 }} />
+                            : <span style={{ fontSize:16, flexShrink:0 }}>{r.reward_type==="discount"?"💰":"🎁"}</span>}
+                          <span style={{ flex:1, textAlign:"left" }}>{r.name}</span>
+                          <span style={{ fontWeight:"bold", flexShrink:0 }}>{r.points_cost} pts{!affordable?" (not enough)":""}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div style={{ flex:1, overflowY:"auto", padding:"12px 14px" }}>
             {cartItems.length===0 ? (
               <div style={{ textAlign:"center", padding:"50px 10px", color:C.muted }}>
@@ -2920,11 +3010,15 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                   {rewards.map(r => {
                     const affordable = phoneMember.points >= r.points_cost;
                     const selected = selectedRewardId === r.id;
+                    const linkedItem = r.reward_type === "free_item" ? Object.values(menu).flat().find(mi => mi.id === r.menu_item_id) : null;
                     return (
                       <button key={r.id} disabled={!affordable} onClick={() => pickReward(r)}
-                        style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", background:selected?T.brown:"#fff", border:`1.5px solid ${selected?T.brown:T.border}`, color:selected?"#fff":affordable?T.text:"#bbb", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", cursor:affordable?"pointer":"not-allowed" }}>
-                        <span>{r.reward_type==="discount"?"💰":"🎁"} {r.name}</span>
-                        <span style={{ fontWeight:"bold" }}>{r.points_cost} pts{!affordable?" (not enough)":""}</span>
+                        style={{ width:"100%", display:"flex", alignItems:"center", gap:10, background:selected?T.brown:"#fff", border:`1.5px solid ${selected?T.brown:T.border}`, color:selected?"#fff":affordable?T.text:"#bbb", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", cursor:affordable?"pointer":"not-allowed" }}>
+                        {linkedItem?.image_url
+                          ? <img src={linkedItem.image_url} alt="" style={{ width:38, height:38, borderRadius:8, objectFit:"cover", flexShrink:0 }} />
+                          : <span style={{ fontSize:18, flexShrink:0 }}>{r.reward_type==="discount"?"💰":"🎁"}</span>}
+                        <span style={{ flex:1, textAlign:"left" }}>{r.name}</span>
+                        <span style={{ fontWeight:"bold", flexShrink:0 }}>{r.points_cost} pts{!affordable?" (not enough)":""}</span>
                       </button>
                     );
                   })}
