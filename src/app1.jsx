@@ -2423,6 +2423,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [newMemberNameInline, setNewMemberNameInline] = useState("");
   const [rewards, setRewards] = useState([]);
   const [selectedRewardId, setSelectedRewardId] = useState(null);
+  const [redeemConfirm, setRedeemConfirm] = useState(null); // free-item reward pending confirmation
 
   // Rewards catalog — needed on both the customer's own phone and the staff order screen
   useEffect(() => {
@@ -2477,17 +2478,17 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   // Free-item rewards need the kitchen to actually make the thing, so tapping one
   // redeems it immediately — same trust model as placing a normal order.
   const pickReward = async (reward) => {
-    if (reward.reward_type === "free_item") { redeemFreeItem(reward); return; }
+    if (reward.reward_type === "free_item") { setRedeemConfirm(reward); return; }
     const next = selectedRewardId === reward.id ? null : reward.id;
     setSelectedRewardId(next);
     await supabase.from("table_sessions").upsert({ table_no:String(tableNo), pending_reward_id:next });
   };
 
   const redeemFreeItem = async (reward) => {
+    setRedeemConfirm(null);
     if (!phoneMember || phoneMember.points < reward.points_cost) return;
     const menuItem = Object.values(menu).flat().find(i => i.id === reward.menu_item_id);
     if (!menuItem) { setMemberCheckMsg("This reward's item isn't available right now."); return; }
-    if (!window.confirm(`Redeem "${reward.name}" for ${reward.points_cost} points? It'll be sent to the kitchen now.`)) return;
     const now = new Date();
     const time = now.toLocaleTimeString("en-MY",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Kuala_Lumpur"});
     const mytNow = new Date(now.toLocaleString("en-US",{timeZone:"Asia/Kuala_Lumpur"}));
@@ -2503,6 +2504,27 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     setPhoneMember(m => ({ ...m, points:newPoints }));
     setMemberCheckMsg(`🎉 Redeemed ${reward.name}! It's on its way.`);
   };
+
+  // Elegant in-app replacement for window.confirm() when redeeming a free-item reward —
+  // computed once, referenced from both the staff and customer JSX trees below.
+  const redeemConfirmModal = redeemConfirm && (() => {
+    const menuItem = Object.values(menu).flat().find(i => i.id === redeemConfirm.menu_item_id);
+    return (
+      <div style={{ position:"fixed", inset:0, background:"rgba(20,12,4,0.6)", zIndex:99999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+        <div style={{ background:"#fff", borderRadius:20, padding:"28px 26px", width:"100%", maxWidth:340, textAlign:"center", boxShadow:"0 20px 60px rgba(0,0,0,0.35)", fontFamily:"Georgia,serif" }}>
+          {menuItem?.image_url
+            ? <img src={menuItem.image_url} alt="" style={{ width:80, height:80, borderRadius:16, objectFit:"cover", margin:"0 auto 14px" }} />
+            : <div style={{ fontSize:44, marginBottom:10 }}>🎁</div>}
+          <div style={{ fontSize:18, fontWeight:"bold", color:"#2a1a0a" }}>Redeem {redeemConfirm.name}?</div>
+          <div style={{ fontSize:13, color:"#8a7e6d", marginTop:8, lineHeight:1.5 }}>This uses <b>{redeemConfirm.points_cost} points</b> and sends it to the kitchen right away.</div>
+          <div style={{ display:"flex", gap:10, marginTop:22 }}>
+            <button onClick={() => setRedeemConfirm(null)} style={{ flex:1, background:"#f5f0e8", border:"none", color:"#8a7e6d", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>Cancel</button>
+            <button onClick={() => redeemFreeItem(redeemConfirm)} style={{ flex:2, background:"linear-gradient(135deg,#e6c463,#b4842a)", border:"none", color:"#2a1a0a", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>🎁 Redeem Now</button>
+          </div>
+        </div>
+      </div>
+    );
+  })();
   const t = {
     en: {
       menu:"Menu", myOrders:"My Orders", callWaiter:"Call Waiter", coming:"✅ Coming!",
@@ -3175,6 +3197,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
             </div>
           </div>
         )}
+        {redeemConfirmModal}
       </div>
     );
   }
@@ -3911,6 +3934,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           </div>
         </div>
       )}
+      {redeemConfirmModal}
     </div>
   );
 }
