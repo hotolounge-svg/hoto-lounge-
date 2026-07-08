@@ -920,15 +920,16 @@ function JoinScreen({ groupSlug, goHome }) {
             {/* Android instructions */}
             {(isAndroid || (!isIOS && !isAndroid)) && (
               <div style={{ marginTop: isIOS ? 12 : 0 }}>
-                <div style={{ fontSize:12, color:"#394c76", fontWeight:"bold", marginBottom:6 }}>🤖 Android:</div>
+                <div style={{ fontSize:12, color:"#394c76", fontWeight:"bold", marginBottom:6 }}>🤖 Android (Chrome):</div>
                 <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                  {["1. Tap the link above to open your menu","2. Tap the 3 dots at top right of Chrome","3. Tap: Add to Home screen","4. Tap Add — done! ✅"].map((s,i) => (
+                  {["1. Tap the link above to open your menu","2. Tap ⋮ (3 dots, top right) — or the ⊕ icon in the address bar","3. Tap \"Add to Home screen\" or \"Install app\"","4. Tap Add / Install — done! ✅"].map((s,i) => (
                     <div key={i} style={{ fontSize:12, color:"#394c76", background:"#e3e7f0", borderRadius:8, padding:"6px 10px" }}>{s}</div>
                   ))}
                 </div>
+                <div style={{ fontSize:12, color:"#666", textAlign:"center", marginTop:8, lineHeight:1.6 }}>Exact wording varies by phone/Chrome version — if the ⋮ menu doesn't show it, check the address bar for an install icon. Samsung Internet, Firefox, etc. have the same option under a different name.</div>
               </div>
             )}
-            <div style={{ fontSize:11, color:"#c9cfd8", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
+            <div style={{ fontSize:12, color:"#8c8c8c", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
               Or just bookmark the link in your browser — also works great!
             </div>
           </div>
@@ -977,17 +978,17 @@ function JoinScreen({ groupSlug, goHome }) {
             placeholder="Phone number" type="tel"
             style={{ flex:1, minWidth:0, background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:"#2b3346", padding:"16px 14px", borderRadius:14, fontSize:16, fontFamily:"Georgia,serif", boxSizing:"border-box", outline:"none" }} />
         </div>
-        <div style={{ fontSize:11, color:"#c9cfd8", textAlign:"center", marginBottom:8 }}>Also makes you a loyalty member — earn &amp; redeem points on every visit.</div>
+        <div style={{ fontSize:12, color:"#8c8c8c", textAlign:"center", marginBottom:8 }}>Also makes you a loyalty member — earn &amp; redeem points on every visit.</div>
         {error && <div style={{ color:"#ff7777", fontSize:13, textAlign:"center", marginBottom:8 }}>{error}</div>}
         <button onClick={register} disabled={saving||name.trim().length<3}
           style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:name.trim().length>=3?"linear-gradient(150deg,#394c76,#2c3b5e)":"#dfe3ea", border:"none", color:name.trim().length>=3?"#fff":"#9a9fab", padding:"16px 0", borderRadius:14, fontSize:18, fontWeight:"bold", marginTop:4 }}>
           {saving?"Saving...":"✓ Get My QR Code"}
         </button>
-        <div style={{ fontSize:12, color:"#c9cfd8", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
+        <div style={{ fontSize:12, color:"#8c8c8c", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
           Already registered before? Just type your name and phone again — we will find your QR! 😊
         </div>
         <div style={{ marginTop:20, background:"#f4f6f9", border:"1px solid #e3e7f0", borderRadius:12, padding:"12px 14px", textAlign:"center" }}>
-          <div style={{ fontSize:11, color:"#c9cfd8", marginBottom:4 }}>Lost your shortcut or QR?</div>
+          <div style={{ fontSize:12, color:"#8c8c8c", marginBottom:4 }}>Lost your shortcut or QR?</div>
           <div style={{ fontSize:12, color:"#8c8c8c", lineHeight:1.6 }}>Type your name above and tap <strong style={{ color:"#394c76" }}>Get My QR Code</strong> — your personal link will appear again instantly.</div>
         </div>
       </div>
@@ -1096,14 +1097,14 @@ function JoinMemberScreen({ goHome }) {
             <div style={{ marginTop: isIOS ? 12 : 0 }}>
               <div style={{ fontSize:12, color:"#394c76", fontWeight:"bold", marginBottom:6 }}>🤖 Android (Chrome):</div>
               <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                {["1. Tap the link above to open your points page","2. Tap the 3 dots at top right of Chrome","3. Tap: Add to Home screen","4. Tap Add — done! ✅"].map((s,i) => (
+                {["1. Tap the link above to open your points page","2. Tap ⋮ (3 dots, top right) — or the ⊕ icon in the address bar","3. Tap \"Add to Home screen\" or \"Install app\"","4. Tap Add / Install — done! ✅"].map((s,i) => (
                   <div key={i} style={{ fontSize:12, color:"#394c76", background:"#e3e7f0", borderRadius:8, padding:"6px 10px" }}>{s}</div>
                 ))}
               </div>
-              <div style={{ fontSize:11, color:"#aaa", textAlign:"center", marginTop:8, lineHeight:1.6 }}>Using Samsung Internet, Firefox or another browser? Look for the same "Add to Home screen" option in its menu — the wording is slightly different, but every Android browser has it.</div>
+              <div style={{ fontSize:12, color:"#666", textAlign:"center", marginTop:8, lineHeight:1.6 }}>Exact wording varies by phone/Chrome version — if the ⋮ menu doesn't show it, check the address bar for an install icon. Samsung Internet, Firefox, etc. have the same option under a different name.</div>
             </div>
           )}
-          <div style={{ fontSize:11, color:"#c9cfd8", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
+          <div style={{ fontSize:12, color:"#8c8c8c", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
             Or just bookmark the link in your browser — also works great!
           </div>
         </div>
@@ -1138,7 +1139,7 @@ function JoinMemberScreen({ goHome }) {
           style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"linear-gradient(150deg,#394c76,#2c3b5e)", border:"none", color:"#fff", padding:"16px 0", borderRadius:14, fontSize:18, fontWeight:"bold", marginTop:4 }}>
           {saving?"Joining...":"✓ Join Now"}
         </button>
-        <div style={{ fontSize:12, color:"#c9cfd8", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
+        <div style={{ fontSize:12, color:"#8c8c8c", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
           Already a member? Just enter your phone number (name not needed) to check your points balance.
         </div>
       </div>
