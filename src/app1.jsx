@@ -1051,7 +1051,7 @@ function JoinMemberScreen({ goHome }) {
           style={{ width:"100%", background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:"#2b3346", padding:"16px 18px", borderRadius:14, fontSize:18, fontFamily:"Georgia,serif", boxSizing:"border-box", textAlign:"center", marginBottom:10, outline:"none" }} />
         <div style={{ display:"flex", gap:8, marginBottom:8 }}>
           <select value={country} onChange={e=>setCountry(e.target.value)}
-            style={{ background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:"#2b3346", padding:"0 10px", borderRadius:14, fontSize:16, fontFamily:"Georgia,serif", outline:"none" }}>
+            style={{ width:92, flexShrink:0, background:"#f4f6f9", border:`2px solid ${error?"#cc4444":"#394c76"}`, color:"#2b3346", padding:"0 10px", borderRadius:14, fontSize:16, fontFamily:"Georgia,serif", outline:"none" }}>
             {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name} +{c.dial}</option>)}
           </select>
           <input value={phone} onChange={e=>{setPhone(e.target.value);setError("");}}
@@ -1385,7 +1385,7 @@ function GroupAdminScreen({ goHome }) {
                           <div>
                             <div style={{ display:"flex", gap:6, marginBottom:6 }}>
                               <select value={phoneCountry} onChange={e=>setPhoneCountry(e.target.value)}
-                                style={{ background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"0 6px", borderRadius:6, fontSize:13, fontFamily:"Georgia,serif" }}>
+                                style={{ width:80, flexShrink:0, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"0 6px", borderRadius:6, fontSize:13, fontFamily:"Georgia,serif" }}>
                                 {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name} +{c.dial}</option>)}
                               </select>
                               <input value={phoneInput} onChange={e=>setPhoneInput(e.target.value)} placeholder="Phone number" autoFocus type="tel"
@@ -2917,7 +2917,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       </div>
                       <div style={{ display:"flex", gap:6 }}>
                         <select value={memberPhoneCountry} onChange={e=>setMemberPhoneCountry(e.target.value)}
-                          style={{ border:`1px solid ${C.border}`, borderRadius:8, padding:"0 8px", fontSize:14, color:C.text, background:"#fff" }}>
+                          style={{ width:86, flexShrink:0, border:`1px solid ${C.border}`, borderRadius:8, padding:"0 8px", fontSize:14, color:C.text, background:"#fff" }}>
                           {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name} +{c.dial}</option>)}
                         </select>
                         <input value={memberPhoneInput} onChange={e=>setMemberPhoneInput(e.target.value)} placeholder="Phone number" type="tel"
@@ -3237,7 +3237,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                     <div style={{ fontSize:12, color:T.muted, marginBottom:8, letterSpacing:0.5 }}>PHONE NUMBER</div>
                     <div style={{ display:"flex", gap:8 }}>
                       <select value={memberPhoneCountry} onChange={e=>setMemberPhoneCountry(e.target.value)}
-                        style={{ border:`1px solid ${T.border}`, borderRadius:10, padding:"0 10px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, background:"#fff" }}>
+                        style={{ width:92, flexShrink:0, border:`1px solid ${T.border}`, borderRadius:10, padding:"0 10px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, background:"#fff" }}>
                         {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name} +{c.dial}</option>)}
                       </select>
                       <input value={memberPhoneInput} onChange={e=>setMemberPhoneInput(e.target.value)}
@@ -5715,7 +5715,7 @@ function CashierScreen({ goHome }) {
                 <div style={{ fontSize:11, color:"#888", marginBottom:5, fontFamily:"Georgia,serif" }}>Phone</div>
                 <div style={{ display:"flex", gap:6 }}>
                   <select value={newMemberPhoneCountry} onChange={e=>setNewMemberPhoneCountry(e.target.value)}
-                    style={{ border:"1px solid #ddd", borderRadius:8, padding:"0 8px", fontSize:15, fontFamily:"Georgia,serif", color:"#1a1a1a", background:"#fff" }}>
+                    style={{ width:90, flexShrink:0, border:"1px solid #ddd", borderRadius:8, padding:"0 8px", fontSize:15, fontFamily:"Georgia,serif", color:"#1a1a1a", background:"#fff" }}>
                     {PHONE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name} +{c.dial}</option>)}
                   </select>
                   <input value={newMemberPhone} onChange={e=>setNewMemberPhone(e.target.value)} placeholder="Phone number" type="tel"
