@@ -390,8 +390,11 @@ const composePhone = (raw, dial) => {
 
 // A reward with no valid_from/valid_until is always redeemable; dates are
 // plain "YYYY-MM-DD" strings so lexical comparison against today works.
+// Uses the cafe's own local date (Asia/Kuala_Lumpur), not UTC — a raw
+// new Date().toISOString() reads the UTC calendar day, which is still
+// "yesterday" until 8am Malaysia time, silently hiding same-day rewards.
 const rewardIsValid = (r) => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kuala_Lumpur" });
   return (!r.valid_from || r.valid_from <= today) && (!r.valid_until || r.valid_until >= today);
 };
 
@@ -1498,14 +1501,18 @@ function GroupAdminScreen({ goHome }) {
                             <div style={{ background:"#f0f0f0", borderRadius:6, height:8, marginTop:6, overflow:"hidden" }}>
                               <div style={{ width:`${b.remaining_pct}%`, height:"100%", background:b.remaining_pct>25?"#5a3d2b":"#c0392b", transition:"width 0.2s" }} />
                             </div>
-                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:6 }}>
+                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:6, flexWrap:"wrap", gap:6 }}>
                               <div style={{ fontSize:11, color:"#666", fontFamily:"Georgia,serif" }}>{b.remaining_pct}% left</div>
                               <div style={{ display:"flex", gap:5 }}>
                                 <button onClick={()=>adjustBottle(b,-25)} style={{ background:"#f7f8fa", border:"1px solid #e4e7ec", color:"#5a3d2b", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:"bold", cursor:"pointer" }}>-25%</button>
                                 <button onClick={()=>adjustBottle(b,-10)} style={{ background:"#f7f8fa", border:"1px solid #e4e7ec", color:"#5a3d2b", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:"bold", cursor:"pointer" }}>-10%</button>
-                                <button onClick={()=>setBottleStatus(b,"finished")} style={{ background:"#eaf5ea", border:"1px solid #cde6cd", color:"#2e7d32", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:"bold", cursor:"pointer" }}>Finished</button>
-                                <button onClick={()=>setBottleStatus(b,"collected")} style={{ background:"#eef1f6", border:"1px solid #d6dbe2", color:"#394c76", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:"bold", cursor:"pointer" }}>Collected</button>
+                                <button onClick={()=>adjustBottle(b,10)} style={{ background:"#f7f8fa", border:"1px solid #e4e7ec", color:"#5a3d2b", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:"bold", cursor:"pointer" }}>+10%</button>
+                                <button onClick={()=>adjustBottle(b,25)} style={{ background:"#f7f8fa", border:"1px solid #e4e7ec", color:"#5a3d2b", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:"bold", cursor:"pointer" }}>+25%</button>
                               </div>
+                            </div>
+                            <div style={{ display:"flex", gap:5, marginTop:6 }}>
+                              <button onClick={()=>setBottleStatus(b,"finished")} style={{ flex:1, background:"#eaf5ea", border:"1px solid #cde6cd", color:"#2e7d32", borderRadius:6, padding:"5px 8px", fontSize:11, fontWeight:"bold", cursor:"pointer" }}>Finished</button>
+                              <button onClick={()=>setBottleStatus(b,"collected")} style={{ flex:1, background:"#eef1f6", border:"1px solid #d6dbe2", color:"#394c76", borderRadius:6, padding:"5px 8px", fontSize:11, fontWeight:"bold", cursor:"pointer" }}>Collected</button>
                             </div>
                           </>
                         )}
@@ -2748,8 +2755,13 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
   // Rewards catalog — needed on both the customer's own phone and the staff order screen
   useEffect(() => {
-    supabase.from("rewards").select("*").eq("is_active", true).order("points_cost",{ ascending:true })
+    const loadRewards = () => supabase.from("rewards").select("*").eq("is_active", true).order("points_cost",{ ascending:true })
       .then(({ data }) => setRewards((data||[]).filter(rewardIsValid)));
+    loadRewards();
+    const ch = supabase.channel(`rewards-tablet-watch-${tableNo}`)
+      .on("postgres_changes", { event:"*", schema:"public", table:"rewards" }, loadRewards)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
   }, []);
 
   // Restore an existing member/reward pick for this table (e.g. after a page reload) — customer side only
