@@ -2175,7 +2175,13 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [rewards, setRewards] = useState([]);
   const [selectedRewardId, setSelectedRewardId] = useState(null);
 
-  // Restore an existing member/reward pick for this table (e.g. after a page reload)
+  // Rewards catalog — needed on both the customer's own phone and the staff order screen
+  useEffect(() => {
+    supabase.from("rewards").select("*").eq("is_active", true).order("points_cost",{ ascending:true })
+      .then(({ data }) => setRewards(data||[]));
+  }, []);
+
+  // Restore an existing member/reward pick for this table (e.g. after a page reload) — customer side only
   useEffect(() => {
     if (isStaff) return;
     supabase.from("table_sessions").select("member_id, pending_reward_id").eq("table_no", String(tableNo)).maybeSingle()
@@ -2186,8 +2192,6 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         }
         if (data?.pending_reward_id) setSelectedRewardId(data.pending_reward_id);
       });
-    supabase.from("rewards").select("*").eq("is_active", true).order("points_cost",{ ascending:true })
-      .then(({ data }) => setRewards(data||[]));
   }, [tableNo, isStaff]);
 
   const checkMemberPhone = async (opts = {}) => {
@@ -2690,7 +2694,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       <input value={newMemberNameInline} onChange={e=>setNewMemberNameInline(e.target.value)} placeholder="Customer's name" autoFocus
                         style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 12px", fontSize:14, color:C.text, boxSizing:"border-box", marginBottom:8 }} />
                       <div style={{ display:"flex", gap:8 }}>
-                        <button onClick={() => setJoiningNew(false)} style={{ flex:1, background:"transparent", border:`1px solid ${C.border}`, color:C.muted, borderRadius:8, padding:"9px 0", fontSize:13, cursor:"pointer" }}>Cancel</button>
+                        <button onClick={() => { setJoiningNew(false); setMemberPhoneInput(""); setMemberCheckMsg(""); }} style={{ flex:1, background:"transparent", border:`1px solid ${C.border}`, color:C.muted, borderRadius:8, padding:"9px 0", fontSize:13, cursor:"pointer" }}>Cancel</button>
                         <button onClick={joinAsNewMember} disabled={memberChecking} style={{ flex:2, background:C.gold, color:"#fff", border:"none", borderRadius:8, padding:"9px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Join & Continue</button>
                       </div>
                       {memberCheckMsg && <div style={{ fontSize:12, color:"#c0392b", marginTop:6 }}>{memberCheckMsg}</div>}
@@ -3016,7 +3020,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       placeholder="Your name" autoFocus
                       style={{ width:"100%", border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontSize:16, fontFamily:"Georgia,serif", color:T.text, boxSizing:"border-box", marginBottom:12 }} />
                     <div style={{ display:"flex", gap:10 }}>
-                      <button onClick={() => setJoiningNew(false)} style={{ flex:1, background:"transparent", border:`1px solid ${T.border}`, color:T.muted, borderRadius:10, padding:"12px 0", fontSize:14, cursor:"pointer", fontFamily:"Georgia,serif" }}>Back</button>
+                      <button onClick={() => { setJoiningNew(false); setMemberPhoneInput(""); setMemberCheckMsg(""); }} style={{ flex:1, background:"transparent", border:`1px solid ${T.border}`, color:T.muted, borderRadius:10, padding:"12px 0", fontSize:14, cursor:"pointer", fontFamily:"Georgia,serif" }}>Back</button>
                       <button onClick={joinAsNewMember} disabled={memberChecking} style={{ flex:2, background:T.goldGrad, color:"#2a1a0a", border:"none", borderRadius:10, padding:"12px 0", fontSize:14, fontWeight:"bold", cursor:"pointer", fontFamily:"Georgia,serif" }}>Join & Continue</button>
                     </div>
                     {memberCheckMsg && <div style={{ fontSize:12, color:T.red, marginTop:10, textAlign:"center" }}>{memberCheckMsg}</div>}
