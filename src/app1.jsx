@@ -2481,12 +2481,15 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                         {o.status==="pending"?"Preparing":"Served"}
                       </span>
                     </div>
-                    {o.items.map((item,i) => (
-                      <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:2 }}>
-                        <span style={{ color:C.text }}>{item.name} <span style={{ color:C.muted }}>×{item.qty}</span></span>
+                    {o.items.map((item,i) => {
+                      const done = itemDone(o, item);
+                      return (
+                      <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:2, opacity:done?0.6:1 }}>
+                        <span style={{ color:C.text, textDecoration:done?"line-through":"none" }}>{done?"✅ ":""}{item.name} <span style={{ color:C.muted }}>×{item.qty}</span></span>
                         <span style={{ color:C.gold, fontWeight:"bold" }}>RM {(item.price*item.qty).toFixed(2)}</span>
                       </div>
-                    ))}
+                      );
+                    })}
                     {o.items.filter(i=>i.note).map((item,i) => (
                       <div key={i} style={{ fontSize:11, color:C.gold, marginTop:2 }}>{item.name}: {item.note}</div>
                     ))}
@@ -2709,19 +2712,25 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                       </div>
                       <span style={{ background:statusBg, color:"#fff", borderRadius:8, padding:"3px 10px", fontSize:13, fontWeight:"bold" }}>{statusText}</span>
                     </div>
-                    {order.items.map((item,i) => (
+                    {order.items.map((item,i) => {
+                      const done = itemDone(order, item);
+                      return (
                       <div key={i} style={{ marginBottom:6 }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:16 }}>
-                          <span style={{ color:isPending?T.text:T.muted }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:16, gap:8 }}>
+                          <span style={{ color:done?T.muted:T.text, textDecoration:done?"line-through":"none" }}>
                             {item.item_no && <span style={{ color:T.brown, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}
                             {item.name}
                           </span>
-                          <span style={{ color:T.brown, fontWeight:"bold" }}>×{item.qty}</span>
+                          <span style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                            <span style={{ color:T.brown, fontWeight:"bold" }}>×{item.qty}</span>
+                            <span style={{ fontSize:11, fontWeight:"bold", color:done?T.green:T.orange }}>{done?"Ready":"Preparing"}</span>
+                          </span>
                         </div>
                         {item.is_takeaway && <div style={{ display:"inline-block", background:"#e65100", color:"#fff", borderRadius:6, padding:"2px 8px", marginTop:3, fontSize:12, fontWeight:"bold" }}>🥡 Takeaway</div>}
                         {item.note && <div style={{ fontSize:13, color:T.orange, marginTop:3 }}>📝 {item.note}</div>}
                       </div>
-                    ))}
+                      );
+                    })}
                     {order.special_request && (
                       <div style={{ fontSize:13, color:T.orange, marginTop:6 }}>📝 {order.special_request}</div>
                     )}
@@ -3502,7 +3511,7 @@ function KitchenScreen({ goHome }) {
     return () => { supabase.removeChannel(ch1); };
   }, []);
 
-  const markDone = (id) => supabase.from("orders").update({ status:"done" }).eq("id", id).then(fetchAll);
+  const handleItemDone = (order, itemIndex) => markItemDone(order, itemIndex).then(fetchAll);
   const clearFinished = () => supabase.from("orders").delete().in("status", ["cancelled"]).then(fetchAll);
 
   const pending   = orders.filter(o => o.status==="pending");
@@ -3558,23 +3567,31 @@ function KitchenScreen({ goHome }) {
                 </div>
               </div>
               <div style={{ flex:1 }}>
-                {order.items.map((item,i) => (
-                  <div key={i} style={{ marginBottom:8 }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:14 }}>
-                      <span>{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
-                      <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
+                {order.items.map((item,i) => {
+                  const done = itemDone(order, item);
+                  return (
+                  <div key={i} style={{ marginBottom:8, opacity:done?0.5:1 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:14, gap:8 }}>
+                      <span style={{ textDecoration:done?"line-through":"none" }}>{done?"✅ ":""}{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, fontWeight:"bold", marginRight:4 }}>{item.item_no}</span>}{item.name}</span>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                        <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
+                        {!done && (
+                          <button onClick={e => { e.stopPropagation(); handleItemDone(order, i); }}
+                            style={btn({ background:C.goldGrad, border:"none", color:C.dark, padding:"6px 14px", fontSize:12, fontWeight:"bold" })}>Done</button>
+                        )}
+                      </div>
                     </div>
                     {item.is_takeaway && <div style={{ display:"inline-block", background:"#394c76", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold", letterSpacing:0.5 }}>TAKEAWAY</div>}
                     {item.note && <div style={{ fontSize:12, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"4px 8px", marginTop:3 }}>{item.note}</div>}
                   </div>
-                ))}
+                  );
+                })}
                 {getFoodReq(order.special_request) && (
                   <div style={{ background:"#eef1f6", border:"1px solid #394c7633", borderRadius:6, padding:"6px 10px", marginTop:6, fontSize:12, color:C.gold }}>{getFoodReq(order.special_request)}</div>
                 )}
               </div>
               <div style={{ borderTop:`1px solid ${C.border}`, marginTop:10, paddingTop:10, display:"flex", justifyContent:"flex-end", gap:8 }}>
                 <button onClick={e => { e.stopPropagation(); printKitchenTicket(order); }} style={btn({ background:"#eef1f6", border:`1px solid ${C.border}`, color:"#394c76", padding:"8px 14px", fontSize:14, fontWeight:"bold", display:"flex", alignItems:"center", gap:6 })}><Icon name="printer" size={14} color="#394c76" /> Reprint</button>
-                <button onClick={e => { e.stopPropagation(); markDone(order.id); }} style={btn({ background:C.goldGrad, border:"none", color:C.dark, padding:"8px 20px", fontSize:14, fontWeight:"bold" })}>Done</button>
               </div>
             </div>
           ))}
@@ -3630,13 +3647,15 @@ function KitchenScreen({ goHome }) {
 
           {/* Items */}
           <div style={{ flex:1, overflowY:"auto", padding:"20px" }}>
-            {liveOrder.items.map((item, i) => (
-              <div key={i} style={{ marginBottom:16, padding:"16px", background:C.panel, borderRadius:14, border:`1px solid ${C.border}` }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                  <div style={{ fontSize:22, fontWeight:"bold", color:C.goldLight }}>
-                    {item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, marginRight:6 }}>{item.item_no}</span>}{item.name}
+            {liveOrder.items.map((item, i) => {
+              const done = itemDone(liveOrder, item);
+              return (
+              <div key={i} style={{ marginBottom:16, padding:"16px", background:done?"#eef1f6":C.panel, borderRadius:14, border:`1px solid ${done?"#cbd5e6":C.border}`, opacity:done?0.6:1 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12 }}>
+                  <div style={{ fontSize:22, fontWeight:"bold", color:C.goldLight, textDecoration:done?"line-through":"none" }}>
+                    {done?"✅ ":""}{item.emoji||"🍽️"} {item.item_no && <span style={{ color:C.gold, marginRight:6 }}>{item.item_no}</span>}{item.name}
                   </div>
-                  <div style={{ fontSize:28, fontWeight:"bold", color:C.gold }}>×{item.qty}</div>
+                  <div style={{ fontSize:28, fontWeight:"bold", color:C.gold, flexShrink:0 }}>×{item.qty}</div>
                 </div>
                 {item.is_takeaway && (
                   <div style={{ display:"inline-block", background:"#394c76", color:"#fff", borderRadius:10, padding:"8px 16px", marginTop:10, fontSize:16, fontWeight:"bold", letterSpacing:1 }}>TAKEAWAY — Pack separately</div>
@@ -3644,20 +3663,24 @@ function KitchenScreen({ goHome }) {
                 {item.note && (
                   <div style={{ fontSize:16, color:"#394c76", background:"#eef1f6", borderRadius:8, padding:"10px 14px", marginTop:10 }}>{item.note}</div>
                 )}
+                {!done && (
+                  <button onClick={() => handleItemDone(liveOrder, i)}
+                    style={btn({ width:"100%", background:C.goldGrad, border:"none", color:"#fff", padding:"14px 0", fontSize:17, fontWeight:"bold", borderRadius:12, marginTop:12 })}>
+                    ✓ Mark This Item Done
+                  </button>
+                )}
               </div>
-            ))}
+              );
+            })}
             {getFoodReq(liveOrder.special_request) && (
               <div style={{ fontSize:16, color:C.gold, background:"#eef1f6", borderRadius:10, padding:"12px 16px", marginTop:8 }}>{getFoodReq(liveOrder.special_request)}</div>
             )}
           </div>
 
-          {/* Done button */}
+          {/* Status footer */}
           <div style={{ padding:"16px 20px", background:C.panel, borderTop:`1px solid ${C.border}`, flexShrink:0, boxShadow:"0 -4px 16px rgba(70,52,22,0.08)" }}>
             {liveOrder.status === "pending" ? (
-              <button onClick={() => { markDone(liveOrder.id); setKitchenDetailModal(null); }}
-                style={btn({ width:"100%", background:C.goldGrad, border:"none", color:"#fff", padding:"16px 0", fontSize:20, fontWeight:"bold", borderRadius:14, boxShadow:"0 4px 12px rgba(138,98,24,0.3)" })}>
-                Mark as Done
-              </button>
+              <div style={{ textAlign:"center", color:C.muted, fontSize:14 }}>Mark each item done as it's ready</div>
             ) : (
               <div style={{ textAlign:"center", color:"#394c76", fontSize:18, fontWeight:"bold", padding:"14px 0" }}>Already Done</div>
             )}
@@ -3952,7 +3975,7 @@ function SalesScreen({ goHome }) {
   );
 }
 
-function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder, cardTab, setCardTab, printReceipt, setPayModal, setTableDetailModal, onSplitBill, onUndoSplit, selectMode, isSelected, onToggleSelect }) {
+function TableCard({ tableNo, data, paying, markPaid, onItemDone, cancelOrder, cardTab, setCardTab, printReceipt, setPayModal, setTableDetailModal, onSplitBill, onUndoSplit, selectMode, isSelected, onToggleSelect }) {
   const hasPending = data.pending.length>0;
   // Most recently placed order first, regardless of pending/done status
   const allOrders = [...data.done, ...data.pending].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
@@ -3997,31 +4020,38 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
           {drinkOrders.length===0
             ? <div style={{ fontSize:13, color:C.border, fontStyle:"italic", padding:"8px 0" }}>No drinks ordered</div>
             : drinkOrders.map((order, oi) => {
-                const drinkItems = order.items.filter(i => DRINK_CATEGORIES.includes(i.category));
                 const isPending = order.status==="pending";
                 return (
                   <div key={oi} style={{ marginBottom:12, paddingBottom:12, borderBottom: oi < drinkOrders.length-1 ? `1px solid #e3e7f0` : "none" }}>
                     {order.order_seq && <div style={{ marginBottom:6 }}><span style={{ background:C.gold, color:C.dark, borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:"bold" }}>#{order.order_seq}</span></div>}
-                    {drinkItems.map((item, ii) => (
-                      <div key={ii} style={{ padding:"8px 0", borderTop: ii>0 ? `1px solid #f0e9db` : "none" }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                          <span style={{ color:isPending?C.text:"#394c76", fontSize:15 }}>
-                            {item.item_no && <span style={{ color:"#394c76", fontWeight:"bold", marginRight:5 }}>{item.item_no}</span>}
+                    {order.items.map((item, ii) => {
+                      if (!DRINK_CATEGORIES.includes(item.category)) return null;
+                      const done = itemDone(order, item);
+                      return (
+                      <div key={ii} style={{ padding:"8px 0", borderTop: ii>0 ? `1px solid #f0e9db` : "none", opacity:done?0.5:1 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+                          <span style={{ color:done?"#394c76":C.text, fontSize:15, textDecoration:done?"line-through":"none" }}>
+                            {done?"✅ ":""}{item.item_no && <span style={{ color:"#394c76", fontWeight:"bold", marginRight:5 }}>{item.item_no}</span>}
                             {item.name} <span style={{ color:C.gold, fontWeight:"bold", marginLeft:6 }}>×{item.qty}</span>
                           </span>
-                          <span style={{ color:"#394c76", fontWeight:"bold", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                            <span style={{ color:"#394c76", fontWeight:"bold", fontSize:14, whiteSpace:"nowrap" }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                            {isPending && !done && (
+                              <button onClick={() => onItemDone(order, ii)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"8px 14px", fontSize:13, fontWeight:"bold" })}>Done</button>
+                            )}
+                          </div>
                         </div>
                         {item.is_takeaway && <div style={{ display:"inline-block", background:"#394c76", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold" }}>TAKEAWAY</div>}
                         {item.note && <div style={{ fontSize:12, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"3px 8px", marginTop:3 }}>{item.note}</div>}
                       </div>
-                    ))}
+                      );
+                    })}
                     {getDrinkReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#eef1f6", borderRadius:6, padding:"6px 10px", marginTop:6 }}>{getDrinkReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#394c76", fontWeight:"bold", flex:1 }}>{isPending?"Pending":"Served"} · {order.time}</span>
-                      {isPending && <>
-                        <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:100 })}>Done</button>
+                      {isPending && (
                         <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
-                      </>}
+                      )}
                     </div>
                   </div>
                 );
@@ -4037,30 +4067,37 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
           {foodOrders.length===0
             ? <div style={{ fontSize:13, color:C.border, fontStyle:"italic", padding:"8px 0" }}>No food ordered</div>
             : foodOrders.map((order, oi) => {
-                const foodItems = order.items.filter(i => FOOD_CATEGORIES.includes(i.category));
                 const isPending = order.status==="pending";
                 return (
                   <div key={oi} style={{ marginBottom:12, paddingBottom:12, borderBottom: oi < foodOrders.length-1 ? `1px solid #f0e9db` : "none" }}>
-                    {foodItems.map((item, ii) => (
-                      <div key={ii} style={{ padding:"8px 0", borderTop: ii>0 ? `1px solid #f0e9db` : "none" }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                          <span style={{ color:isPending?C.muted:"#394c76", fontSize:15 }}>
-                            {item.item_no && <span style={{ color:isPending?C.gold:"#394c76", fontWeight:"bold", marginRight:5 }}>{item.item_no}</span>}
+                    {order.items.map((item, ii) => {
+                      if (!FOOD_CATEGORIES.includes(item.category)) return null;
+                      const done = itemDone(order, item);
+                      return (
+                      <div key={ii} style={{ padding:"8px 0", borderTop: ii>0 ? `1px solid #f0e9db` : "none", opacity:done?0.5:1 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+                          <span style={{ color:done?"#394c76":(isPending?C.muted:"#394c76"), fontSize:15, textDecoration:done?"line-through":"none" }}>
+                            {done?"✅ ":""}{item.item_no && <span style={{ color:isPending?C.gold:"#394c76", fontWeight:"bold", marginRight:5 }}>{item.item_no}</span>}
                             {item.name} <span style={{ color:isPending?C.gold:"#394c76", marginLeft:6 }}>×{item.qty}</span>
                           </span>
-                          <span style={{ color:isPending?C.muted:"#394c76", fontSize:14, whiteSpace:"nowrap", marginLeft:8 }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                            <span style={{ color:isPending?C.muted:"#394c76", fontSize:14, whiteSpace:"nowrap" }}>RM {(item.price*item.qty).toFixed(2)}</span>
+                            {isPending && !done && (
+                              <button onClick={() => onItemDone(order, ii)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"8px 14px", fontSize:13, fontWeight:"bold" })}>Done</button>
+                            )}
+                          </div>
                         </div>
                         {item.is_takeaway && <div style={{ display:"inline-block", background:"#394c76", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:3, fontSize:11, fontWeight:"bold" }}>TAKEAWAY</div>}
                         {item.note && <div style={{ fontSize:12, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"3px 8px", marginTop:3 }}>{item.note}</div>}
                       </div>
-                    ))}
+                      );
+                    })}
                     {getFoodReq(order.special_request) && <div style={{ fontSize:13, color:C.gold, background:"#eef1f6", borderRadius:6, padding:"6px 10px", marginTop:6 }}>{getFoodReq(order.special_request)}</div>}
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#394c76", fontWeight:"bold", flex:1 }}>{isPending?"Kitchen preparing":"Served"} · {order.time}</span>
-                      {isPending && <>
-                        <button onClick={() => markOrderDone(order.id)} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"12px 20px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:100 })}>Done</button>
+                      {isPending && (
                         <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
-                      </>}
+                      )}
                     </div>
                   </div>
                 );
@@ -4103,7 +4140,7 @@ function TableCard({ tableNo, data, paying, markPaid, markOrderDone, cancelOrder
   );
 }
 
-function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrders, foodOrders, total, liveData, markOrderDone, cancelOrder, printReceipt, setPayModal, setTableDetailModal }) {
+function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrders, foodOrders, total, liveData, onItemDone, cancelOrder, printReceipt, setPayModal, setTableDetailModal }) {
   const [detailTab, setDetailTab] = useState("drinks");
   const ordersToShow = detailTab === "drinks" ? drinkOrders : detailTab === "food" ? foodOrders : allOrders;
   return (
@@ -4152,27 +4189,34 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
                     {isPending?"Pending":"Served"}
                   </span>
                 </div>
-                {order.items.map((item, ii) => (
-                  <div key={ii} style={{ marginBottom:8 }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:18 }}>
-                      <span style={{ color:isPending?C.goldLight:"#394c76", fontWeight:"bold" }}>
-                        {item.item_no && <span style={{ color:C.gold, marginRight:6 }}>{item.item_no}</span>}
+                {order.items.map((item, ii) => {
+                  const itemIsDone = itemDone(order, item);
+                  return (
+                  <div key={ii} style={{ marginBottom:8, opacity:itemIsDone?0.5:1 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:18, gap:8 }}>
+                      <span style={{ color:itemIsDone?"#394c76":C.goldLight, fontWeight:"bold", textDecoration:itemIsDone?"line-through":"none" }}>
+                        {itemIsDone?"✅ ":""}{item.item_no && <span style={{ color:C.gold, marginRight:6 }}>{item.item_no}</span>}
                         {item.name}
                       </span>
-                      <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                        <span style={{ color:C.gold, fontWeight:"bold" }}>×{item.qty}</span>
+                        {isPending && !itemIsDone && (
+                          <button onClick={() => onItemDone(order, ii)}
+                            style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"10px 16px", fontSize:14, fontWeight:"bold" })}>Done</button>
+                        )}
+                      </div>
                     </div>
                     <div style={{ color:"#394c76", fontSize:15, marginTop:2 }}>RM {(item.price*item.qty).toFixed(2)}</div>
                     {item.is_takeaway && <div style={{ display:"inline-block", background:"#394c76", color:"#fff", borderRadius:6, padding:"3px 8px", marginTop:4, fontSize:12, fontWeight:"bold" }}>TAKEAWAY</div>}
                     {item.note && <div style={{ fontSize:13, color:"#394c76", background:"#eef1f6", borderRadius:8, padding:"5px 10px", marginTop:5 }}>{item.note}</div>}
                   </div>
-                ))}
+                  );
+                })}
                 {order.special_request && (
                   <div style={{ fontSize:13, color:C.gold, background:"#eef1f6", borderRadius:8, padding:"7px 10px", marginTop:6 }}>{order.special_request}</div>
                 )}
                 {isPending && (
                   <div style={{ display:"flex", gap:10, marginTop:12 }}>
-                    <button onClick={() => markOrderDone(order.id)}
-                      style={btn({ flex:1, background:"#394c76", border:"none", color:"#fff", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>Mark Done</button>
                     <button onClick={() => cancelOrder(order.id)}
                       style={btn({ flex:1, background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✕ Cancel</button>
                   </div>
@@ -4874,6 +4918,17 @@ async function undoSplit(subTableNo, rows) {
   }
 }
 
+const itemDone = (order, item) => order.status === "done" || item.done === true;
+
+async function markItemDone(order, itemIndex) {
+  const items = order.items.map((it, i) => i === itemIndex ? { ...it, done: true } : it);
+  const allDone = items.every(it => it.done === true);
+  await supabase.from("orders").update({
+    items,
+    status: allDone ? "done" : order.status,
+  }).eq("id", order.id);
+}
+
 function CashierScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
   const [serviceCharge, setServiceCharge] = useState(10);
@@ -5234,8 +5289,8 @@ function CashierScreen({ goHome }) {
     fetchAll();
   };
 
-  const markOrderDone = async (orderId) => {
-    await supabase.from("orders").update({status:"done"}).eq("id",orderId);
+  const handleItemDone = async (order, itemIndex) => {
+    await markItemDone(order, itemIndex);
     fetchAll();
   };
 
@@ -5494,7 +5549,7 @@ function CashierScreen({ goHome }) {
           <DetailModal tableNo={tableNo} hasPending={hasPending} pending={pending} done={done}
             allOrders={allOrders} drinkOrders={drinkOrders} foodOrders={foodOrders}
             total={total} liveData={liveData}
-            markOrderDone={markOrderDone} cancelOrder={cancelOrder}
+            onItemDone={handleItemDone} cancelOrder={cancelOrder}
             printReceipt={printReceipt} setPayModal={setPayModal}
             setTableDetailModal={setTableDetailModal} />
         );
@@ -5778,7 +5833,7 @@ function CashierScreen({ goHome }) {
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(340px,100%),1fr))", gap:14 }}>
                 {displayTables.map(([tableNo, data]) => (
-                  <TableCard key={tableNo} tableNo={tableNo} data={data} paying={paying} markPaid={markPaid} markOrderDone={markOrderDone} cancelOrder={cancelOrder} cardTab={cardTabs[tableNo]||"drinks"} setCardTab={(tab) => setCardTabs(prev => ({...prev, [tableNo]:tab}))} printReceipt={printReceipt} setPayModal={setPayModal} setTableDetailModal={setTableDetailModal} onSplitBill={setSplitBillModal} onUndoSplit={handleUndoSplit} selectMode={selectMode} isSelected={selectedForCombine.includes(tableNo)} onToggleSelect={toggleSelectForCombine} />
+                  <TableCard key={tableNo} tableNo={tableNo} data={data} paying={paying} markPaid={markPaid} onItemDone={handleItemDone} cancelOrder={cancelOrder} cardTab={cardTabs[tableNo]||"drinks"} setCardTab={(tab) => setCardTabs(prev => ({...prev, [tableNo]:tab}))} printReceipt={printReceipt} setPayModal={setPayModal} setTableDetailModal={setTableDetailModal} onSplitBill={setSplitBillModal} onUndoSplit={handleUndoSplit} selectMode={selectMode} isSelected={selectedForCombine.includes(tableNo)} onToggleSelect={toggleSelectForCombine} />
                 ))}
               </div>
             </>
