@@ -1845,12 +1845,18 @@ function MembersScreen({ goHome }) {
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 2000); };
   const [historyMember, setHistoryMember] = useState(null); // member currently viewing item history for
   const [historyOrders, setHistoryOrders] = useState([]);
+  const [historyTxns, setHistoryTxns] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyTab, setHistoryTab] = useState("purchases");
 
   const openHistory = async (member) => {
-    setHistoryMember(member); setHistoryLoading(true);
-    const { data } = await supabase.from("orders").select("*").eq("member_id", member.id).eq("status","paid").order("created_at",{ ascending:false });
-    setHistoryOrders(data||[]);
+    setHistoryMember(member); setHistoryLoading(true); setHistoryTab("purchases");
+    const [{ data:orders }, { data:txns }] = await Promise.all([
+      supabase.from("orders").select("*").eq("member_id", member.id).eq("status","paid").order("created_at",{ ascending:false }),
+      supabase.from("point_transactions").select("*").eq("member_id", member.id).order("created_at",{ ascending:false }),
+    ]);
+    setHistoryOrders(orders||[]);
+    setHistoryTxns(txns||[]);
     setHistoryLoading(false);
   };
 
@@ -1872,6 +1878,9 @@ function MembersScreen({ goHome }) {
     const delta = parseInt(adjustInput);
     if (!delta) { setEditingId(null); setAdjustInput(""); return; }
     await supabase.from("members").update({ points: Math.max(0, parseFloat(member.points) + delta) }).eq("id", member.id);
+    await supabase.from("point_transactions").insert({
+      member_id:member.id, type:delta > 0 ? "earn" : "redeem", points:Math.abs(delta), reward_name:"Manual adjustment",
+    });
     setEditingId(null); setAdjustInput("");
     showToast(delta > 0 ? `+${delta} points added` : `${delta} points removed`);
   };
@@ -1898,6 +1907,25 @@ function MembersScreen({ goHome }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = `${historyMember.name}-history-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPointsCSV = () => {
+    const header = ["Date","Type","Points","Reward / Reason"];
+    const escape = (v) => `"${String(v).replace(/"/g,'""')}"`;
+    const rows = historyTxns.map(tx => [
+      new Date(tx.created_at).toLocaleString("en-MY",{ dateStyle:"medium", timeStyle:"short" }),
+      tx.type === "earn" ? "Earned" : "Redeemed",
+      tx.type === "earn" ? `+${tx.points}` : `-${tx.points}`,
+      tx.reward_name || (tx.type === "earn" ? "Purchase" : ""),
+    ].map(escape).join(","));
+    const csv = [header.map(escape).join(","), ...rows].join("\r\n");
+    const BOM = String.fromCharCode(0xFEFF);
+    const blob = new Blob([BOM+csv], { type:"text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${historyMember.name}-points-${new Date().toISOString().slice(0,10)}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
@@ -2005,28 +2033,49 @@ function MembersScreen({ goHome }) {
                 <div style={{ fontSize:12, color:"#888" }}>RM {parseFloat(historyMember.total_spent||0).toFixed(2)} lifetime spend</div>
               </div>
               <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
-                {historyOrders.length > 0 && (
+                {historyTab === "purchases" && historyOrders.length > 0 && (
                   <button onClick={exportHistoryCSV} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"8px 12px", fontSize:12, fontWeight:"bold", borderRadius:8, whiteSpace:"nowrap" })}>⬇️ Export</button>
+                )}
+                {historyTab === "points" && historyTxns.length > 0 && (
+                  <button onClick={exportPointsCSV} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"8px 12px", fontSize:12, fontWeight:"bold", borderRadius:8, whiteSpace:"nowrap" })}>⬇️ Export</button>
                 )}
                 <button onClick={()=>setHistoryMember(null)} style={{ background:"#f5f5f5", border:"none", color:"#888", width:30, height:30, borderRadius:8, fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
               </div>
             </div>
+            <div style={{ display:"flex", borderBottom:"1px solid #eee", flexShrink:0 }}>
+              <button onClick={()=>setHistoryTab("purchases")} style={{ flex:1, background:"transparent", border:"none", borderBottom:historyTab==="purchases"?"2px solid #394c76":"2px solid transparent", color:historyTab==="purchases"?"#394c76":"#999", padding:"10px 0", fontSize:13, fontWeight:historyTab==="purchases"?"bold":"normal", cursor:"pointer" }}>Purchases</button>
+              <button onClick={()=>setHistoryTab("points")} style={{ flex:1, background:"transparent", border:"none", borderBottom:historyTab==="points"?"2px solid #394c76":"2px solid transparent", color:historyTab==="points"?"#394c76":"#999", padding:"10px 0", fontSize:13, fontWeight:historyTab==="points"?"bold":"normal", cursor:"pointer" }}>Points Activity</button>
+            </div>
             <div style={{ padding:"12px 20px 20px", overflowY:"auto", flex:1 }}>
               {historyLoading ? (
                 <div style={{ textAlign:"center", color:"#aaa", padding:20 }}>Loading…</div>
-              ) : historyOrders.length === 0 ? (
-                <div style={{ textAlign:"center", color:"#aaa", padding:20, fontSize:13 }}>No paid orders on record for this member yet — history only covers visits from when they were attached to a bill at checkout.</div>
-              ) : historyOrders.map(o => (
-                <div key={o.id} style={{ borderBottom:"1px solid #f0f0f0", padding:"10px 0" }}>
-                  <div style={{ fontSize:11, color:"#aaa", marginBottom:4 }}>{new Date(o.created_at).toLocaleString("en-MY",{ dateStyle:"medium", timeStyle:"short" })}</div>
-                  {(o.items||[]).map((item,i) => (
-                    <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#333" }}>
-                      <span>{item.name} ×{item.qty}</span>
-                      <span>RM {(item.price*item.qty).toFixed(2)}</span>
+              ) : historyTab === "purchases" ? (
+                historyOrders.length === 0 ? (
+                  <div style={{ textAlign:"center", color:"#aaa", padding:20, fontSize:13 }}>No paid orders on record for this member yet — history only covers visits from when they were attached to a bill at checkout.</div>
+                ) : historyOrders.map(o => (
+                  <div key={o.id} style={{ borderBottom:"1px solid #f0f0f0", padding:"10px 0" }}>
+                    <div style={{ fontSize:11, color:"#aaa", marginBottom:4 }}>{new Date(o.created_at).toLocaleString("en-MY",{ dateStyle:"medium", timeStyle:"short" })}</div>
+                    {(o.items||[]).map((item,i) => (
+                      <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#333" }}>
+                        <span>{item.name} ×{item.qty}</span>
+                        <span>RM {(item.price*item.qty).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))
+              ) : (
+                historyTxns.length === 0 ? (
+                  <div style={{ textAlign:"center", color:"#aaa", padding:20, fontSize:13 }}>No points activity on record yet — earning/redeeming starts being tracked from now on.</div>
+                ) : historyTxns.map(tx => (
+                  <div key={tx.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:"1px solid #f0f0f0", padding:"10px 0" }}>
+                    <div>
+                      <div style={{ fontSize:13, color:"#333", fontWeight:"bold" }}>{tx.type === "earn" ? "✅ Earned" : "🎁 Redeemed"}{tx.reward_name ? ` — ${tx.reward_name}` : ""}</div>
+                      <div style={{ fontSize:11, color:"#aaa", marginTop:2 }}>{new Date(tx.created_at).toLocaleString("en-MY",{ dateStyle:"medium", timeStyle:"short" })}</div>
                     </div>
-                  ))}
-                </div>
-              ))}
+                    <div style={{ fontSize:14, fontWeight:"bold", color:tx.type==="earn"?"#2e7d32":"#c0392b", flexShrink:0 }}>{tx.type==="earn"?"+":"-"}{tx.points} pts</div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -2494,13 +2543,17 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     const mytNow = new Date(now.toLocaleString("en-US",{timeZone:"Asia/Kuala_Lumpur"}));
     const seq = String(mytNow.getHours()*60 + mytNow.getMinutes()).padStart(3,"0");
     const rewardItem = { name:menuItem.name, item_no:menuItem.item_no, emoji:menuItem.emoji, category:menuItem.category, price:0, qty:1, is_reward:true };
-    const { error } = await supabase.from("orders").insert({
+    const { data:newOrder, error } = await supabase.from("orders").insert({
       table_no:tableNo, items:[rewardItem], subtotal:0, tax:0, total:0,
       status:"pending", special_request:`🎁 Redeemed: ${reward.name}`, time, order_seq:seq,
-    });
+    }).select().maybeSingle();
     if (error) { setMemberCheckMsg("Could not redeem — try again."); return; }
     const newPoints = phoneMember.points - reward.points_cost;
     await supabase.from("members").update({ points:newPoints }).eq("id", phoneMember.id);
+    await supabase.from("point_transactions").insert({
+      member_id:phoneMember.id, type:"redeem", points:reward.points_cost,
+      reward_id:reward.id, reward_name:reward.name, order_id:newOrder?.id||null,
+    });
     setPhoneMember(m => ({ ...m, points:newPoints }));
     setMemberCheckMsg(`🎉 Redeemed ${reward.name}! It's on its way.`);
   };
@@ -5937,6 +5990,10 @@ function CashierScreen({ goHome }) {
                     const newSpent = parseFloat(confirmModal.member.total_spent||0) + confirmModal.rounded;
                     const { error: ptsErr } = await supabase.from("members").update({ points:newPoints, total_spent:newSpent }).eq("id", confirmModal.member.id);
                     if (ptsErr) alert(`Bill was paid, but points could not be saved for ${confirmModal.member.name} (${ptsErr.message}). Use Members > Adjust Points to fix manually: +${earned} pts.`);
+                    const txns = [];
+                    if (earned > 0) txns.push({ member_id:confirmModal.member.id, type:"earn", points:earned });
+                    if (confirmModal.reward) txns.push({ member_id:confirmModal.member.id, type:"redeem", points:redeemed, reward_id:confirmModal.reward.id, reward_name:confirmModal.reward.name });
+                    if (txns.length > 0) await supabase.from("point_transactions").insert(txns);
                   }
                   setConfirmModal(null);
                   setPayModal(null);
