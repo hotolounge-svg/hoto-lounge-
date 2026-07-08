@@ -1534,6 +1534,26 @@ function MembersScreen({ goHome }) {
     showToast("Member removed");
   };
 
+  const exportHistoryCSV = () => {
+    const header = ["Date","Order ID","Item","Qty","Unit Price (RM)","Item Total (RM)"];
+    const escape = (v) => `"${String(v).replace(/"/g,'""')}"`;
+    const rows = [];
+    historyOrders.forEach(o => {
+      const date = new Date(o.created_at).toLocaleString("en-MY",{ dateStyle:"medium", timeStyle:"short" });
+      (o.items||[]).forEach(item => {
+        rows.push([date, o.id, item.name, item.qty, item.price.toFixed(2), (item.price*item.qty).toFixed(2)].map(escape).join(","));
+      });
+    });
+    const csv = [header.map(escape).join(","), ...rows].join("\r\n");
+    const BOM = String.fromCharCode(0xFEFF);
+    const blob = new Blob([BOM+csv], { type:"text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${historyMember.name}-history-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // CSV opens natively in Excel — no extra library needed for a browser-only app.
   // Exports whatever the current search has filtered to, so clearing the search
   // exports everyone and typing a name/phone exports just that match.
@@ -1636,7 +1656,12 @@ function MembersScreen({ goHome }) {
                 <div style={{ fontSize:15, fontWeight:"bold", color:"#1a1a1a" }}>{historyMember.name}</div>
                 <div style={{ fontSize:12, color:"#888" }}>RM {parseFloat(historyMember.total_spent||0).toFixed(2)} lifetime spend</div>
               </div>
-              <button onClick={()=>setHistoryMember(null)} style={{ background:"#f5f5f5", border:"none", color:"#888", width:30, height:30, borderRadius:8, fontSize:16, cursor:"pointer" }}>✕</button>
+              <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
+                {historyOrders.length > 0 && (
+                  <button onClick={exportHistoryCSV} style={btn({ background:"#394c76", border:"none", color:"#fff", padding:"8px 12px", fontSize:12, fontWeight:"bold", borderRadius:8, whiteSpace:"nowrap" })}>⬇️ Export</button>
+                )}
+                <button onClick={()=>setHistoryMember(null)} style={{ background:"#f5f5f5", border:"none", color:"#888", width:30, height:30, borderRadius:8, fontSize:16, cursor:"pointer", flexShrink:0 }}>✕</button>
+              </div>
             </div>
             <div style={{ padding:"12px 20px 20px", overflowY:"auto", flex:1 }}>
               {historyLoading ? (
