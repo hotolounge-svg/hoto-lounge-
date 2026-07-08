@@ -13,6 +13,10 @@ const TABLES = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 const TW_SLOTS = Array.from({length:20},(_,i)=>`TW-${String(i+1).padStart(2,"0")}`); // 🥡 Go Takeaway
 const isTakeaway = (t) => String(t).startsWith("TW-");
 const isGroup = (t) => String(t).startsWith("GRP-");
+// A split-off sub-bill (e.g. "5·B2") never has its own phone-set session —
+// it's a brand new table_no created at split time — so the cashier must be able
+// to pick that person's redemption manually here, unlike a normal shared table.
+const isSplitBill = (t) => /·B\d+$/.test(String(t));
 const groupDisplayName = (t) => { const s = String(t).split("·")[0].replace(/^GRP-/,"").replace(/-/g," "); return s.charAt(0).toUpperCase()+s.slice(1); };
 const takeawayLabel = (t) => `Takeaway ${t}`;
 const CAFE_NAME = "HOTO LOUNGE";
@@ -5707,7 +5711,26 @@ function CashierScreen({ goHome }) {
                         </div>
                         <button onClick={async () => { setPayMember(null); setSelectedRewardId(null); await supabase.from("table_sessions").upsert({ table_no:String(payModal.tableNo), member_id:null, pending_reward_id:null }); }} style={{ background:"transparent", border:"none", color:"#c0392b", fontSize:13, cursor:"pointer", fontFamily:"Georgia,serif" }}>Remove</button>
                       </div>
-                      {(() => {
+                      {isSplitBill(payModal.tableNo) ? (
+                        rewards.filter(r => r.reward_type === "discount").length > 0 && (
+                          <div style={{ marginTop:10 }}>
+                            <div style={{ fontSize:11, color:"#888", marginBottom:6, fontFamily:"Georgia,serif" }}>Redeem cash off this bill</div>
+                            {rewards.filter(r => r.reward_type === "discount").map(r => {
+                              const affordable = payMember.points >= r.points_cost;
+                              const selected = selectedRewardId === r.id;
+                              return (
+                                <button key={r.id} disabled={!affordable}
+                                  onClick={() => setSelectedRewardId(selected ? null : r.id)}
+                                  style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", background:selected?"#394c76":"#fff", border:`1.5px solid ${selected?"#394c76":"#ddd"}`, color:selected?"#fff":affordable?"#1a1a1a":"#bbb", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", cursor:affordable?"pointer":"not-allowed", marginBottom:6 }}>
+                                  <span>{r.name} — RM{parseFloat(r.discount_amount||0).toFixed(2)} off</span>
+                                  <span style={{ fontWeight:"bold" }}>{r.points_cost} pts{!affordable?" (not enough)":""}</span>
+                                </button>
+                              );
+                            })}
+                            <div style={{ fontSize:11, color:"#aaa", marginTop:2, fontFamily:"Georgia,serif" }}>Split-bill portion — since this customer couldn't have picked this on their own phone (it's a new sub-bill), pick it here on their behalf.</div>
+                          </div>
+                        )
+                      ) : (() => {
                         const pickedDiscount = rewards.find(r => r.id === selectedRewardId && r.reward_type === "discount");
                         if (pickedDiscount) {
                           const affordable = payMember.points >= pickedDiscount.points_cost;
