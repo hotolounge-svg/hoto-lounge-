@@ -1043,8 +1043,12 @@ function JoinMemberScreen({ goHome }) {
   }
 
   if (done) {
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isAndroid = /android/i.test(navigator.userAgent);
+    const pointsUrl = `${baseUrl}?joinMember=1&checkPhone=${encodeURIComponent(done.phone)}`;
     return (
-      <div style={{ minHeight:"100vh", background:"#e8ecef", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"Georgia,serif" }}>
+      <div style={{ minHeight:"100vh", background:"#e8ecef", fontFamily:"Georgia,serif", overflowY:"auto" }}>
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"24px 24px 40px" }}>
         <div style={{ width:64, height:64, borderRadius:18, background:"#394c76", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:12, boxShadow:"0 8px 22px rgba(57,76,118,0.25)" }}>
           <Icon name="check" size={30} color="#fff" stroke={2.4} />
         </div>
@@ -1060,14 +1064,49 @@ function JoinMemberScreen({ goHome }) {
 
         {/* Personal "check my points" link + QR — bookmark or re-scan any time,
             instead of re-typing your phone number to check your balance. */}
-        <div style={{ width:"100%", maxWidth:340, background:"#fff", border:"1px solid #e3e7f0", borderRadius:16, padding:16, display:"flex", flexDirection:"column", alignItems:"center" }}>
+        <div style={{ width:"100%", maxWidth:340, background:"#fff", border:"1px solid #e3e7f0", borderRadius:16, padding:16, display:"flex", flexDirection:"column", alignItems:"center", marginBottom:20 }}>
           <div style={{ fontSize:13, fontWeight:"bold", color:"#394c76", marginBottom:10, textAlign:"center" }}>📲 Check My Points Anytime</div>
-          <QRCode url={`${baseUrl}?joinMember=1&checkPhone=${encodeURIComponent(done.phone)}`} size={140} />
-          <a href={`${baseUrl}?joinMember=1&checkPhone=${encodeURIComponent(done.phone)}`}
+          <QRCode url={pointsUrl} size={140} />
+          <a href={pointsUrl}
             style={{ display:"block", marginTop:12, width:"100%", background:"linear-gradient(150deg,#394c76,#2c3b5e)", color:"#fff", padding:"12px 0", borderRadius:12, fontWeight:"bold", fontSize:14, textDecoration:"none", textAlign:"center" }}>
             Open My Points Page
           </a>
           <div style={{ fontSize:11, color:"#aaa", textAlign:"center", marginTop:10, lineHeight:1.6 }}>Bookmark this or save the QR — scanning it always shows your latest points, no typing needed.</div>
+        </div>
+
+        {/* Add to Home Screen — same one-tap convenience as the VIP menu link */}
+        <div style={{ width:"100%", maxWidth:340, background:"#f4f6f9", border:"1.5px solid #c9cfd8", borderRadius:16, padding:16 }}>
+          <div style={{ fontSize:14, fontWeight:"bold", color:"#394c76", marginBottom:12, textAlign:"center" }}>
+            📲 Best way — Add to Home Screen
+          </div>
+          <div style={{ fontSize:12, color:"#8c8c8c", marginBottom:12, textAlign:"center", lineHeight:1.6 }}>
+            One tap to check your points — works like an app icon!
+          </div>
+          {(isIOS || (!isIOS && !isAndroid)) && (
+            <div style={{ marginBottom: isAndroid ? 0 : 12 }}>
+              <div style={{ fontSize:12, color:"#394c76", fontWeight:"bold", marginBottom:6 }}>🍎 iPhone / iPad (Safari):</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {["1. Tap the link above to open your points page","2. Tap the Share button (square with an arrow)","3. Scroll down → tap Add to Home Screen","4. Tap Add — done! ✅"].map((s,i) => (
+                  <div key={i} style={{ fontSize:12, color:"#394c76", background:"#e3e7f0", borderRadius:8, padding:"6px 10px" }}>{s}</div>
+                ))}
+              </div>
+            </div>
+          )}
+          {(isAndroid || (!isIOS && !isAndroid)) && (
+            <div style={{ marginTop: isIOS ? 12 : 0 }}>
+              <div style={{ fontSize:12, color:"#394c76", fontWeight:"bold", marginBottom:6 }}>🤖 Android (Chrome):</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {["1. Tap the link above to open your points page","2. Tap the 3 dots at top right of Chrome","3. Tap: Add to Home screen","4. Tap Add — done! ✅"].map((s,i) => (
+                  <div key={i} style={{ fontSize:12, color:"#394c76", background:"#e3e7f0", borderRadius:8, padding:"6px 10px" }}>{s}</div>
+                ))}
+              </div>
+              <div style={{ fontSize:11, color:"#aaa", textAlign:"center", marginTop:8, lineHeight:1.6 }}>Using Samsung Internet, Firefox or another browser? Look for the same "Add to Home screen" option in its menu — the wording is slightly different, but every Android browser has it.</div>
+            </div>
+          )}
+          <div style={{ fontSize:11, color:"#c9cfd8", textAlign:"center", marginTop:12, lineHeight:1.6 }}>
+            Or just bookmark the link in your browser — also works great!
+          </div>
+        </div>
         </div>
       </div>
     );
@@ -1195,6 +1234,9 @@ function GroupAdminScreen({ goHome }) {
       setSaving(false);
       await load(false);
       showToast(members.length > 1 ? `${members.length} members added` : "Member added");
+      // Adding one member at a time (the common case) — open their loyalty
+      // phone field immediately so staff doesn't have to hunt for it after.
+      if (members.length === 1) { setPhoneEditing(rows[0].id); setPhoneInput(""); }
       return;
     }
 
@@ -1206,15 +1248,16 @@ function GroupAdminScreen({ goHome }) {
     }
     setSaving(true);
     const slug = form.groupName.trim().toLowerCase().replace(/\s+/g,"-");
+    let newRows = [];
     if (members.length > 0) {
       // Staff adding members manually
-      const rows = members.map(name => ({
+      newRows = members.map(name => ({
         id: `${slug}-${name.toLowerCase().replace(/\s+/g,"-")}`,
         display_name: name,
         group_name: form.groupName.trim(),
         group_slug: slug,
       }));
-      await supabase.from("groups").upsert(rows);
+      await supabase.from("groups").upsert(newRows);
     } else {
       // Just create group with no members yet — VIPs self-register via invite link
       // Insert a placeholder row to store group info so it appears in the list
@@ -1229,6 +1272,9 @@ function GroupAdminScreen({ goHome }) {
     setFormError("");
     setSaving(false);
     await load(false); // no flicker
+    // Adding one member at a time (the common case) — open their loyalty
+    // phone field immediately so staff doesn't have to hunt for it after.
+    if (newRows.length === 1) { setPhoneEditing(newRows[0].id); setPhoneInput(""); }
   };
 
   const deleteGroup = (slug, name) => {
@@ -2046,36 +2092,39 @@ function MembersScreen({ goHome }) {
         </div>
         <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
       </div>
-      <div style={{ flex:1, padding:20, overflowY:"auto", maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
-        <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name or phone…"
-            style={{ flex:1, minWidth:0, background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"12px 14px", borderRadius:10, fontSize:15, boxSizing:"border-box" }} />
-          <button onClick={exportCSV} disabled={filtered.length===0}
-            style={btn({ background:filtered.length?"#394c76":"#ccc", border:"none", color:"#fff", padding:"0 16px", fontSize:13, fontWeight:"bold", borderRadius:10, whiteSpace:"nowrap" })}>
-            ⬇️ Export
-          </button>
+      <div style={{ flex:1, overflowY:"auto" }}>
+        <div style={{ position:"sticky", top:0, zIndex:2, background:C.bg, padding:"20px 20px 12px", maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name or phone…"
+              style={{ flex:1, minWidth:0, background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"12px 14px", borderRadius:10, fontSize:15, boxSizing:"border-box" }} />
+            <button onClick={exportCSV} disabled={filtered.length===0}
+              style={btn({ background:filtered.length?"#394c76":"#ccc", border:"none", color:"#fff", padding:"0 16px", fontSize:13, fontWeight:"bold", borderRadius:10, whiteSpace:"nowrap" })}>
+              ⬇️ Export
+            </button>
+          </div>
+          {!loading && members.length > 0 && (
+            <div style={{ fontSize:11, color:C.muted, marginTop:8 }}>{filtered.length} member{filtered.length===1?"":"s"}{search.trim() && ` matching "${search}"`}</div>
+          )}
         </div>
+        <div style={{ padding:"0 20px 20px", maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
         {loading ? (
           <div style={{ textAlign:"center", color:C.muted, padding:40 }}>Loading…</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign:"center", color:C.muted, padding:40 }}>{members.length===0 ? "No members yet." : `No members match "${search}".`}</div>
         ) : filtered.map(m => (
-          <div key={m.id} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:16, marginBottom:10 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-              <div>
-                <div style={{ fontSize:15, fontWeight:"bold", color:C.text }}>
-                  {m.name}{m.source_group_id && <span style={{ marginLeft:8, fontSize:10, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"2px 8px", fontWeight:"bold", letterSpacing:0.5 }}>VIP</span>}
-                </div>
-                <div style={{ fontSize:12, color:C.muted, marginTop:2 }}>{m.phone}</div>
+          <div key={m.id} style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 14px", marginBottom:8 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
+              <div style={{ fontSize:14, fontWeight:"bold", color:C.text }}>
+                {m.name}{m.source_group_id && <span style={{ marginLeft:8, fontSize:10, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"2px 8px", fontWeight:"bold", letterSpacing:0.5 }}>VIP</span>}
               </div>
-              <div style={{ textAlign:"right" }}>
-                <div style={{ fontSize:18, fontWeight:"bold", color:"#394c76" }}>{m.points}</div>
-                <div style={{ fontSize:10, color:C.muted }}>points</div>
-                <div style={{ fontSize:12, color:C.muted, marginTop:4 }}>RM {parseFloat(m.total_spent||0).toFixed(2)} spent</div>
-              </div>
+              <div style={{ fontSize:16, fontWeight:"bold", color:"#394c76", flexShrink:0 }}>{m.points} <span style={{ fontSize:10, fontWeight:"normal", color:C.muted }}>pts</span></div>
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", marginTop:2 }}>
+              <div style={{ fontSize:12, color:C.muted }}>{m.phone}</div>
+              <div style={{ fontSize:12, color:C.muted, flexShrink:0 }}>RM {parseFloat(m.total_spent||0).toFixed(2)} spent</div>
             </div>
             {editingId === m.id ? (
-              <div style={{ display:"flex", gap:8, marginTop:12 }}>
+              <div style={{ display:"flex", gap:8, marginTop:10 }}>
                 <input type="number" autoFocus value={adjustInput} onChange={e=>setAdjustInput(e.target.value)}
                   placeholder="e.g. 50 or -20"
                   style={{ flex:1, minWidth:0, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, boxSizing:"border-box" }} />
@@ -2083,14 +2132,15 @@ function MembersScreen({ goHome }) {
                 <button onClick={()=>{setEditingId(null);setAdjustInput("");}} style={{ background:"#f5f5f5", border:"1px solid #ddd", color:"#888", borderRadius:8, padding:"8px 12px", fontSize:13, cursor:"pointer" }}>✕</button>
               </div>
             ) : (
-              <div style={{ display:"flex", gap:8, marginTop:12 }}>
-                <button onClick={()=>openHistory(m)} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>History</button>
-                <button onClick={()=>{setEditingId(m.id);setAdjustInput("");}} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Adjust Points</button>
-                <button onClick={()=>setConfirmDelete({ id:m.id, name:m.name })} style={{ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", borderRadius:8, padding:"8px 14px", fontSize:13, cursor:"pointer" }}>Remove</button>
+              <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                <button onClick={()=>openHistory(m)} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"7px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>History</button>
+                <button onClick={()=>{setEditingId(m.id);setAdjustInput("");}} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"7px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Adjust Points</button>
+                <button onClick={()=>setConfirmDelete({ id:m.id, name:m.name })} style={{ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", borderRadius:8, padding:"7px 14px", fontSize:13, cursor:"pointer" }}>Remove</button>
               </div>
             )}
           </div>
         ))}
+        </div>
       </div>
 
       {/* Item-level purchase history for one member */}
