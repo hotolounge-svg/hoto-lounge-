@@ -384,9 +384,12 @@ const composePhone = (raw, dial) => {
   return digits ? `+${dial}${digits}` : "";
 };
 
-// wa.me needs bare digits (no "+"), and just pre-fills the message —
-// the person who taps it still has to press send in WhatsApp themselves.
-const waLink = (phone, text) => `https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
+// A reward with no valid_from/valid_until is always redeemable; dates are
+// plain "YYYY-MM-DD" strings so lexical comparison against today works.
+const rewardIsValid = (r) => {
+  const today = new Date().toISOString().slice(0, 10);
+  return (!r.valid_from || r.valid_from <= today) && (!r.valid_until || r.valid_until >= today);
+};
 
 function QRCode({ url, size=160 }) {
   const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=394c76&margin=10`;
@@ -1650,6 +1653,7 @@ function SystemSettingsScreen({ goHome }) {
       service_charge: parseFloat(form.service_charge) || 0,
       auto_print_enabled: form.auto_print_enabled,
       points_earn_rate: parseFloat(form.points_earn_rate) || 0,
+      points_earn_rate_vip: parseFloat(form.points_earn_rate_vip) || 0,
       points_earn_basis: form.points_earn_basis,
       updated_at: new Date().toISOString(),
     }).eq("id", 1);
@@ -1660,7 +1664,7 @@ function SystemSettingsScreen({ goHome }) {
   // ── Rewards Catalog — named things a member can redeem points for ──
   const [rewards, setRewards] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
-  const [newReward, setNewReward] = useState({ name:"", points_cost:"", reward_type:"discount", discount_amount:"", menu_item_id:"" });
+  const [newReward, setNewReward] = useState({ name:"", points_cost:"", reward_type:"discount", discount_amount:"", menu_item_id:"", valid_from:"", valid_until:"" });
   const loadRewards = () => supabase.from("rewards").select("*").order("points_cost",{ ascending:true })
     .then(({ data }) => setRewards(data||[]));
   useEffect(() => {
@@ -1680,8 +1684,11 @@ function SystemSettingsScreen({ goHome }) {
     if (newReward.reward_type === "free_item" && !newReward.menu_item_id) return;
     const discountAmount = newReward.reward_type === "discount" ? parseFloat(newReward.discount_amount)||0 : null;
     const menuItemId = newReward.reward_type === "free_item" ? parseInt(newReward.menu_item_id) : null;
-    await supabase.from("rewards").insert({ name, points_cost:pointsCost, reward_type:newReward.reward_type, discount_amount:discountAmount, menu_item_id:menuItemId });
-    setNewReward({ name:"", points_cost:"", reward_type:"discount", discount_amount:"", menu_item_id:"" });
+    await supabase.from("rewards").insert({
+      name, points_cost:pointsCost, reward_type:newReward.reward_type, discount_amount:discountAmount, menu_item_id:menuItemId,
+      valid_from: newReward.valid_from || null, valid_until: newReward.valid_until || null,
+    });
+    setNewReward({ name:"", points_cost:"", reward_type:"discount", discount_amount:"", menu_item_id:"", valid_from:"", valid_until:"" });
   };
   const toggleRewardActive = (reward) => supabase.from("rewards").update({ is_active: !reward.is_active }).eq("id", reward.id);
   const deleteReward = (id) => supabase.from("rewards").delete().eq("id", id);
@@ -1743,6 +1750,12 @@ function SystemSettingsScreen({ goHome }) {
               style={{ width:120, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:16, fontWeight:"bold", boxSizing:"border-box" }} />
           </div>
           <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>VIP Bonus Earn Rate (points per RM1, VIP members only)</div>
+            <input type="number" step="0.1" min="0" value={form.points_earn_rate_vip} onChange={e => setForm(f => ({ ...f, points_earn_rate_vip:e.target.value }))}
+              style={{ width:120, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:16, fontWeight:"bold", boxSizing:"border-box" }} />
+            <div style={{ fontSize:11, color:C.muted, marginTop:6 }}>Same redemption catalog for everyone — this only changes how fast VIP members earn points, as an extra perk on top of their price break.</div>
+          </div>
+          <div style={{ marginBottom:14 }}>
             <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Earn Basis</div>
             <select value={form.points_earn_basis} onChange={e => setForm(f => ({ ...f, points_earn_basis:e.target.value }))}
               style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
@@ -1770,6 +1783,12 @@ function SystemSettingsScreen({ goHome }) {
                   {r.points_cost} pts · {r.reward_type === "discount" ? `RM${parseFloat(r.discount_amount||0).toFixed(2)} off` : `Free item${linkedItem ? ": "+linkedItem.name : ""}`}
                   {!r.is_active && " · Inactive"}
                 </div>
+                {(r.valid_from || r.valid_until) && (
+                  <div style={{ fontSize:11, marginTop:2, color: rewardIsValid(r) ? "#c8973a" : "#c0392b", fontWeight:"bold" }}>
+                    {r.valid_from ? new Date(r.valid_from).toLocaleDateString("en-MY") : "Any time"} → {r.valid_until ? new Date(r.valid_until).toLocaleDateString("en-MY") : "No end date"}
+                    {!rewardIsValid(r) && (r.valid_from > new Date().toISOString().slice(0,10) ? " · Scheduled" : " · Expired")}
+                  </div>
+                )}
               </div>
               <button onClick={() => toggleRewardActive(r)} style={btn({ background:"#eef1f6", border:`1px solid ${C.border}`, color:"#394c76", padding:"7px 12px", fontSize:12, fontWeight:"bold", whiteSpace:"nowrap" })}>
                 {r.is_active ? "Deactivate" : "Activate"}
@@ -1825,6 +1844,19 @@ function SystemSettingsScreen({ goHome }) {
                 <div style={{ fontSize:11, color:C.muted, marginTop:6 }}>Redeeming this sends it straight to the Kitchen/Cashier at RM0, just like a normal order.</div>
               </div>
             )}
+            <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Valid From (optional)</div>
+                <input type="date" value={newReward.valid_from} onChange={e => setNewReward(f => ({ ...f, valid_from:e.target.value }))}
+                  style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Valid Until (optional)</div>
+                <input type="date" value={newReward.valid_until} onChange={e => setNewReward(f => ({ ...f, valid_until:e.target.value }))}
+                  style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+              </div>
+            </div>
+            <div style={{ fontSize:11, color:C.muted, marginTop:-4, marginBottom:10 }}>Leave both blank for a reward that's always redeemable.</div>
             <button onClick={addReward} style={btn({ width:"100%", background:"#394c76", border:"none", color:"#fff", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>+ Add Reward</button>
           </div>
         </div>
@@ -2020,9 +2052,6 @@ function MembersScreen({ goHome }) {
               <div style={{ display:"flex", gap:8, marginTop:12 }}>
                 <button onClick={()=>openHistory(m)} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>History</button>
                 <button onClick={()=>{setEditingId(m.id);setAdjustInput("");}} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Adjust Points</button>
-                <a href={waLink(m.phone, `Hi ${m.name}! 🎉 Welcome to HOTO LOUNGE — thanks for joining our loyalty program. You'll earn points on every visit and can redeem them for rewards!`)}
-                  target="_blank" rel="noopener noreferrer"
-                  style={{ background:"#25D366", border:"none", color:"#fff", borderRadius:8, padding:"8px 12px", fontSize:13, fontWeight:"bold", cursor:"pointer", textDecoration:"none", display:"flex", alignItems:"center", whiteSpace:"nowrap" }}>💬</a>
                 <button onClick={()=>setConfirmDelete({ id:m.id, name:m.name })} style={{ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", borderRadius:8, padding:"8px 14px", fontSize:13, cursor:"pointer" }}>Remove</button>
               </div>
             )}
@@ -2484,7 +2513,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   // Rewards catalog — needed on both the customer's own phone and the staff order screen
   useEffect(() => {
     supabase.from("rewards").select("*").eq("is_active", true).order("points_cost",{ ascending:true })
-      .then(({ data }) => setRewards(data||[]));
+      .then(({ data }) => setRewards((data||[]).filter(rewardIsValid)));
   }, []);
 
   // Restore an existing member/reward pick for this table (e.g. after a page reload) — customer side only
@@ -5188,13 +5217,15 @@ function CashierScreen({ goHome }) {
   const [orders, setOrders] = useState([]);
   const [serviceCharge, setServiceCharge] = useState(10);
   const [pointsEarnRate, setPointsEarnRate] = useState(1);
+  const [pointsEarnRateVip, setPointsEarnRateVip] = useState(1);
   const [pointsEarnBasis, setPointsEarnBasis] = useState("final_total");
   useEffect(() => {
-    const load = () => supabase.from("app_settings").select("service_charge,points_earn_rate,points_earn_basis").eq("id", 1).maybeSingle()
+    const load = () => supabase.from("app_settings").select("service_charge,points_earn_rate,points_earn_rate_vip,points_earn_basis").eq("id", 1).maybeSingle()
       .then(({ data }) => {
         if (!data) return;
         setServiceCharge(data.service_charge);
         setPointsEarnRate(data.points_earn_rate ?? 1);
+        setPointsEarnRateVip(data.points_earn_rate_vip ?? 1);
         setPointsEarnBasis(data.points_earn_basis || "final_total");
       });
     load();
@@ -5207,7 +5238,7 @@ function CashierScreen({ goHome }) {
   const [rewards, setRewards] = useState([]);
   useEffect(() => {
     const load = () => supabase.from("rewards").select("*").eq("is_active", true).order("points_cost",{ ascending:true })
-      .then(({ data }) => setRewards(data||[]));
+      .then(({ data }) => setRewards((data||[]).filter(rewardIsValid)));
     load();
     const ch = supabase.channel("rewards-cashier-watch")
       .on("postgres_changes", { event:"*", schema:"public", table:"rewards" }, load)
@@ -5991,7 +6022,8 @@ function CashierScreen({ goHome }) {
                   else markPaid(confirmModal.tableNo, confirmModal.method, confirmModal.member?.id||null);
                   if (confirmModal.member) {
                     const earnBasisAmount = pointsEarnBasis === "subtotal" ? confirmModal.subtotal : confirmModal.rounded;
-                    const earned = Math.floor(earnBasisAmount * pointsEarnRate);
+                    const rate = confirmModal.member.source_group_id ? pointsEarnRateVip : pointsEarnRate;
+                    const earned = Math.floor(earnBasisAmount * rate);
                     const redeemed = confirmModal.reward ? confirmModal.reward.points_cost : 0;
                     const newPoints = Math.max(0, confirmModal.member.points - redeemed + earned);
                     const newSpent = parseFloat(confirmModal.member.total_spent||0) + confirmModal.rounded;
