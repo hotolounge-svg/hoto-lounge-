@@ -451,6 +451,11 @@ export default function App() {
     if (!vp) { vp = document.createElement("meta"); vp.name = "viewport"; document.head.appendChild(vp); }
     if (screen !== "tablet") vp.content = "width=device-width, initial-scale=1, viewport-fit=cover";
   }, [screen]);
+  // Screens are swapped in-place (not real page navigations), so the browser
+  // keeps whatever scroll position the previous screen was left at — without
+  // this, a module opened after scrolling down elsewhere renders already
+  // scrolled past its own top.
+  useEffect(() => { window.scrollTo(0, 0); }, [screen]);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = parseInt(params.get("table"));
