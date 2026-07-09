@@ -2452,6 +2452,7 @@ function StockScreen({ goHome }) {
   const [newRecipeMenuIds, setNewRecipeMenuIds] = useState([]); // multi-select — link several dishes at once with one shared qty
   const [newRecipeQty, setNewRecipeQty] = useState("");
   const [menuLinkSearch, setMenuLinkSearch] = useState(""); // filters the "Link to Menu Item" dropdown when the menu is long
+  const [recipeSearch, setRecipeSearch] = useState(""); // filters the Recipe modal's dish checklist
 
   const load = () => supabase.from("stock_items").select("*").order("name",{ ascending:true })
     .then(({ data }) => { setItems(data||[]); setLoading(false); });
@@ -2686,7 +2687,7 @@ function StockScreen({ goHome }) {
         const links = recipeLinks.filter(l => l.stock_item_id === recipeModal.id);
         return (
           <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:99998, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
-            onClick={()=>setRecipeModal(null)}>
+            onClick={()=>{setRecipeModal(null);setRecipeSearch("");}}>
             <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, width:"100%", maxWidth:380, maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
               <div style={{ fontSize:16, fontWeight:"bold", color:"#1a1a1a", marginBottom:4, fontFamily:"Georgia,serif" }}>🍳 Recipe: {recipeModal.name}</div>
               <div style={{ fontSize:12, color:"#888", marginBottom:16, fontFamily:"Georgia,serif" }}>Dishes that consume this item — auto-deducts on order. Leave empty for manual-only tracking.</div>
@@ -2704,21 +2705,26 @@ function StockScreen({ goHome }) {
               </div>
               <div style={{ borderTop:"1px solid #eee", paddingTop:14 }}>
                 <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Add dish(es) — check as many as use the same qty, e.g. every dish where fries is a 1-portion side</div>
+                <input value={recipeSearch} onChange={e=>setRecipeSearch(e.target.value)} placeholder="Search dishes…"
+                  style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box", marginBottom:6 }} />
                 <div style={{ maxHeight:160, overflowY:"auto", border:"1px solid #ddd", borderRadius:8, marginBottom:8 }}>
-                  {menuItems.filter(mi => !links.some(l => l.menu_item_id === mi.id)).length === 0 && (
-                    <div style={{ fontSize:12, color:"#aaa", padding:"10px 12px" }}>Every dish is already linked.</div>
-                  )}
-                  {menuItems.filter(mi => !links.some(l => l.menu_item_id === mi.id)).map(mi => {
-                    const checked = newRecipeMenuIds.includes(mi.id);
-                    return (
-                      <label key={mi.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", cursor:"pointer", borderBottom:"1px solid #f5f5f5" }}>
-                        <input type="checkbox" checked={checked}
-                          onChange={()=>setNewRecipeMenuIds(ids => checked ? ids.filter(id=>id!==mi.id) : [...ids, mi.id])}
-                          style={{ width:18, height:18, flexShrink:0, accentColor:"#394c76" }} />
-                        {mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}
-                      </label>
-                    );
-                  })}
+                  {(() => {
+                    const available = menuItems.filter(mi => !links.some(l => l.menu_item_id === mi.id) && (!recipeSearch.trim() || mi.name.toLowerCase().includes(recipeSearch.trim().toLowerCase())));
+                    if (available.length === 0) {
+                      return <div style={{ fontSize:12, color:"#aaa", padding:"10px 12px" }}>{recipeSearch.trim() ? `No dishes match "${recipeSearch}".` : "Every dish is already linked."}</div>;
+                    }
+                    return available.map(mi => {
+                      const checked = newRecipeMenuIds.includes(mi.id);
+                      return (
+                        <label key={mi.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", cursor:"pointer", borderBottom:"1px solid #f5f5f5" }}>
+                          <input type="checkbox" checked={checked}
+                            onChange={()=>setNewRecipeMenuIds(ids => checked ? ids.filter(id=>id!==mi.id) : [...ids, mi.id])}
+                            style={{ width:18, height:18, flexShrink:0, accentColor:"#394c76" }} />
+                          {mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}
+                        </label>
+                      );
+                    });
+                  })()}
                 </div>
                 <div style={{ display:"flex", gap:8 }}>
                   <input type="number" min="0.1" step="0.5" value={newRecipeQty} onChange={e=>setNewRecipeQty(e.target.value)}
@@ -2730,7 +2736,7 @@ function StockScreen({ goHome }) {
                   </button>
                 </div>
               </div>
-              <button onClick={()=>{setRecipeModal(null);setNewRecipeMenuIds([]);setNewRecipeQty("");}} style={{ marginTop:14, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Done</button>
+              <button onClick={()=>{setRecipeModal(null);setNewRecipeMenuIds([]);setNewRecipeQty("");setRecipeSearch("");}} style={{ marginTop:14, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Done</button>
             </div>
           </div>
         );
@@ -2832,7 +2838,7 @@ function StockScreen({ goHome }) {
                     )}
                   </div>
                   <div style={{ display:"flex", gap:8, marginTop:8 }}>
-                    <button onClick={()=>setRecipeModal(item)} style={{ flex:1, background:"#fff8ec", border:"1px solid #f0dfb8", color:"#8a6d3b", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>🍳 Recipe</button>
+                    <button onClick={()=>{setRecipeModal(item);setRecipeSearch("");}} style={{ flex:1, background:"#fff8ec", border:"1px solid #f0dfb8", color:"#8a6d3b", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>🍳 Recipe</button>
                     <button onClick={()=>startEditItem(item)} style={{ background:"#eef1f6", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 12px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Edit</button>
                     <button onClick={()=>setConfirmDelete({ id:item.id, name:item.name })} style={{ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", borderRadius:8, padding:"8px 14px", fontSize:13, cursor:"pointer" }}>✕</button>
                   </div>
@@ -2915,20 +2921,33 @@ function StockScreen({ goHome }) {
             )}
             <div style={{ marginBottom:14 }}>
               <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Link to Menu Item (optional — auto-deducts on order, e.g. for beer sold by the bottle)</div>
-              {menuItems.length > 6 && (
-                <input value={menuLinkSearch} onChange={e=>setMenuLinkSearch(e.target.value)} placeholder="Search menu items…"
-                  style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"9px 12px", borderRadius:9, fontSize:13, boxSizing:"border-box", marginBottom:6 }} />
-              )}
-              <select value={newItem.menu_item_id} onChange={e=>setNewItem(f=>({...f,menu_item_id:e.target.value,addon_name:""}))}
-                style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
-                <option value="">Not linked — track manually (e.g. eggs, sausage)</option>
-                {menuItems
-                  .filter(mi => !menuLinkSearch.trim() || mi.name.toLowerCase().includes(menuLinkSearch.trim().toLowerCase()) || String(mi.id) === newItem.menu_item_id)
-                  .map(mi => <option key={mi.id} value={mi.id}>{mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}</option>)}
-              </select>
-              {menuLinkSearch.trim() && !menuItems.some(mi => mi.name.toLowerCase().includes(menuLinkSearch.trim().toLowerCase())) && (
-                <div style={{ fontSize:11, color:"#aaa", marginTop:4 }}>No menu items match "{menuLinkSearch}".</div>
-              )}
+              <div style={{ fontSize:12, color:"#394c76", fontWeight:"bold", marginBottom:6 }}>
+                {newItem.menu_item_id ? (() => {
+                  const mi = menuItems.find(m => String(m.id) === newItem.menu_item_id);
+                  return mi ? `Selected: ${mi.item_no ? `#${mi.item_no} ` : ""}${mi.name}` : "";
+                })() : "Not linked — track manually"}
+                {newItem.menu_item_id && (
+                  <button type="button" onClick={()=>setNewItem(f=>({...f,menu_item_id:"",addon_name:""}))}
+                    style={{ marginLeft:8, background:"transparent", border:"none", color:"#c0392b", cursor:"pointer", fontSize:12, fontWeight:"bold" }}>✕ clear</button>
+                )}
+              </div>
+              <input value={menuLinkSearch} onChange={e=>setMenuLinkSearch(e.target.value)} placeholder="Search menu items…"
+                style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"9px 12px", borderRadius:9, fontSize:13, boxSizing:"border-box", marginBottom:6 }} />
+              <div style={{ maxHeight:160, overflowY:"auto", border:"1px solid #ddd", borderRadius:8 }}>
+                {(() => {
+                  const filtered = menuItems.filter(mi => !menuLinkSearch.trim() || mi.name.toLowerCase().includes(menuLinkSearch.trim().toLowerCase()));
+                  if (filtered.length === 0) return <div style={{ fontSize:12, color:"#aaa", padding:"10px 12px" }}>No menu items match "{menuLinkSearch}".</div>;
+                  return filtered.map(mi => {
+                    const selected = String(mi.id) === newItem.menu_item_id;
+                    return (
+                      <div key={mi.id} onClick={()=>setNewItem(f=>({...f, menu_item_id:String(mi.id), addon_name:""}))}
+                        style={{ padding:"9px 12px", fontSize:13, cursor:"pointer", background:selected?"#eef1f6":"#fff", borderBottom:"1px solid #f5f5f5", color:"#1a1a1a", fontWeight:selected?"bold":"normal" }}>
+                        {mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
               {(() => {
                 const linked = newItem.menu_item_id ? menuItems.find(mi => mi.id === parseInt(newItem.menu_item_id)) : null;
                 if (!linked || !linked.addon_required || !linked.addons || linked.addons.length === 0) return null;
