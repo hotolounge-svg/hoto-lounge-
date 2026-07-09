@@ -2025,7 +2025,7 @@ function SystemSettingsScreen({ goHome }) {
                 {(r.valid_from || r.valid_until) && (
                   <div style={{ fontSize:11, marginTop:2, color: rewardIsValid(r) ? "#c8973a" : "#c0392b", fontWeight:"bold" }}>
                     {r.valid_from ? new Date(r.valid_from).toLocaleDateString("en-MY") : "Any time"} → {r.valid_until ? new Date(r.valid_until).toLocaleDateString("en-MY") : "No end date"}
-                    {!rewardIsValid(r) && (r.valid_from > new Date().toISOString().slice(0,10) ? " · Scheduled" : " · Expired")}
+                    {!rewardIsValid(r) && (r.valid_from > new Date().toLocaleDateString("en-CA",{ timeZone:"Asia/Kuala_Lumpur" }) ? " · Scheduled" : " · Expired")}
                   </div>
                 )}
               </div>
@@ -2764,9 +2764,11 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     return () => supabase.removeChannel(ch);
   }, []);
 
-  // Restore an existing member/reward pick for this table (e.g. after a page reload) — customer side only
+  // Restore an existing member/reward pick for this table (e.g. after a page
+  // reload, or staff navigating back to the table list and re-entering the
+  // same table) — applies to both staff and customer, since table_sessions
+  // represents this table's current state regardless of who's viewing it.
   useEffect(() => {
-    if (isStaff) return;
     supabase.from("table_sessions").select("member_id, pending_reward_id").eq("table_no", String(tableNo)).maybeSingle()
       .then(({ data }) => {
         if (data?.member_id) {
@@ -2775,7 +2777,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         }
         if (data?.pending_reward_id) setSelectedRewardId(data.pending_reward_id);
       });
-  }, [tableNo, isStaff]);
+  }, [tableNo]);
 
   // Explicit only (Check button / Enter key) — no background auto-check, so the
   // customer is never told "no member found" while they're still mid-typing.
@@ -3321,7 +3323,14 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                           {linkedItem?.image_url
                             ? <img src={linkedItem.image_url} alt="" style={{ width:32, height:32, borderRadius:6, objectFit:"cover", flexShrink:0 }} />
                             : <span style={{ fontSize:16, flexShrink:0 }}>{r.reward_type==="discount"?"💰":"🎁"}</span>}
-                          <span style={{ flex:1, textAlign:"left" }}>{r.name}</span>
+                          <span style={{ flex:1, textAlign:"left", minWidth:0 }}>
+                            <div>{r.name}</div>
+                            {(r.valid_from || r.valid_until) && (
+                              <div style={{ fontSize:10, color:selected?"rgba(255,255,255,0.85)":"#aaa", fontWeight:"normal" }}>
+                                {r.valid_until ? `Until ${new Date(r.valid_until).toLocaleDateString("en-MY",{day:"numeric",month:"short"})}` : "Limited time"}
+                              </div>
+                            )}
+                          </span>
                           <span style={{ fontWeight:"bold", flexShrink:0 }}>{r.points_cost} pts{!affordable?" (not enough)":""}</span>
                         </button>
                       );
@@ -3659,6 +3668,11 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontSize:15, fontWeight:"bold" }}>{r.name}</div>
                           <div style={{ fontSize:12, color:T.muted, marginTop:2 }}>{r.reward_type==="discount"?"Cash off your bill":"Free item — sent to kitchen now"}</div>
+                          {(r.valid_from || r.valid_until) && (
+                            <div style={{ fontSize:11, color:"#c8973a", marginTop:2, fontWeight:"bold" }}>
+                              {r.valid_until ? `Valid until ${new Date(r.valid_until).toLocaleDateString("en-MY",{day:"numeric",month:"short",year:"numeric"})}` : "Limited time offer"}
+                            </div>
+                          )}
                         </div>
                         <div style={{ textAlign:"right", flexShrink:0 }}>
                           <div style={{ fontSize:15, fontWeight:"bold", color:affordable?T.brown:"#bbb" }}>{r.points_cost} pts</div>
