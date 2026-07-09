@@ -2800,6 +2800,18 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       });
   }, [tableNo]);
 
+  // VIP/Brothers members are already loyalty members (linked at registration via
+  // source_group_id) — their table_no itself proves who they are, so skip the
+  // phone check-in entirely and pull their points straight from that link.
+  // Falls back to the normal manual check-in if they registered before phones
+  // were required and haven't been linked yet.
+  useEffect(() => {
+    if (!isVip) return;
+    const memberId = String(tableNo).split("·")[0].replace(/^GRP-/,"");
+    supabase.from("members").select("*").eq("source_group_id", memberId).maybeSingle()
+      .then(({ data }) => { if (data) setPhoneMember(data); });
+  }, [tableNo, isVip]);
+
   // Explicit only (Check button / Enter key) — no background auto-check, so the
   // customer is never told "no member found" while they're still mid-typing.
   const checkMemberPhone = async () => {
@@ -5546,6 +5558,13 @@ function CashierScreen({ goHome }) {
       setPayMember(null); setShowMemberSearchModal(false); setMemberSearchQuery(""); setMemberSearchResults([]); setMemberLookupMsg("");
       setSelectedRewardId(null); setShowJoinQR(false); setNewMemberName(""); setNewMemberPhone("");
     } else {
+      // VIP/Brothers members are already loyalty members via their table's own
+      // groups.id link — no need for the cashier to search, pull it directly.
+      if (isGroup(v.tableNo)) {
+        const memberId = String(v.tableNo).split("·")[0].replace(/^GRP-/,"");
+        supabase.from("members").select("*").eq("source_group_id", memberId).maybeSingle()
+          .then(({ data:m }) => { if (m) setPayMember(m); });
+      }
       // Pre-fill whatever the customer already identified/picked on their own phone —
       // cashier can still remove/change either before confirming.
       supabase.from("table_sessions").select("member_id, pending_reward_id").eq("table_no", String(v.tableNo)).maybeSingle()
