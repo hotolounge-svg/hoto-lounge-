@@ -2408,7 +2408,7 @@ function StockScreen({ goHome }) {
   const [qtyAdjustInput, setQtyAdjustInput] = useState("");
   const [recipeLinks, setRecipeLinks] = useState([]); // all stock_recipe_links rows
   const [recipeModal, setRecipeModal] = useState(null); // stock item currently managing recipe links for
-  const [newRecipeMenuId, setNewRecipeMenuId] = useState("");
+  const [newRecipeMenuIds, setNewRecipeMenuIds] = useState([]); // multi-select — link several dishes at once with one shared qty
   const [newRecipeQty, setNewRecipeQty] = useState("");
 
   const load = () => supabase.from("stock_items").select("*").order("name",{ ascending:true })
@@ -2478,15 +2478,18 @@ function StockScreen({ goHome }) {
     showToast("Stock item removed");
   };
 
+  // Links to every checked dish at once with the same qty — for something
+  // like fries that's a side on many dishes, this avoids repeating
+  // "pick dish, type qty, Add" one at a time for each one.
   const addRecipeLink = async () => {
-    if (!recipeModal || !newRecipeMenuId || !newRecipeQty) return;
+    if (!recipeModal || newRecipeMenuIds.length === 0 || !newRecipeQty) return;
     const qty = parseFloat(newRecipeQty);
     if (!qty || qty <= 0) return;
-    await supabase.from("stock_recipe_links").insert({
-      stock_item_id: recipeModal.id, menu_item_id: parseInt(newRecipeMenuId), qty_per_order: qty,
-    });
-    setNewRecipeMenuId(""); setNewRecipeQty("");
-    showToast("Recipe link added");
+    await supabase.from("stock_recipe_links").insert(
+      newRecipeMenuIds.map(id => ({ stock_item_id: recipeModal.id, menu_item_id: id, qty_per_order: qty }))
+    );
+    setNewRecipeMenuIds([]); setNewRecipeQty("");
+    showToast(`Linked to ${newRecipeMenuIds.length} dish${newRecipeMenuIds.length===1?"":"es"}`);
   };
   const deleteRecipeLink = async (id) => {
     await supabase.from("stock_recipe_links").delete().eq("id", id);
@@ -2601,20 +2604,34 @@ function StockScreen({ goHome }) {
                 })}
               </div>
               <div style={{ borderTop:"1px solid #eee", paddingTop:14 }}>
-                <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Add dish</div>
-                <select value={newRecipeMenuId} onChange={e=>setNewRecipeMenuId(e.target.value)}
-                  style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box", marginBottom:8 }}>
-                  <option value="">Select a dish…</option>
-                  {menuItems.map(mi => <option key={mi.id} value={mi.id}>{mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}</option>)}
-                </select>
+                <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Add dish(es) — check as many as use the same qty, e.g. every dish where fries is a 1-portion side</div>
+                <div style={{ maxHeight:160, overflowY:"auto", border:"1px solid #ddd", borderRadius:8, marginBottom:8 }}>
+                  {menuItems.filter(mi => !links.some(l => l.menu_item_id === mi.id)).length === 0 && (
+                    <div style={{ fontSize:12, color:"#aaa", padding:"10px 12px" }}>Every dish is already linked.</div>
+                  )}
+                  {menuItems.filter(mi => !links.some(l => l.menu_item_id === mi.id)).map(mi => {
+                    const checked = newRecipeMenuIds.includes(mi.id);
+                    return (
+                      <label key={mi.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", cursor:"pointer", borderBottom:"1px solid #f5f5f5" }}>
+                        <input type="checkbox" checked={checked}
+                          onChange={()=>setNewRecipeMenuIds(ids => checked ? ids.filter(id=>id!==mi.id) : [...ids, mi.id])}
+                          style={{ width:18, height:18, flexShrink:0, accentColor:"#394c76" }} />
+                        {mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}
+                      </label>
+                    );
+                  })}
+                </div>
                 <div style={{ display:"flex", gap:8 }}>
                   <input type="number" min="0.1" step="0.5" value={newRecipeQty} onChange={e=>setNewRecipeQty(e.target.value)}
                     placeholder={`Qty per order (e.g. 2 ${recipeModal.unit_label})`}
                     style={{ flex:1, minWidth:0, border:"1px solid #ddd", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
-                  <button onClick={addRecipeLink} style={{ background:"#394c76", border:"none", color:"#fff", borderRadius:8, padding:"9px 16px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>+ Add</button>
+                  <button onClick={addRecipeLink} disabled={newRecipeMenuIds.length===0}
+                    style={{ background:newRecipeMenuIds.length?"#394c76":"#ccc", border:"none", color:"#fff", borderRadius:8, padding:"9px 16px", fontSize:13, fontWeight:"bold", cursor:newRecipeMenuIds.length?"pointer":"not-allowed", whiteSpace:"nowrap" }}>
+                    + Add {newRecipeMenuIds.length>0 ? `(${newRecipeMenuIds.length})` : ""}
+                  </button>
                 </div>
               </div>
-              <button onClick={()=>setRecipeModal(null)} style={{ marginTop:14, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Done</button>
+              <button onClick={()=>{setRecipeModal(null);setNewRecipeMenuIds([]);setNewRecipeQty("");}} style={{ marginTop:14, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Done</button>
             </div>
           </div>
         );
@@ -6030,6 +6047,7 @@ function CashierScreen({ goHome }) {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [cancelConfirm, setCancelConfirm] = useState(null); // order pending cancel confirmation, or null
   const [splitBillModal, setSplitBillModal] = useState(null); // tableNo, or null
   const [selectMode, setSelectMode] = useState(false);
   const [selectedForCombine, setSelectedForCombine] = useState([]);
@@ -6292,7 +6310,11 @@ function CashierScreen({ goHome }) {
     win.document.close();
   };
 
-  const cancelOrder = async (order) => {
+  // Tapping "Cancel" only opens a confirmation now — an accidental tap used to
+  // cancel (and, now, un-deduct stock) immediately with no way back.
+  const cancelOrder = (order) => setCancelConfirm(order);
+  const doCancelOrder = async (order) => {
+    setCancelConfirm(null);
     await supabase.from("orders").update({status:"cancelled"}).eq("id",order.id);
     // Give back whatever stock this order's placement had deducted — both the
     // direct-linked case (e.g. beer) and any recipe-linked ingredients.
@@ -6702,6 +6724,24 @@ function CashierScreen({ goHome }) {
           </div>
         );
       })()}
+
+      {/* Cancel order confirmation — Cancel used to fire immediately with no way back */}
+      {cancelConfirm && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", zIndex:10001, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+          onClick={()=>setCancelConfirm(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, width:"100%", maxWidth:320, textAlign:"center" }}>
+            <div style={{ fontSize:15, color:"#1a1a1a", marginBottom:6, fontWeight:600, fontFamily:"Georgia,serif" }}>Cancel this order?</div>
+            <div style={{ fontSize:13, color:"#888", marginBottom:20, fontFamily:"Georgia,serif" }}>
+              {(cancelConfirm.items||[]).map(i=>`${i.name} ×${i.qty}`).join(", ")}
+              {cancelConfirm.items?.some(i=>typeof i.id==="number") ? " — any deducted stock will be added back." : ""}
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={()=>setCancelConfirm(null)} style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Ignore</button>
+              <button onClick={()=>doCancelOrder(cancelConfirm)} style={{ flex:1, background:"#c0392b", border:"none", color:"#fff", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>✕ Cancel Order</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Custom Confirm Payment Modal */}
       {confirmModal && (
