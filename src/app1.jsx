@@ -2451,6 +2451,7 @@ function StockScreen({ goHome }) {
   const [recipeModal, setRecipeModal] = useState(null); // stock item currently managing recipe links for
   const [newRecipeMenuIds, setNewRecipeMenuIds] = useState([]); // multi-select — link several dishes at once with one shared qty
   const [newRecipeQty, setNewRecipeQty] = useState("");
+  const [menuLinkSearch, setMenuLinkSearch] = useState(""); // filters the "Link to Menu Item" dropdown when the menu is long
 
   const load = () => supabase.from("stock_items").select("*").order("name",{ ascending:true })
     .then(({ data }) => { setItems(data||[]); setLoading(false); });
@@ -2475,6 +2476,7 @@ function StockScreen({ goHome }) {
     setNewItem({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"", addon_name:"", initial_qty:"", sealed_tracking:false, initial_sealed_qty:"", initial_open_qty:"", cost_per_restock_unit:"" });
     setEditingItemId(null);
     setShowAddForm(false);
+    setMenuLinkSearch("");
   };
   const startEditItem = (item) => {
     setNewItem({
@@ -2487,6 +2489,7 @@ function StockScreen({ goHome }) {
     });
     setEditingItemId(item.id);
     setShowAddForm(true);
+    setMenuLinkSearch("");
   };
   const addStockItem = async () => {
     const name = newItem.name.trim();
@@ -2912,11 +2915,20 @@ function StockScreen({ goHome }) {
             )}
             <div style={{ marginBottom:14 }}>
               <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Link to Menu Item (optional — auto-deducts on order, e.g. for beer sold by the bottle)</div>
+              {menuItems.length > 6 && (
+                <input value={menuLinkSearch} onChange={e=>setMenuLinkSearch(e.target.value)} placeholder="Search menu items…"
+                  style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"9px 12px", borderRadius:9, fontSize:13, boxSizing:"border-box", marginBottom:6 }} />
+              )}
               <select value={newItem.menu_item_id} onChange={e=>setNewItem(f=>({...f,menu_item_id:e.target.value,addon_name:""}))}
                 style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
                 <option value="">Not linked — track manually (e.g. eggs, sausage)</option>
-                {menuItems.map(mi => <option key={mi.id} value={mi.id}>{mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}</option>)}
+                {menuItems
+                  .filter(mi => !menuLinkSearch.trim() || mi.name.toLowerCase().includes(menuLinkSearch.trim().toLowerCase()) || String(mi.id) === newItem.menu_item_id)
+                  .map(mi => <option key={mi.id} value={mi.id}>{mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}</option>)}
               </select>
+              {menuLinkSearch.trim() && !menuItems.some(mi => mi.name.toLowerCase().includes(menuLinkSearch.trim().toLowerCase())) && (
+                <div style={{ fontSize:11, color:"#aaa", marginTop:4 }}>No menu items match "{menuLinkSearch}".</div>
+              )}
               {(() => {
                 const linked = newItem.menu_item_id ? menuItems.find(mi => mi.id === parseInt(newItem.menu_item_id)) : null;
                 if (!linked || !linked.addon_required || !linked.addons || linked.addons.length === 0) return null;
