@@ -2402,7 +2402,7 @@ function StockScreen({ goHome }) {
   const [takeInModal, setTakeInModal] = useState(null); // stock item being taken in
   const [takeInUnits, setTakeInUnits] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newItem, setNewItem] = useState({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"", addon_name:"" });
+  const [newItem, setNewItem] = useState({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"", addon_name:"", initial_qty:"" });
   const [editingItemId, setEditingItemId] = useState(null); // stock_items.id currently being edited, or null when adding new
   const [editingQtyId, setEditingQtyId] = useState(null); // stock_items.id currently adjusting quantity
   const [qtyAdjustInput, setQtyAdjustInput] = useState("");
@@ -2431,7 +2431,7 @@ function StockScreen({ goHome }) {
   }, []);
 
   const resetItemForm = () => {
-    setNewItem({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"", addon_name:"" });
+    setNewItem({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"", addon_name:"", initial_qty:"" });
     setEditingItemId(null);
     setShowAddForm(false);
   };
@@ -2440,7 +2440,7 @@ function StockScreen({ goHome }) {
       name:item.name, unit_label:item.unit_label, restock_unit_label:item.restock_unit_label||"",
       restock_unit_size:item.restock_unit_size!=null?String(item.restock_unit_size):"",
       low_stock_threshold:item.low_stock_threshold!=null?String(item.low_stock_threshold):"",
-      menu_item_id:item.menu_item_id!=null?String(item.menu_item_id):"", addon_name:item.addon_name||"",
+      menu_item_id:item.menu_item_id!=null?String(item.menu_item_id):"", addon_name:item.addon_name||"", initial_qty:"",
     });
     setEditingItemId(item.id);
     setShowAddForm(true);
@@ -2457,8 +2457,17 @@ function StockScreen({ goHome }) {
       menu_item_id: newItem.menu_item_id ? parseInt(newItem.menu_item_id) : null,
       addon_name: newItem.menu_item_id && newItem.addon_name ? newItem.addon_name : null,
     };
-    if (editingItemId) await supabase.from("stock_items").update(payload).eq("id", editingItemId);
-    else await supabase.from("stock_items").insert(payload);
+    if (editingItemId) {
+      await supabase.from("stock_items").update(payload).eq("id", editingItemId);
+    } else {
+      // Starting quantity right in the add form — no separate Take In step
+      // needed just to get a brand-new item's count in.
+      const startQty = parseFloat(newItem.initial_qty) || 0;
+      const { data } = await supabase.from("stock_items").insert({ ...payload, stock_qty:startQty }).select().maybeSingle();
+      if (startQty > 0 && data) {
+        await supabase.from("stock_transactions").insert({ stock_item_id:data.id, type:"take_in", qty_delta:startQty, note:"Initial stock" });
+      }
+    }
     resetItemForm();
     showToast(editingItemId ? "Stock item updated" : "Stock item added");
   };
@@ -2690,6 +2699,13 @@ function StockScreen({ goHome }) {
                 <input value={newItem.name} onChange={e=>setNewItem(f=>({...f,name:e.target.value}))} placeholder="e.g. Tiger Beer"
                   style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
               </div>
+              {!editingItemId && (
+                <div style={{ marginBottom:10 }}>
+                  <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Starting quantity (optional — skips a separate Take In step)</div>
+                  <input type="number" min="0" value={newItem.initial_qty} onChange={e=>setNewItem(f=>({...f,initial_qty:e.target.value}))} placeholder="e.g. 30"
+                    style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+                </div>
+              )}
               <div style={{ display:"flex", gap:10, marginBottom:10 }}>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Unit (e.g. bottle, pcs)</div>
