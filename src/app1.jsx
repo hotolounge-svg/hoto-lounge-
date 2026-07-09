@@ -1904,6 +1904,7 @@ function SystemSettingsScreen({ goHome }) {
   const [rewards, setRewards] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [newReward, setNewReward] = useState({ name:"", points_cost:"", reward_type:"discount", discount_amount:"", menu_item_id:"", valid_from:"", valid_until:"" });
+  const [editingRewardId, setEditingRewardId] = useState(null); // reward.id currently being edited, or null when adding new
   const loadRewards = () => supabase.from("rewards").select("*").order("points_cost",{ ascending:true })
     .then(({ data }) => setRewards(data||[]));
   useEffect(() => {
@@ -1916,6 +1917,18 @@ function SystemSettingsScreen({ goHome }) {
     return () => supabase.removeChannel(ch);
   }, []);
 
+  const resetRewardForm = () => {
+    setNewReward({ name:"", points_cost:"", reward_type:"discount", discount_amount:"", menu_item_id:"", valid_from:"", valid_until:"" });
+    setEditingRewardId(null);
+  };
+  const startEditReward = (r) => {
+    setNewReward({
+      name:r.name, points_cost:String(r.points_cost), reward_type:r.reward_type,
+      discount_amount:r.discount_amount!=null?String(r.discount_amount):"", menu_item_id:r.menu_item_id!=null?String(r.menu_item_id):"",
+      valid_from:r.valid_from||"", valid_until:r.valid_until||"",
+    });
+    setEditingRewardId(r.id);
+  };
   const addReward = async () => {
     const name = newReward.name.trim();
     const pointsCost = parseFloat(newReward.points_cost);
@@ -1923,11 +1936,13 @@ function SystemSettingsScreen({ goHome }) {
     if (newReward.reward_type === "free_item" && !newReward.menu_item_id) return;
     const discountAmount = newReward.reward_type === "discount" ? parseFloat(newReward.discount_amount)||0 : null;
     const menuItemId = newReward.reward_type === "free_item" ? parseInt(newReward.menu_item_id) : null;
-    await supabase.from("rewards").insert({
+    const payload = {
       name, points_cost:pointsCost, reward_type:newReward.reward_type, discount_amount:discountAmount, menu_item_id:menuItemId,
       valid_from: newReward.valid_from || null, valid_until: newReward.valid_until || null,
-    });
-    setNewReward({ name:"", points_cost:"", reward_type:"discount", discount_amount:"", menu_item_id:"", valid_from:"", valid_until:"" });
+    };
+    if (editingRewardId) await supabase.from("rewards").update(payload).eq("id", editingRewardId);
+    else await supabase.from("rewards").insert(payload);
+    resetRewardForm();
   };
   const toggleRewardActive = (reward) => supabase.from("rewards").update({ is_active: !reward.is_active }).eq("id", reward.id).then(loadRewards);
   const deleteReward = (id) => supabase.from("rewards").delete().eq("id", id).then(loadRewards);
@@ -2029,6 +2044,9 @@ function SystemSettingsScreen({ goHome }) {
                   </div>
                 )}
               </div>
+              <button onClick={() => startEditReward(r)} style={btn({ background:"#eef1f6", border:`1px solid ${C.border}`, color:"#394c76", padding:"7px 12px", fontSize:12, fontWeight:"bold", whiteSpace:"nowrap" })}>
+                Edit
+              </button>
               <button onClick={() => toggleRewardActive(r)} style={btn({ background:"#eef1f6", border:`1px solid ${C.border}`, color:"#394c76", padding:"7px 12px", fontSize:12, fontWeight:"bold", whiteSpace:"nowrap" })}>
                 {r.is_active ? "Deactivate" : "Activate"}
               </button>
@@ -2037,7 +2055,10 @@ function SystemSettingsScreen({ goHome }) {
             );
           })}
           <div style={{ marginTop:16, paddingTop:16, borderTop:`1px solid ${C.border}` }}>
-            <div style={{ fontSize:12, fontWeight:"bold", color:C.text, marginBottom:10 }}>Add New Reward</div>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+              <div style={{ fontSize:12, fontWeight:"bold", color:C.text }}>{editingRewardId ? "Edit Reward" : "Add New Reward"}</div>
+              {editingRewardId && <button onClick={resetRewardForm} style={{ background:"transparent", border:"none", color:C.muted, fontSize:12, cursor:"pointer", textDecoration:"underline" }}>Cancel edit</button>}
+            </div>
             <div style={{ marginBottom:10 }}>
               <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Name</div>
               <input value={newReward.name} onChange={e => setNewReward(f => ({ ...f, name:e.target.value }))} placeholder="e.g. Free Coffee"
@@ -2096,7 +2117,7 @@ function SystemSettingsScreen({ goHome }) {
               </div>
             </div>
             <div style={{ fontSize:11, color:C.muted, marginTop:-4, marginBottom:10 }}>Leave both blank for a reward that's always redeemable.</div>
-            <button onClick={addReward} style={btn({ width:"100%", background:"#394c76", border:"none", color:"#fff", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>+ Add Reward</button>
+            <button onClick={addReward} style={btn({ width:"100%", background:"#394c76", border:"none", color:"#fff", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>{editingRewardId ? "Save Changes" : "+ Add Reward"}</button>
           </div>
         </div>
         <button onClick={save} disabled={saving}
@@ -5831,7 +5852,7 @@ function CashierScreen({ goHome }) {
     <div class="row bold"><span>Subtotal</span><span></span><span>${subtotal.toFixed(2)}</span></div>
     <div class="divider"></div>
     ${charge>0?`<div class="row"><span>+Service Charge, ${charge}%</span><span></span><span>${chargeAmt.toFixed(2)}</span></div><div class="divider"></div>`:""}
-    ${rewardName?`<div class="row"><span>Redeemed: ${rewardName}</span><span></span><span>${discount>0?"-"+discount.toFixed(2):"FREE"}</span></div><div class="divider"></div>`:discount>0?`<div class="row"><span>-Loyalty Discount</span><span></span><span>${discount.toFixed(2)}</span></div><div class="divider"></div>`:""}
+    ${rewardName?`<div class="row"><span>Redeemed: ${rewardName}</span><span></span><span>-${discount.toFixed(2)}</span></div><div class="divider"></div>`:discount>0?`<div class="row"><span>-Loyalty Discount</span><span></span><span>${discount.toFixed(2)}</span></div><div class="divider"></div>`:""}
     <div class="row grand"><span>Grand total</span><span></span><span>${parseFloat(rounded).toFixed(2)}</span></div>
     <div class="divider"></div>
     ${paymentMethod ? `
@@ -6006,7 +6027,7 @@ function CashierScreen({ goHome }) {
                     <span>Service Charge ({charge}%)</span><span>{chargeAmt.toFixed(2)}</span>
                   </div>}
                   {selectedReward && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#2e7d32", marginBottom:4, fontFamily:"Georgia,serif" }}>
-                    <span>Redeemed: {selectedReward.name} ({selectedReward.points_cost} pts)</span><span>{discount>0?`-${discount.toFixed(2)}`:"FREE"}</span>
+                    <span>Redeemed: {selectedReward.name} ({selectedReward.points_cost} pts)</span><span>-{discount.toFixed(2)}</span>
                   </div>}
                   {roundingDiff!==0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#aaa", marginBottom:4, fontFamily:"Georgia,serif" }}>
                     <span>Rounding</span><span>{roundingDiff>0?"+":""}{roundingDiff.toFixed(2)}</span>
