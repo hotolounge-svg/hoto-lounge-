@@ -2705,8 +2705,14 @@ function StockScreen({ goHome }) {
               </div>
               <div style={{ borderTop:"1px solid #eee", paddingTop:14 }}>
                 <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Add dish(es) — check as many as use the same qty, e.g. every dish where fries is a 1-portion side</div>
-                <input value={recipeSearch} onChange={e=>setRecipeSearch(e.target.value)} placeholder="Search dishes…"
-                  style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box", marginBottom:6 }} />
+                <div style={{ position:"relative", marginBottom:6 }}>
+                  <input value={recipeSearch} onChange={e=>setRecipeSearch(e.target.value)} placeholder="Search dishes…"
+                    style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"9px 30px 9px 12px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
+                  {recipeSearch && (
+                    <button type="button" onClick={()=>setRecipeSearch("")}
+                      style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:"#999", fontSize:16, cursor:"pointer", padding:4, lineHeight:1 }}>✕</button>
+                  )}
+                </div>
                 <div style={{ maxHeight:160, overflowY:"auto", border:"1px solid #ddd", borderRadius:8, marginBottom:8 }}>
                   {(() => {
                     const available = menuItems.filter(mi => !links.some(l => l.menu_item_id === mi.id) && (!recipeSearch.trim() || mi.name.toLowerCase().includes(recipeSearch.trim().toLowerCase())));
@@ -2931,8 +2937,14 @@ function StockScreen({ goHome }) {
                     style={{ marginLeft:8, background:"transparent", border:"none", color:"#c0392b", cursor:"pointer", fontSize:12, fontWeight:"bold" }}>✕ clear</button>
                 )}
               </div>
-              <input value={menuLinkSearch} onChange={e=>setMenuLinkSearch(e.target.value)} placeholder="Search menu items…"
-                style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"9px 12px", borderRadius:9, fontSize:13, boxSizing:"border-box", marginBottom:6 }} />
+              <div style={{ position:"relative", marginBottom:6 }}>
+                <input value={menuLinkSearch} onChange={e=>setMenuLinkSearch(e.target.value)} placeholder="Search menu items…"
+                  style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"9px 30px 9px 12px", borderRadius:9, fontSize:13, boxSizing:"border-box" }} />
+                {menuLinkSearch && (
+                  <button type="button" onClick={()=>setMenuLinkSearch("")}
+                    style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:"#999", fontSize:16, cursor:"pointer", padding:4, lineHeight:1 }}>✕</button>
+                )}
+              </div>
               <div style={{ maxHeight:160, overflowY:"auto", border:"1px solid #ddd", borderRadius:8 }}>
                 {(() => {
                   const filtered = menuItems.filter(mi => !menuLinkSearch.trim() || mi.name.toLowerCase().includes(menuLinkSearch.trim().toLowerCase()));
@@ -3421,7 +3433,10 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [rewards, setRewards] = useState([]);
   const [selectedRewardId, setSelectedRewardId] = useState(null);
   const [redeemConfirm, setRedeemConfirm] = useState(null); // free-item reward pending confirmation
-  const [loyaltyEnabled, setLoyaltyEnabled] = useState(true);
+  // Starts hidden (not true) so a device that hasn't fetched app_settings
+  // yet never flashes the Rewards UI before immediately hiding it again —
+  // safer to briefly under-show than to briefly show what's meant to be off.
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
   useEffect(() => {
     const load = () => supabase.from("app_settings").select("loyalty_enabled").eq("id", 1).maybeSingle()
       .then(({ data }) => setLoyaltyEnabled(data?.loyalty_enabled !== false));
@@ -6200,7 +6215,10 @@ function CashierScreen({ goHome }) {
   const [pointsEarnRate, setPointsEarnRate] = useState(1);
   const [pointsEarnRateVip, setPointsEarnRateVip] = useState(1);
   const [pointsEarnBasis, setPointsEarnBasis] = useState("final_total");
-  const [loyaltyEnabled, setLoyaltyEnabled] = useState(true);
+  // Starts hidden (not true) so a device that hasn't fetched app_settings
+  // yet never flashes the Rewards UI before immediately hiding it again —
+  // safer to briefly under-show than to briefly show what's meant to be off.
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
   useEffect(() => {
     const load = () => supabase.from("app_settings").select("service_charge,points_earn_rate,points_earn_rate_vip,points_earn_basis,loyalty_enabled").eq("id", 1).maybeSingle()
       .then(({ data }) => {
