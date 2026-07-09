@@ -5494,7 +5494,7 @@ function TableCard({ tableNo, data, paying, markPaid, onItemDone, cancelOrder, c
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#394c76", fontWeight:"bold", flex:1 }}>{isPending?"Pending":"Served"} · {order.time}</span>
                       {isPending && (
-                        <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
+                        <button onClick={() => cancelOrder(order)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
                       )}
                     </div>
                   </div>
@@ -5540,7 +5540,7 @@ function TableCard({ tableNo, data, paying, markPaid, onItemDone, cancelOrder, c
                     <div style={{ display:"flex", gap:10, marginTop:10, alignItems:"center" }}>
                       <span style={{ fontSize:13, color:isPending?C.gold:"#394c76", fontWeight:"bold", flex:1 }}>{isPending?"Kitchen preparing":"Served"} · {order.time}</span>
                       {isPending && (
-                        <button onClick={() => cancelOrder(order.id)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
+                        <button onClick={() => cancelOrder(order)} style={btn({ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"12px 16px", fontSize:15, fontWeight:"bold", minHeight:50, minWidth:90 })}>✕ Cancel</button>
                       )}
                     </div>
                   </div>
@@ -5661,7 +5661,7 @@ function DetailModal({ tableNo, hasPending, pending, done, allOrders, drinkOrder
                 )}
                 {isPending && (
                   <div style={{ display:"flex", gap:10, marginTop:12 }}>
-                    <button onClick={() => cancelOrder(order.id)}
+                    <button onClick={() => cancelOrder(order)}
                       style={btn({ flex:1, background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", padding:"14px 0", fontSize:16, fontWeight:"bold" })}>✕ Cancel</button>
                   </div>
                 )}
@@ -6292,8 +6292,16 @@ function CashierScreen({ goHome }) {
     win.document.close();
   };
 
-  const cancelOrder = async (orderId) => {
-    await supabase.from("orders").update({status:"cancelled"}).eq("id",orderId);
+  const cancelOrder = async (order) => {
+    await supabase.from("orders").update({status:"cancelled"}).eq("id",order.id);
+    // Give back whatever stock this order's placement had deducted — both the
+    // direct-linked case (e.g. beer) and any recipe-linked ingredients.
+    (order.items||[]).forEach(item => {
+      if (typeof item.id === "number") {
+        supabase.rpc("deduct_stock", { p_menu_item_id:item.id, p_qty:-item.qty, p_addon_name:item.stock_addon_name||null, p_type:"cancel" }).then(()=>{}, ()=>{});
+        supabase.rpc("deduct_stock_recipe", { p_menu_item_id:item.id, p_order_qty:-item.qty, p_type:"cancel" }).then(()=>{}, ()=>{});
+      }
+    });
     fetchAll();
   };
 
