@@ -592,9 +592,11 @@ function HomeScreen({ setScreen, setTableNo }) {
   // how rarely they think to go check Stock on their own.
   const [lowStockItems, setLowStockItems] = useState([]);
   useEffect(() => {
-    const load = () => supabase.from("stock_items").select("name,stock_qty,unit_label,low_stock_threshold")
+    const load = () => supabase.from("stock_items").select("name,stock_qty,unit_label,low_stock_threshold,sealed_tracking,sealed_qty")
       .not("low_stock_threshold", "is", null)
-      .then(({ data }) => setLowStockItems((data||[]).filter(i => parseFloat(i.stock_qty) <= parseFloat(i.low_stock_threshold))));
+      .then(({ data }) => setLowStockItems((data||[]).filter(i =>
+        i.sealed_tracking ? parseFloat(i.sealed_qty||0) <= parseFloat(i.low_stock_threshold) : parseFloat(i.stock_qty) <= parseFloat(i.low_stock_threshold)
+      )));
     load();
     const ch = supabase.channel("home-lowstock-watch")
       .on("postgres_changes", { event:"*", schema:"public", table:"stock_items" }, load)
@@ -2437,8 +2439,11 @@ function StockScreen({ goHome }) {
   const [confirmDelete, setConfirmDelete] = useState(null); // {id, name}
   const [takeInModal, setTakeInModal] = useState(null); // stock item being taken in
   const [takeInUnits, setTakeInUnits] = useState("");
+  const [stockCountModal, setStockCountModal] = useState(null); // sealed-tracking item being stock-counted
+  const [countSealedInput, setCountSealedInput] = useState("");
+  const [countOpenInput, setCountOpenInput] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newItem, setNewItem] = useState({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"", addon_name:"", initial_qty:"" });
+  const [newItem, setNewItem] = useState({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"", addon_name:"", initial_qty:"", sealed_tracking:false, initial_sealed_qty:"", initial_open_qty:"", cost_per_restock_unit:"" });
   const [editingItemId, setEditingItemId] = useState(null); // stock_items.id currently being edited, or null when adding new
   const [editingQtyId, setEditingQtyId] = useState(null); // stock_items.id currently adjusting quantity
   const [qtyAdjustInput, setQtyAdjustInput] = useState("");
@@ -2467,7 +2472,7 @@ function StockScreen({ goHome }) {
   }, []);
 
   const resetItemForm = () => {
-    setNewItem({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"", addon_name:"", initial_qty:"" });
+    setNewItem({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"", addon_name:"", initial_qty:"", sealed_tracking:false, initial_sealed_qty:"", initial_open_qty:"", cost_per_restock_unit:"" });
     setEditingItemId(null);
     setShowAddForm(false);
   };
@@ -2477,6 +2482,8 @@ function StockScreen({ goHome }) {
       restock_unit_size:item.restock_unit_size!=null?String(item.restock_unit_size):"",
       low_stock_threshold:item.low_stock_threshold!=null?String(item.low_stock_threshold):"",
       menu_item_id:item.menu_item_id!=null?String(item.menu_item_id):"", addon_name:item.addon_name||"", initial_qty:"",
+      sealed_tracking: !!item.sealed_tracking, initial_sealed_qty:"", initial_open_qty:"",
+      cost_per_restock_unit: item.cost_per_restock_unit!=null ? String(item.cost_per_restock_unit) : "",
     });
     setEditingItemId(item.id);
     setShowAddForm(true);
@@ -2484,6 +2491,7 @@ function StockScreen({ goHome }) {
   const addStockItem = async () => {
     const name = newItem.name.trim();
     if (!name) return;
+    const sealedTracking = !!newItem.sealed_tracking;
     const payload = {
       name,
       unit_label: newItem.unit_label.trim() || "unit",
@@ -2492,9 +2500,20 @@ function StockScreen({ goHome }) {
       low_stock_threshold: newItem.low_stock_threshold ? parseFloat(newItem.low_stock_threshold) : null,
       menu_item_id: newItem.menu_item_id ? parseInt(newItem.menu_item_id) : null,
       addon_name: newItem.menu_item_id && newItem.addon_name ? newItem.addon_name : null,
+      sealed_tracking: sealedTracking,
+      cost_per_restock_unit: newItem.cost_per_restock_unit ? parseFloat(newItem.cost_per_restock_unit) : null,
     };
     if (editingItemId) {
       await supabase.from("stock_items").update(payload).eq("id", editingItemId);
+    } else if (sealedTracking) {
+      const sealedQty = parseFloat(newItem.initial_sealed_qty) || 0;
+      const openQty = parseFloat(newItem.initial_open_qty) || 0;
+      const tinSize = parseFloat(newItem.restock_unit_size) || 1;
+      const startQty = sealedQty * tinSize + openQty;
+      const { data } = await supabase.from("stock_items").insert({ ...payload, sealed_qty:sealedQty, open_qty:openQty, stock_qty:startQty }).select().maybeSingle();
+      if (startQty > 0 && data) {
+        await supabase.from("stock_transactions").insert({ stock_item_id:data.id, type:"take_in", qty_delta:startQty, note:"Initial stock" });
+      }
     } else {
       // Starting quantity right in the add form — no separate Take In step
       // needed just to get a brand-new item's count in.
@@ -2544,13 +2563,15 @@ function StockScreen({ goHome }) {
   };
 
   const exportCSV = () => {
-    const header = ["Name","Current Qty","Unit","Restock Unit","Units per Restock","Low Stock Threshold","Linked Menu Item"];
+    const header = ["Name","Current Qty","Unit","Restock Unit","Units per Restock","Low Stock Threshold","Linked Menu Item","Sealed Qty","Opened Qty","Cost per Restock Unit"];
     const escape = (v) => `"${String(v).replace(/"/g,'""')}"`;
     const rows = items.map(item => {
       const linked = menuItems.find(mi=>mi.id===item.menu_item_id);
       return [
         item.name, item.stock_qty, item.unit_label, item.restock_unit_label||"", item.restock_unit_size||"",
         item.low_stock_threshold!=null?item.low_stock_threshold:"", linked?linked.name:"",
+        item.sealed_tracking?(item.sealed_qty||0):"", item.sealed_tracking?(item.open_qty||0):"",
+        item.cost_per_restock_unit!=null?item.cost_per_restock_unit:"",
       ].map(escape).join(",");
     });
     const csv = [header.map(escape).join(","), ...rows].join("\r\n");
@@ -2569,9 +2590,24 @@ function StockScreen({ goHome }) {
     if (!units || units <= 0) return;
     const size = parseFloat(takeInModal.restock_unit_size) || 1;
     const added = units * size;
-    await supabase.rpc("adjust_stock_qty", { p_stock_item_id:takeInModal.id, p_delta:added, p_type:"take_in", p_note:`${units} ${takeInModal.restock_unit_label||"unit"}(s)` });
+    if (takeInModal.sealed_tracking) {
+      await supabase.rpc("take_in_sealed", { p_stock_item_id:takeInModal.id, p_tins:units, p_note:`${units} ${takeInModal.restock_unit_label||"unit"}(s)` });
+    } else {
+      await supabase.rpc("adjust_stock_qty", { p_stock_item_id:takeInModal.id, p_delta:added, p_type:"take_in", p_note:`${units} ${takeInModal.restock_unit_label||"unit"}(s)` });
+    }
     showToast(`+${added} ${takeInModal.unit_label} added`);
     setTakeInModal(null); setTakeInUnits("");
+  };
+
+  // Absolute stock-count correction for sealed-tracking items — staff types
+  // what they actually counted (sealed tins + opened amount), no math needed.
+  const doStockCount = async () => {
+    if (!stockCountModal) return;
+    const sealed = parseFloat(countSealedInput) || 0;
+    const open = parseFloat(countOpenInput) || 0;
+    await supabase.rpc("set_sealed_open", { p_stock_item_id:stockCountModal.id, p_sealed_qty:sealed, p_open_qty:open });
+    showToast(`Count saved: ${sealed} ${stockCountModal.restock_unit_label||"tin"}(s) + ${open}${stockCountModal.unit_label} opened`);
+    setStockCountModal(null); setCountSealedInput(""); setCountOpenInput("");
   };
 
   if (loading) {
@@ -2579,6 +2615,13 @@ function StockScreen({ goHome }) {
   }
 
   const filteredItems = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+  // Sum of every item's current quantity × its cost — only items with a
+  // cost entered count toward it, so this stays 0 until costs are set up.
+  const stockValue = items.reduce((sum, i) => {
+    if (i.cost_per_restock_unit == null) return sum;
+    const base = parseFloat(i.cost_per_restock_unit) / (parseFloat(i.restock_unit_size) || 1);
+    return sum + (parseFloat(i.stock_qty) || 0) * base;
+  }, 0);
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
@@ -2613,6 +2656,25 @@ function StockScreen({ goHome }) {
             <div style={{ display:"flex", gap:10, marginTop:10 }}>
               <button onClick={()=>{setTakeInModal(null);setTakeInUnits("");}} style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Cancel</button>
               <button onClick={doTakeIn} style={{ flex:1, background:"#394c76", border:"none", color:"#fff", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>+ Add Stock</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {stockCountModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:99998, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+          onClick={()=>{setStockCountModal(null);setCountSealedInput("");setCountOpenInput("");}}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, width:"100%", maxWidth:340 }}>
+            <div style={{ fontSize:16, fontWeight:"bold", color:"#1a1a1a", marginBottom:4, fontFamily:"Georgia,serif" }}>🔢 Stock Count: {stockCountModal.name}</div>
+            <div style={{ fontSize:12, color:"#888", marginBottom:16, fontFamily:"Georgia,serif" }}>Enter what you actually counted — this replaces the current numbers, no math needed.</div>
+            <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Sealed {stockCountModal.restock_unit_label || "tins"} in store</div>
+            <input type="number" min="0" autoFocus value={countSealedInput} onChange={e=>setCountSealedInput(e.target.value)} placeholder="e.g. 6"
+              style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"10px 12px", fontSize:15, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box", marginBottom:10 }} />
+            <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Opened {stockCountModal.unit_label} left</div>
+            <input type="number" min="0" value={countOpenInput} onChange={e=>setCountOpenInput(e.target.value)} placeholder="e.g. 320"
+              style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"10px 12px", fontSize:15, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box", marginBottom:6 }} />
+            <div style={{ display:"flex", gap:10, marginTop:10 }}>
+              <button onClick={()=>{setStockCountModal(null);setCountSealedInput("");setCountOpenInput("");}} style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Cancel</button>
+              <button onClick={doStockCount} style={{ flex:1, background:"#394c76", border:"none", color:"#fff", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Save Count</button>
             </div>
           </div>
         </div>
@@ -2690,6 +2752,9 @@ function StockScreen({ goHome }) {
           {items.length > 0 && (
             <div style={{ fontSize:11, color:C.muted, marginTop:8 }}>{filteredItems.length} item{filteredItems.length===1?"":"s"}{search.trim() && ` matching "${search}"`}</div>
           )}
+          {stockValue > 0 && (
+            <div style={{ fontSize:12, color:"#394c76", fontWeight:"bold", marginTop:6 }}>💰 Stock on hand: RM{stockValue.toFixed(2)}</div>
+          )}
         </div>
         <div style={{ padding:"0 20px 20px", maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
         {items.length === 0 ? (
@@ -2698,8 +2763,13 @@ function StockScreen({ goHome }) {
           <div style={{ textAlign:"center", color:C.muted, padding:40 }}>No items match "{search}".</div>
         ) : filteredItems.map(item => {
           const linkedItem = menuItems.find(mi=>mi.id===item.menu_item_id);
-          const low = item.low_stock_threshold != null && parseFloat(item.stock_qty) <= parseFloat(item.low_stock_threshold);
+          // Sealed-tracking items alert on sealed tin count (matches a shelf
+          // glance); everything else alerts on the running total as before.
+          const low = item.sealed_tracking
+            ? (item.low_stock_threshold != null && parseFloat(item.sealed_qty||0) <= parseFloat(item.low_stock_threshold))
+            : (item.low_stock_threshold != null && parseFloat(item.stock_qty) <= parseFloat(item.low_stock_threshold));
           const restockEquiv = item.restock_unit_size ? (item.stock_qty / item.restock_unit_size).toFixed(1) : null;
+          const baseCost = item.cost_per_restock_unit != null ? parseFloat(item.cost_per_restock_unit) / (parseFloat(item.restock_unit_size) || 1) : null;
           return (
             <div key={item.id} style={{ background:C.panel, border:`1px solid ${low ? "#e6c3c3" : C.border}`, borderRadius:14, padding:16, marginBottom:10 }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
@@ -2719,10 +2789,25 @@ function StockScreen({ goHome }) {
                     return <div style={{ fontSize:11, color:"#8a6d3b", marginTop:2 }}>Used in: {summary}</div>;
                   })()}
                   {low && <div style={{ fontSize:11, color:"#c0392b", fontWeight:"bold", marginTop:2 }}>⚠ Low stock</div>}
+                  {baseCost != null && (
+                    <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>
+                      RM{parseFloat(item.cost_per_restock_unit).toFixed(2)}/{item.restock_unit_label || item.unit_label}
+                      {item.restock_unit_size ? ` · RM${baseCost.toFixed(3)}/${item.unit_label}` : ""}
+                    </div>
+                  )}
                 </div>
                 <div style={{ textAlign:"right" }}>
-                  <div style={{ fontSize:18, fontWeight:"bold", color:low?"#c0392b":"#394c76" }}>{item.stock_qty} {item.unit_label}</div>
-                  {restockEquiv && <div style={{ fontSize:10, color:C.muted }}>≈ {restockEquiv} {item.restock_unit_label}</div>}
+                  {item.sealed_tracking ? (
+                    <>
+                      <div style={{ fontSize:18, fontWeight:"bold", color:low?"#c0392b":"#394c76" }}>{Math.floor(item.sealed_qty||0)} {item.restock_unit_label||"tin"}{Math.floor(item.sealed_qty||0)===1?"":"s"}</div>
+                      <div style={{ fontSize:10, color:C.muted }}>+ {item.open_qty||0}{item.unit_label} opened</div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize:18, fontWeight:"bold", color:low?"#c0392b":"#394c76" }}>{item.stock_qty} {item.unit_label}</div>
+                      {restockEquiv && <div style={{ fontSize:10, color:C.muted }}>≈ {restockEquiv} {item.restock_unit_label}</div>}
+                    </>
+                  )}
                 </div>
               </div>
               {editingQtyId === item.id ? (
@@ -2737,7 +2822,11 @@ function StockScreen({ goHome }) {
                 <>
                   <div style={{ display:"flex", gap:8, marginTop:12 }}>
                     <button onClick={()=>setTakeInModal(item)} style={{ flex:1, background:"#eaf5ea", border:"1px solid #cde6cd", color:"#2e7d32", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>+ Take In</button>
-                    <button onClick={()=>{setEditingQtyId(item.id);setQtyAdjustInput("");}} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Adjust Qty</button>
+                    {item.sealed_tracking ? (
+                      <button onClick={()=>{setStockCountModal(item);setCountSealedInput(String(item.sealed_qty||0));setCountOpenInput(String(item.open_qty||0));}} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>🔢 Stock Count</button>
+                    ) : (
+                      <button onClick={()=>{setEditingQtyId(item.id);setQtyAdjustInput("");}} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Adjust Qty</button>
+                    )}
                   </div>
                   <div style={{ display:"flex", gap:8, marginTop:8 }}>
                     <button onClick={()=>setRecipeModal(item)} style={{ flex:1, background:"#fff8ec", border:"1px solid #f0dfb8", color:"#8a6d3b", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>🍳 Recipe</button>
@@ -2762,13 +2851,6 @@ function StockScreen({ goHome }) {
               <input value={newItem.name} onChange={e=>setNewItem(f=>({...f,name:e.target.value}))} placeholder="e.g. Tiger Beer"
                 style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
             </div>
-            {!editingItemId && (
-              <div style={{ marginBottom:10 }}>
-                <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Starting quantity (optional — skips a separate Take In step)</div>
-                <input type="number" min="0" value={newItem.initial_qty} onChange={e=>setNewItem(f=>({...f,initial_qty:e.target.value}))} placeholder="e.g. 30"
-                  style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
-              </div>
-            )}
             <div style={{ display:"flex", gap:10, marginBottom:10 }}>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Unit (e.g. bottle, pcs)</div>
@@ -2793,6 +2875,41 @@ function StockScreen({ goHome }) {
                   style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
               </div>
             </div>
+            <div style={{ marginBottom:10 }}>
+              <button type="button" onClick={()=>setNewItem(f=>({...f, sealed_tracking:!f.sealed_tracking}))}
+                style={{ width:"100%", textAlign:"left", background:newItem.sealed_tracking?"#eef1f6":"#f9f9f9", border:`1px solid ${newItem.sealed_tracking?"#394c76":"#ddd"}`, color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:13, cursor:"pointer" }}>
+                <span style={{ marginRight:8 }}>{newItem.sealed_tracking ? "☑" : "☐"}</span>
+                Track sealed + opened separately
+                <div style={{ fontSize:11, color:"#888", marginTop:3, marginLeft:22 }}>For items like beans/fries kept in sealed tins/packs, opened one at a time. Set "Units per restock" above first.</div>
+              </button>
+            </div>
+            <div style={{ marginBottom:10 }}>
+              <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Cost per {newItem.restock_unit_label.trim() || newItem.unit_label.trim() || "unit"} (optional — enables food cost & stock value)</div>
+              <input type="number" min="0" step="0.01" value={newItem.cost_per_restock_unit} onChange={e=>setNewItem(f=>({...f,cost_per_restock_unit:e.target.value}))} placeholder="e.g. 8.00"
+                style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+            </div>
+            {!editingItemId && (
+              newItem.sealed_tracking ? (
+                <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Starting sealed {newItem.restock_unit_label.trim() || "tins"}</div>
+                    <input type="number" min="0" value={newItem.initial_sealed_qty} onChange={e=>setNewItem(f=>({...f,initial_sealed_qty:e.target.value}))} placeholder="e.g. 6"
+                      style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Opened {newItem.unit_label.trim()||"unit"} already in use</div>
+                    <input type="number" min="0" value={newItem.initial_open_qty} onChange={e=>setNewItem(f=>({...f,initial_open_qty:e.target.value}))} placeholder="e.g. 320"
+                      style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+                  </div>
+                </div>
+              ) : (
+                <div style={{ marginBottom:10 }}>
+                  <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Starting quantity (optional — skips a separate Take In step)</div>
+                  <input type="number" min="0" value={newItem.initial_qty} onChange={e=>setNewItem(f=>({...f,initial_qty:e.target.value}))} placeholder="e.g. 30"
+                    style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+                </div>
+              )
+            )}
             <div style={{ marginBottom:14 }}>
               <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Link to Menu Item (optional — auto-deducts on order, e.g. for beer sold by the bottle)</div>
               <select value={newItem.menu_item_id} onChange={e=>setNewItem(f=>({...f,menu_item_id:e.target.value,addon_name:""}))}
@@ -2844,6 +2961,27 @@ function AdminScreen({ goHome }) {
   const [form, setForm] = useState({ item_no:"", name:"", category:CATEGORIES[0], price:"", vip_price:"", vip_groups:[], description:"", emoji:"🍽️", image_url:"", is_available:true, addons:[], addon_required:false, promo_start:"", promo_end:"", promo_price:"", promo_drinks:[], promo_label:"" });
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef();
+  // Costed stock items + recipe links, used only to show an estimated food
+  // cost while editing a dish — same data the Stock screen already collects.
+  const [costStockItems, setCostStockItems] = useState([]);
+  const [costRecipeLinks, setCostRecipeLinks] = useState([]);
+  const baseCostOf = (si) => si.cost_per_restock_unit != null ? parseFloat(si.cost_per_restock_unit) / (parseFloat(si.restock_unit_size) || 1) : null;
+  const computeDishCost = (menuItemId, addonName) => {
+    let cost = 0, has = false, missing = 0;
+    let direct = costStockItems.find(si => si.menu_item_id === menuItemId && si.addon_name === (addonName || null));
+    if (!direct && addonName) direct = costStockItems.find(si => si.menu_item_id === menuItemId && si.addon_name == null);
+    if (direct) {
+      const bc = baseCostOf(direct);
+      if (bc != null) { cost += bc; has = true; } else { missing++; }
+    }
+    costRecipeLinks.filter(l => l.menu_item_id === menuItemId).forEach(l => {
+      const si = costStockItems.find(s => s.id === l.stock_item_id);
+      if (!si) return;
+      const bc = baseCostOf(si);
+      if (bc != null) { cost += bc * parseFloat(l.qty_per_order); has = true; } else { missing++; }
+    });
+    return has ? { cost, missing } : null;
+  };
 
   const scrollRef = useRef(null);
   const fetchItems = async () => {
@@ -2854,7 +2992,13 @@ function AdminScreen({ goHome }) {
     setLoading(false);
     requestAnimationFrame(() => { if (scrollEl) scrollEl.scrollTop = scrollTop; });
   };
-  useEffect(() => { fetchItems(); }, []);
+  useEffect(() => {
+    fetchItems();
+    supabase.from("stock_items").select("id,menu_item_id,addon_name,cost_per_restock_unit,restock_unit_size")
+      .then(({ data }) => setCostStockItems(data||[]));
+    supabase.from("stock_recipe_links").select("stock_item_id,menu_item_id,qty_per_order")
+      .then(({ data }) => setCostRecipeLinks(data||[]));
+  }, []);
 
   const handleLogin = () => { setAuthed(true); };
   const openAdd = () => {
@@ -3013,6 +3157,36 @@ function AdminScreen({ goHome }) {
               {form.image_url && <button onClick={() => setForm(f => ({ ...f, image_url:"" }))} style={aChip({ background:A.redSoft, color:A.red, border:"1px solid #eecaca" })}>Remove</button>}
             </div>
           </div>
+          {editItem && !form.addon_required && (() => {
+            const result = computeDishCost(editItem.id, null);
+            if (!result) return null;
+            const price = parseFloat(form.price) || 0;
+            const pct = price > 0 ? (result.cost / price * 100) : null;
+            return (
+              <div style={{ marginTop:14, background:A.goldSoft, border:`1px solid ${A.gold}`, borderRadius:10, padding:"10px 14px", fontSize:13, color:A.goldText, fontWeight:600 }}>
+                Est. cost RM{result.cost.toFixed(2)}{pct!=null?` · ${pct.toFixed(0)}% food cost`:""}
+                {result.missing > 0 && <span style={{ fontWeight:400, color:A.sub }}> (partial — {result.missing} ingredient{result.missing===1?"":"s"} missing cost)</span>}
+              </div>
+            );
+          })()}
+          {editItem && form.addon_required && (form.addons||[]).length > 0 && (() => {
+            const rows = (form.addons||[]).map((a,i) => ({ a, i, result: computeDishCost(editItem.id, a.name) })).filter(r => r.result);
+            if (rows.length === 0) return null;
+            return (
+              <div style={{ marginTop:14, background:A.goldSoft, border:`1px solid ${A.gold}`, borderRadius:10, padding:"10px 14px" }}>
+                {rows.map(({ a, i, result }) => {
+                  const addonPrice = parseFloat(a.price) || 0;
+                  const pct = addonPrice > 0 ? (result.cost / addonPrice * 100) : null;
+                  return (
+                    <div key={i} style={{ fontSize:13, color:A.goldText, fontWeight:600, marginBottom:4 }}>
+                      {a.name}: Est. cost RM{result.cost.toFixed(2)}{pct!=null?` · ${pct.toFixed(0)}% food cost`:""}
+                      {result.missing > 0 && <span style={{ fontWeight:400, color:A.sub }}> (partial)</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
           {/* Add-ons section */}
           <div style={{ marginTop:22, background:"#f4f6f9", border:`1px solid ${A.line}`, borderRadius:14, padding:16 }}>
             <div style={{ fontSize:13, color:A.text, marginBottom:12, fontWeight:700 }}>Add-ons <span style={{ color:A.sub, fontWeight:400 }}>(optional extras customer can select)</span></div>
