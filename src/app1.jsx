@@ -705,7 +705,7 @@ function HomeScreen({ setScreen, setTableNo }) {
       {moreOpen && (
         <div style={{ position:"fixed", inset:0, background:"rgba(43,51,70,0.45)", WebkitBackdropFilter:"blur(4px)", backdropFilter:"blur(4px)", zIndex:9999, display:"flex", alignItems:"flex-end", justifyContent:"center" }}
           onClick={() => setMoreOpen(false)}>
-          <div onClick={e=>e.stopPropagation()} style={{ background:HP.card, borderTop:`3px solid ${HP.navy}`, borderRadius:"22px 22px 0 0", width:"100%", maxWidth:460, padding:"18px 18px 34px", boxShadow:"0 -12px 40px rgba(43,51,70,0.25)" }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:HP.card, borderTop:`3px solid ${HP.navy}`, borderRadius:"22px 22px 0 0", width:"100%", maxWidth:460, maxHeight:"85vh", overflowY:"auto", padding:"18px 18px 34px", boxShadow:"0 -12px 40px rgba(43,51,70,0.25)" }}>
             <div style={{ width:44, height:4, background:HP.line, borderRadius:4, margin:"0 auto 18px" }} />
             <div style={{ marginBottom:14, textAlign:"center" }}><span style={hLabel}>More Options</span></div>
             {[
