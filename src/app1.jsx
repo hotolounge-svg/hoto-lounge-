@@ -2406,18 +2406,28 @@ function StockScreen({ goHome }) {
   const [editingItemId, setEditingItemId] = useState(null); // stock_items.id currently being edited, or null when adding new
   const [editingQtyId, setEditingQtyId] = useState(null); // stock_items.id currently adjusting quantity
   const [qtyAdjustInput, setQtyAdjustInput] = useState("");
+  const [recipeLinks, setRecipeLinks] = useState([]); // all stock_recipe_links rows
+  const [recipeModal, setRecipeModal] = useState(null); // stock item currently managing recipe links for
+  const [newRecipeMenuId, setNewRecipeMenuId] = useState("");
+  const [newRecipeQty, setNewRecipeQty] = useState("");
 
   const load = () => supabase.from("stock_items").select("*").order("name",{ ascending:true })
     .then(({ data }) => { setItems(data||[]); setLoading(false); });
+  const loadRecipeLinks = () => supabase.from("stock_recipe_links").select("*")
+    .then(({ data }) => setRecipeLinks(data||[]));
 
   useEffect(() => {
     load();
+    loadRecipeLinks();
+    const recipeCh = supabase.channel("stock-recipe-links-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"stock_recipe_links" }, loadRecipeLinks)
+      .subscribe();
     const ch = supabase.channel("stock-items-watch")
       .on("postgres_changes", { event:"*", schema:"public", table:"stock_items" }, load)
       .subscribe();
     supabase.from("menu_items").select("id,name,item_no,addon_required,addons").order("item_no",{ ascending:true })
       .then(({ data }) => setMenuItems(data||[]));
-    return () => supabase.removeChannel(ch);
+    return () => { supabase.removeChannel(ch); supabase.removeChannel(recipeCh); };
   }, []);
 
   const resetItemForm = () => {
@@ -2457,6 +2467,21 @@ function StockScreen({ goHome }) {
     await supabase.from("stock_items").delete().eq("id", id);
     setConfirmDelete(null);
     showToast("Stock item removed");
+  };
+
+  const addRecipeLink = async () => {
+    if (!recipeModal || !newRecipeMenuId || !newRecipeQty) return;
+    const qty = parseFloat(newRecipeQty);
+    if (!qty || qty <= 0) return;
+    await supabase.from("stock_recipe_links").insert({
+      stock_item_id: recipeModal.id, menu_item_id: parseInt(newRecipeMenuId), qty_per_order: qty,
+    });
+    setNewRecipeMenuId(""); setNewRecipeQty("");
+    showToast("Recipe link added");
+  };
+  const deleteRecipeLink = async (id) => {
+    await supabase.from("stock_recipe_links").delete().eq("id", id);
+    showToast("Recipe link removed");
   };
 
   // Type any +/- amount to correct a mistyped or miscounted quantity in one
@@ -2546,6 +2571,45 @@ function StockScreen({ goHome }) {
           </div>
         </div>
       )}
+      {recipeModal && (() => {
+        const links = recipeLinks.filter(l => l.stock_item_id === recipeModal.id);
+        return (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:99998, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+            onClick={()=>setRecipeModal(null)}>
+            <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, width:"100%", maxWidth:380, maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
+              <div style={{ fontSize:16, fontWeight:"bold", color:"#1a1a1a", marginBottom:4, fontFamily:"Georgia,serif" }}>🍳 Recipe: {recipeModal.name}</div>
+              <div style={{ fontSize:12, color:"#888", marginBottom:16, fontFamily:"Georgia,serif" }}>Dishes that consume this item — auto-deducts on order. Leave empty for manual-only tracking.</div>
+              <div style={{ overflowY:"auto", flex:1, marginBottom:14 }}>
+                {links.length === 0 && <div style={{ fontSize:13, color:"#aaa", textAlign:"center", padding:"10px 0" }}>Not linked to any dish yet — purely manual.</div>}
+                {links.map(l => {
+                  const mi = menuItems.find(m => m.id === l.menu_item_id);
+                  return (
+                    <div key={l.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:"1px solid #f0f0f0" }}>
+                      <div style={{ fontSize:13, color:"#1a1a1a", fontFamily:"Georgia,serif" }}>{mi ? mi.name : "?"} <span style={{ color:"#888" }}>× {l.qty_per_order} {recipeModal.unit_label}</span></div>
+                      <button onClick={()=>deleteRecipeLink(l.id)} style={{ background:"transparent", border:"none", color:"#c0392b", fontSize:12, cursor:"pointer" }}>✕</button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ borderTop:"1px solid #eee", paddingTop:14 }}>
+                <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Add dish</div>
+                <select value={newRecipeMenuId} onChange={e=>setNewRecipeMenuId(e.target.value)}
+                  style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box", marginBottom:8 }}>
+                  <option value="">Select a dish…</option>
+                  {menuItems.map(mi => <option key={mi.id} value={mi.id}>{mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}</option>)}
+                </select>
+                <div style={{ display:"flex", gap:8 }}>
+                  <input type="number" min="0.1" step="0.5" value={newRecipeQty} onChange={e=>setNewRecipeQty(e.target.value)}
+                    placeholder={`Qty per order (e.g. 2 ${recipeModal.unit_label})`}
+                    style={{ flex:1, minWidth:0, border:"1px solid #ddd", borderRadius:8, padding:"9px 12px", fontSize:13, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box" }} />
+                  <button onClick={addRecipeLink} style={{ background:"#394c76", border:"none", color:"#fff", borderRadius:8, padding:"9px 16px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>+ Add</button>
+                </div>
+              </div>
+              <button onClick={()=>setRecipeModal(null)} style={{ marginTop:14, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Done</button>
+            </div>
+          </div>
+        );
+      })()}
       <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="box" size={19} color="#fff" /></div>
@@ -2575,6 +2639,15 @@ function StockScreen({ goHome }) {
                     {linkedItem && <span style={{ marginLeft:8, fontSize:10, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"2px 8px", fontWeight:"bold", letterSpacing:0.5 }}>Auto-deducts</span>}
                   </div>
                   {linkedItem && <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{linkedItem.name}{item.addon_name ? ` — ${item.addon_name}` : ""}</div>}
+                  {(() => {
+                    const links = recipeLinks.filter(l => l.stock_item_id === item.id);
+                    if (links.length === 0) return null;
+                    const summary = links.map(l => {
+                      const mi = menuItems.find(m => m.id === l.menu_item_id);
+                      return `${mi ? mi.name : "?"} ×${l.qty_per_order}`;
+                    }).join(", ");
+                    return <div style={{ fontSize:11, color:"#8a6d3b", marginTop:2 }}>Used in: {summary}</div>;
+                  })()}
                   {low && <div style={{ fontSize:11, color:"#c0392b", fontWeight:"bold", marginTop:2 }}>⚠ Low stock</div>}
                 </div>
                 <div style={{ textAlign:"right" }}>
@@ -2591,12 +2664,17 @@ function StockScreen({ goHome }) {
                   <button onClick={()=>{setEditingQtyId(null);setQtyAdjustInput("");}} style={{ background:"#f5f5f5", border:"1px solid #ddd", color:"#888", borderRadius:8, padding:"8px 12px", fontSize:13, cursor:"pointer" }}>✕</button>
                 </div>
               ) : (
-                <div style={{ display:"flex", gap:8, marginTop:12 }}>
-                  <button onClick={()=>setTakeInModal(item)} style={{ flex:1, background:"#eaf5ea", border:"1px solid #cde6cd", color:"#2e7d32", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>+ Take In</button>
-                  <button onClick={()=>{setEditingQtyId(item.id);setQtyAdjustInput("");}} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Adjust Qty</button>
-                  <button onClick={()=>startEditItem(item)} style={{ background:"#eef1f6", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 12px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Edit</button>
-                  <button onClick={()=>setConfirmDelete({ id:item.id, name:item.name })} style={{ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", borderRadius:8, padding:"8px 14px", fontSize:13, cursor:"pointer" }}>✕</button>
-                </div>
+                <>
+                  <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                    <button onClick={()=>setTakeInModal(item)} style={{ flex:1, background:"#eaf5ea", border:"1px solid #cde6cd", color:"#2e7d32", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>+ Take In</button>
+                    <button onClick={()=>{setEditingQtyId(item.id);setQtyAdjustInput("");}} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Adjust Qty</button>
+                  </div>
+                  <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                    <button onClick={()=>setRecipeModal(item)} style={{ flex:1, background:"#fff8ec", border:"1px solid #f0dfb8", color:"#8a6d3b", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>🍳 Recipe</button>
+                    <button onClick={()=>startEditItem(item)} style={{ background:"#eef1f6", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 12px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Edit</button>
+                    <button onClick={()=>setConfirmDelete({ id:item.id, name:item.name })} style={{ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", borderRadius:8, padding:"8px 14px", fontSize:13, cursor:"pointer" }}>✕</button>
+                  </div>
+                </>
               )}
             </div>
           );
@@ -3446,6 +3524,9 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       [...drinkItems, ...foodItems].forEach(item => {
         if (typeof item.id === "number") {
           supabase.rpc("deduct_stock", { p_menu_item_id: item.id, p_qty: item.qty, p_addon_name: item.stock_addon_name||null }).then(()=>{}, ()=>{});
+          // Recipe-based deduction (e.g. "Big Breakfast" using 2 eggs + 2 sausage) —
+          // a no-op if this dish has no recipe links configured.
+          supabase.rpc("deduct_stock_recipe", { p_menu_item_id: item.id, p_order_qty: item.qty }).then(()=>{}, ()=>{});
         }
       });
     } catch(e) {
