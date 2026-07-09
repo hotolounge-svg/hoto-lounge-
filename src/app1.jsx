@@ -1927,6 +1927,7 @@ function SystemSettingsScreen({ goHome }) {
       points_earn_rate: parseFloat(form.points_earn_rate) || 0,
       points_earn_rate_vip: parseFloat(form.points_earn_rate_vip) || 0,
       points_earn_basis: form.points_earn_basis,
+      loyalty_enabled: form.loyalty_enabled,
       updated_at: new Date().toISOString(),
     }).eq("id", 1);
     setSaving(false);
@@ -2031,7 +2032,14 @@ function SystemSettingsScreen({ goHome }) {
         </div>
         <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginBottom:16 }}>
           <div style={{ fontSize:15, fontWeight:"bold", color:C.text, marginBottom:14 }}>Loyalty Points</div>
-          <div style={{ marginBottom:14 }}>
+          <div style={{ marginBottom:16 }}>
+            <button onClick={() => setForm(f => ({ ...f, loyalty_enabled:!f.loyalty_enabled }))}
+              style={btn({ background:form.loyalty_enabled?"#394c76":"#eef1f6", border:form.loyalty_enabled?"none":`1px solid ${C.border}`, color:form.loyalty_enabled?"#fff":"#394c76", padding:"10px 18px", fontSize:13, fontWeight:"bold" })}>
+              {form.loyalty_enabled ? "Membership & Rewards: On" : "Membership & Rewards: Off"}
+            </button>
+            <div style={{ fontSize:11, color:C.muted, marginTop:8 }}>Turn off to hide "Is the customer a member?" and the 🎁 Rewards tab everywhere (customer menu, staff order screen, cashier) — the settings below stay saved, just not shown to anyone until you turn it back on.</div>
+          </div>
+          <div style={{ marginBottom:14, opacity:form.loyalty_enabled?1:0.5 }}>
             <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Earn Rate (points per RM1 spent)</div>
             <input type="number" step="0.1" min="0" value={form.points_earn_rate} onChange={e => setForm(f => ({ ...f, points_earn_rate:e.target.value }))}
               style={{ width:120, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:16, fontWeight:"bold", boxSizing:"border-box" }} />
@@ -2530,9 +2538,7 @@ function StockScreen({ goHome }) {
   const adjustStock = async (item) => {
     const delta = parseFloat(qtyAdjustInput);
     if (!delta) { setEditingQtyId(null); setQtyAdjustInput(""); return; }
-    const next = Math.max(0, parseFloat(item.stock_qty) + delta);
-    await supabase.from("stock_items").update({ stock_qty: next }).eq("id", item.id);
-    await supabase.from("stock_transactions").insert({ stock_item_id:item.id, type:"adjust", qty_delta:delta });
+    await supabase.rpc("adjust_stock_qty", { p_stock_item_id:item.id, p_delta:delta, p_type:"adjust" });
     setEditingQtyId(null); setQtyAdjustInput("");
     showToast(delta > 0 ? `+${delta} ${item.unit_label}` : `${delta} ${item.unit_label}`);
   };
@@ -2563,9 +2569,7 @@ function StockScreen({ goHome }) {
     if (!units || units <= 0) return;
     const size = parseFloat(takeInModal.restock_unit_size) || 1;
     const added = units * size;
-    const next = parseFloat(takeInModal.stock_qty) + added;
-    await supabase.from("stock_items").update({ stock_qty: next }).eq("id", takeInModal.id);
-    await supabase.from("stock_transactions").insert({ stock_item_id:takeInModal.id, type:"take_in", qty_delta:added, note:`${units} ${takeInModal.restock_unit_label||"unit"}(s)` });
+    await supabase.rpc("adjust_stock_qty", { p_stock_item_id:takeInModal.id, p_delta:added, p_type:"take_in", p_note:`${units} ${takeInModal.restock_unit_label||"unit"}(s)` });
     showToast(`+${added} ${takeInModal.unit_label} added`);
     setTakeInModal(null); setTakeInUnits("");
   };
@@ -3212,6 +3216,16 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
   const [rewards, setRewards] = useState([]);
   const [selectedRewardId, setSelectedRewardId] = useState(null);
   const [redeemConfirm, setRedeemConfirm] = useState(null); // free-item reward pending confirmation
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(true);
+  useEffect(() => {
+    const load = () => supabase.from("app_settings").select("loyalty_enabled").eq("id", 1).maybeSingle()
+      .then(({ data }) => setLoyaltyEnabled(data?.loyalty_enabled !== false));
+    load();
+    const ch = supabase.channel("app-settings-tablet-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"app_settings" }, load)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
 
   // Rewards catalog — needed on both the customer's own phone and the staff order screen
   useEffect(() => {
@@ -3306,6 +3320,13 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       status:"pending", special_request:`🎁 Redeemed: ${reward.name}`, time, order_seq:seq,
     }).select().maybeSingle();
     if (error) { setMemberCheckMsg("Could not redeem — try again."); return; }
+    // This bypasses placeOrder() entirely (it's a reward, not a cart checkout),
+    // so it needs its own stock deduction call — otherwise a free-item reward
+    // silently never touches stock even when its menu item is tracked.
+    if (typeof menuItem.id === "number") {
+      supabase.rpc("deduct_stock", { p_menu_item_id: menuItem.id, p_qty: 1, p_addon_name: null }).then(()=>{}, ()=>{});
+      supabase.rpc("deduct_stock_recipe", { p_menu_item_id: menuItem.id, p_order_qty: 1 }).then(()=>{}, ()=>{});
+    }
     const newPoints = phoneMember.points - reward.points_cost;
     await supabase.from("members").update({ points:newPoints }).eq("id", phoneMember.id);
     await supabase.from("point_transactions").insert({
@@ -3750,6 +3771,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
           </div>
 
           {/* Member / Rewards — same lookup used on the customer's own phone, so staff can check it too when placing a VIP/takeaway order */}
+          {loyaltyEnabled && (
           <div style={{ borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
             {!phoneMember ? (
               !memberBannerOpen ? (
@@ -3829,6 +3851,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
               </div>
             )}
           </div>
+          )}
 
           <div style={{ flex:1, overflowY:"auto", padding:"12px 14px" }}>
             {cartItems.length===0 ? (
@@ -4074,13 +4097,15 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
         <button onClick={() => setView("orders")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:"transparent", border:"none", borderBottom:view==="orders"?"3px solid #c8973a":"3px solid transparent", color:view==="orders"?"#c8973a":"#a07060", padding:"14px 0", fontSize:17, fontWeight:view==="orders"?"bold":"normal" }}>
           {t.myOrders} {hasOrders && <span style={{ background:pendingOrders.length>0?T.orange:T.green, color:"#fff", borderRadius:12, padding:"2px 9px", fontSize:13, marginLeft:6 }}>{myOrders.length}</span>}
         </button>
-        <button onClick={() => setView("rewards")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:"transparent", border:"none", borderBottom:view==="rewards"?"3px solid #c8973a":"3px solid transparent", color:view==="rewards"?"#c8973a":"#a07060", padding:"14px 0", fontSize:17, fontWeight:view==="rewards"?"bold":"normal" }}>
-          🎁 Rewards {phoneMember && <span style={{ background:T.goldGrad, color:"#2a1a0a", borderRadius:12, padding:"2px 9px", fontSize:13, marginLeft:6, fontWeight:"bold" }}>{phoneMember.points}</span>}
-        </button>
+        {loyaltyEnabled && (
+          <button onClick={() => setView("rewards")} style={{ fontFamily:"Georgia,serif", cursor:"pointer", flex:1, background:"transparent", border:"none", borderBottom:view==="rewards"?"3px solid #c8973a":"3px solid transparent", color:view==="rewards"?"#c8973a":"#a07060", padding:"14px 0", fontSize:17, fontWeight:view==="rewards"?"bold":"normal" }}>
+            🎁 Rewards {phoneMember && <span style={{ background:T.goldGrad, color:"#2a1a0a", borderRadius:12, padding:"2px 9px", fontSize:13, marginLeft:6, fontWeight:"bold" }}>{phoneMember.points}</span>}
+          </button>
+        )}
       </div>
 
       {/* REWARDS */}
-      {view === "rewards" && (
+      {view === "rewards" && loyaltyEnabled && (
         <div style={{ flex:1, overflowY:"auto", padding:20, background:T.bg }}>
           {!phoneMember ? (
             <div style={{ maxWidth:380, margin:"20px auto" }}>
@@ -5970,14 +5995,16 @@ function CashierScreen({ goHome }) {
   const [pointsEarnRate, setPointsEarnRate] = useState(1);
   const [pointsEarnRateVip, setPointsEarnRateVip] = useState(1);
   const [pointsEarnBasis, setPointsEarnBasis] = useState("final_total");
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(true);
   useEffect(() => {
-    const load = () => supabase.from("app_settings").select("service_charge,points_earn_rate,points_earn_rate_vip,points_earn_basis").eq("id", 1).maybeSingle()
+    const load = () => supabase.from("app_settings").select("service_charge,points_earn_rate,points_earn_rate_vip,points_earn_basis,loyalty_enabled").eq("id", 1).maybeSingle()
       .then(({ data }) => {
         if (!data) return;
         setServiceCharge(data.service_charge);
         setPointsEarnRate(data.points_earn_rate ?? 1);
         setPointsEarnRateVip(data.points_earn_rate_vip ?? 1);
         setPointsEarnBasis(data.points_earn_basis || "final_total");
+        setLoyaltyEnabled(data.loyalty_enabled !== false);
       });
     load();
     const ch = supabase.channel("app-settings-cashier-watch")
@@ -6428,6 +6455,7 @@ function CashierScreen({ goHome }) {
                 </div>
 
                 {/* Member / Loyalty */}
+                {loyaltyEnabled && (
                 <div style={{ marginBottom:16 }}>
                   <div style={{ fontSize:13, color:"#394c76", marginBottom:8, fontFamily:"Georgia,serif", fontWeight:"bold" }}>🎉 Ask: Is the customer a member?</div>
                   {!payMember ? (
@@ -6497,6 +6525,7 @@ function CashierScreen({ goHome }) {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Items */}
                 <div style={{ background:"#f9f9f9", borderRadius:10, padding:"10px 14px", marginBottom:12, maxHeight:180, overflowY:"auto" }}>
