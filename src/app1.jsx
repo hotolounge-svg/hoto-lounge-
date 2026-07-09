@@ -586,6 +586,22 @@ function HomeScreen({ setScreen, setTableNo }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const hCard = { background:HP.card, border:`1px solid ${HP.line}`, borderRadius:18, boxShadow:"0 6px 22px rgba(57,76,118,0.08)", overflow:"hidden" };
   const hLabel = { fontSize:11, color:HP.grey, fontWeight:700, letterSpacing:2.5, textTransform:"uppercase" };
+
+  // Low-stock banner — surfaced here (not just inside the Stock screen)
+  // since Home is the one screen staff see every single time, no matter
+  // how rarely they think to go check Stock on their own.
+  const [lowStockItems, setLowStockItems] = useState([]);
+  useEffect(() => {
+    const load = () => supabase.from("stock_items").select("name,stock_qty,unit_label,low_stock_threshold")
+      .not("low_stock_threshold", "is", null)
+      .then(({ data }) => setLowStockItems((data||[]).filter(i => parseFloat(i.stock_qty) <= parseFloat(i.low_stock_threshold))));
+    load();
+    const ch = supabase.channel("home-lowstock-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"stock_items" }, load)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
+
   return (
     <div style={{ minHeight:"100vh", background:HP.bg, overflowY:"auto", fontFamily:"Georgia,serif" }}>
       {/* Header */}
@@ -602,6 +618,17 @@ function HomeScreen({ setScreen, setTableNo }) {
       </div>
 
       <div style={{ padding:"30px 18px 44px", maxWidth:460, margin:"0 auto", display:"flex", flexDirection:"column", gap:22 }}>
+
+        {lowStockItems.length > 0 && (
+          <button onClick={()=>setScreen("stock")}
+            style={{ fontFamily:"Georgia,serif", cursor:"pointer", textAlign:"left", background:"#fdf2ea", border:"1.5px solid #e8b98a", borderRadius:14, padding:"14px 16px", display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ fontSize:22, flexShrink:0 }}>⚠️</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:"#8a4a1f" }}>{lowStockItems.length} item{lowStockItems.length===1?"":"s"} low on stock</div>
+              <div style={{ fontSize:12, color:"#a06840", marginTop:2 }}>{lowStockItems.map(i=>i.name).join(", ")} — tap to check Stock</div>
+            </div>
+          </button>
+        )}
 
         {/* Dine In */}
         <div style={hCard}>
