@@ -2402,7 +2402,7 @@ function StockScreen({ goHome }) {
   const [takeInModal, setTakeInModal] = useState(null); // stock item being taken in
   const [takeInUnits, setTakeInUnits] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newItem, setNewItem] = useState({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"" });
+  const [newItem, setNewItem] = useState({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"", addon_name:"" });
   const [editingItemId, setEditingItemId] = useState(null); // stock_items.id currently being edited, or null when adding new
   const [editingQtyId, setEditingQtyId] = useState(null); // stock_items.id currently adjusting quantity
   const [qtyAdjustInput, setQtyAdjustInput] = useState("");
@@ -2415,13 +2415,13 @@ function StockScreen({ goHome }) {
     const ch = supabase.channel("stock-items-watch")
       .on("postgres_changes", { event:"*", schema:"public", table:"stock_items" }, load)
       .subscribe();
-    supabase.from("menu_items").select("id,name,item_no").order("item_no",{ ascending:true })
+    supabase.from("menu_items").select("id,name,item_no,addon_required,addons").order("item_no",{ ascending:true })
       .then(({ data }) => setMenuItems(data||[]));
     return () => supabase.removeChannel(ch);
   }, []);
 
   const resetItemForm = () => {
-    setNewItem({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"" });
+    setNewItem({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"", addon_name:"" });
     setEditingItemId(null);
     setShowAddForm(false);
   };
@@ -2430,7 +2430,7 @@ function StockScreen({ goHome }) {
       name:item.name, unit_label:item.unit_label, restock_unit_label:item.restock_unit_label||"",
       restock_unit_size:item.restock_unit_size!=null?String(item.restock_unit_size):"",
       low_stock_threshold:item.low_stock_threshold!=null?String(item.low_stock_threshold):"",
-      menu_item_id:item.menu_item_id!=null?String(item.menu_item_id):"",
+      menu_item_id:item.menu_item_id!=null?String(item.menu_item_id):"", addon_name:item.addon_name||"",
     });
     setEditingItemId(item.id);
     setShowAddForm(true);
@@ -2445,6 +2445,7 @@ function StockScreen({ goHome }) {
       restock_unit_size: newItem.restock_unit_size ? parseFloat(newItem.restock_unit_size) : null,
       low_stock_threshold: newItem.low_stock_threshold ? parseFloat(newItem.low_stock_threshold) : null,
       menu_item_id: newItem.menu_item_id ? parseInt(newItem.menu_item_id) : null,
+      addon_name: newItem.menu_item_id && newItem.addon_name ? newItem.addon_name : null,
     };
     if (editingItemId) await supabase.from("stock_items").update(payload).eq("id", editingItemId);
     else await supabase.from("stock_items").insert(payload);
@@ -2573,6 +2574,7 @@ function StockScreen({ goHome }) {
                     {item.name}
                     {linkedItem && <span style={{ marginLeft:8, fontSize:10, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"2px 8px", fontWeight:"bold", letterSpacing:0.5 }}>Auto-deducts</span>}
                   </div>
+                  {linkedItem && <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{linkedItem.name}{item.addon_name ? ` — ${item.addon_name}` : ""}</div>}
                   {low && <div style={{ fontSize:11, color:"#c0392b", fontWeight:"bold", marginTop:2 }}>⚠ Low stock</div>}
                 </div>
                 <div style={{ textAlign:"right" }}>
@@ -2636,11 +2638,25 @@ function StockScreen({ goHome }) {
               </div>
               <div style={{ marginBottom:14 }}>
                 <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Link to Menu Item (optional — auto-deducts on order, e.g. for beer sold by the bottle)</div>
-                <select value={newItem.menu_item_id} onChange={e=>setNewItem(f=>({...f,menu_item_id:e.target.value}))}
+                <select value={newItem.menu_item_id} onChange={e=>setNewItem(f=>({...f,menu_item_id:e.target.value,addon_name:""}))}
                   style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
                   <option value="">Not linked — track manually (e.g. eggs, sausage)</option>
                   {menuItems.map(mi => <option key={mi.id} value={mi.id}>{mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}</option>)}
                 </select>
+                {(() => {
+                  const linked = newItem.menu_item_id ? menuItems.find(mi => mi.id === parseInt(newItem.menu_item_id)) : null;
+                  if (!linked || !linked.addon_required || !linked.addons || linked.addons.length === 0) return null;
+                  return (
+                    <div style={{ marginTop:8 }}>
+                      <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Which one? ("{linked.name}" has {linked.addons.length} choices — link a separate stock item for each brand)</div>
+                      <select value={newItem.addon_name} onChange={e=>setNewItem(f=>({...f,addon_name:e.target.value}))}
+                        style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
+                        <option value="">Whole item (don't distinguish by choice)</option>
+                        {linked.addons.map(a => <option key={a.name} value={a.name}>{a.name}</option>)}
+                      </select>
+                    </div>
+                  );
+                })()}
               </div>
               <div style={{ display:"flex", gap:10 }}>
                 <button onClick={resetItemForm}
@@ -3333,7 +3349,11 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
     const basePrice = item.addon_required ? 0 : effPrice(item, isVip, vipGroupSlug);
     const addonNames = selectedAddons.length > 0 ? (item.addon_required ? " " : " +") + selectedAddons.map(a=>a.name).join(" +") : "";
     const cartKey = item.id + (selectedAddons.length > 0 ? "_" + selectedAddons.map(a=>a.name).join("_") : "") + (note ? "_note_"+note.slice(0,20) : "");
-    const itemToAdd = { ...item, price: basePrice + addonPrice, name: item.name + addonNames, cartKey, note: note||"" };
+    // Required addons are single-select (e.g. "Beer" -> Tiger/Carlsberg/Heineken) —
+    // keep which one was picked so stock deduction can tell them apart, since
+    // they're all the same parent menu item id otherwise.
+    const stockAddonName = item.addon_required && selectedAddons.length > 0 ? selectedAddons[0].name : null;
+    const itemToAdd = { ...item, price: basePrice + addonPrice, name: item.name + addonNames, cartKey, note: note||"", stock_addon_name: stockAddonName };
     setCart(p => ({ ...p, [cartKey]: { ...itemToAdd, qty:(p[cartKey]?.qty||0)+qty } }));
     if (freeDrink) {
       const drinkKey = `free_${item.id}`;
@@ -3425,7 +3445,7 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
       // id ("free_123"), not a real menu_items id, so only numeric ids qualify.
       [...drinkItems, ...foodItems].forEach(item => {
         if (typeof item.id === "number") {
-          supabase.rpc("deduct_stock", { p_menu_item_id: item.id, p_qty: item.qty }).then(()=>{}, ()=>{});
+          supabase.rpc("deduct_stock", { p_menu_item_id: item.id, p_qty: item.qty, p_addon_name: item.stock_addon_name||null }).then(()=>{}, ()=>{});
         }
       });
     } catch(e) {
