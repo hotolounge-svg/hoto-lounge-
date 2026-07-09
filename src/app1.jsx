@@ -1668,12 +1668,15 @@ function VIPScreen({ setScreen, setTableNo, goHome }) {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from("groups").select("*")
-        .neq("display_name","__group__").order("group_name").order("display_name");
+      // These two are independent — running them in parallel instead of one
+      // after another roughly halves how long this screen takes to load.
+      const [{ data }, { data: orders }] = await Promise.all([
+        supabase.from("groups").select("*")
+          .neq("display_name","__group__").order("group_name").order("display_name"),
+        supabase.from("orders").select("table_no")
+          .like("table_no","GRP-%").not("status","in",'("cancelled","paid")'),
+      ]);
       setMembers(data||[]);
-      // Find which VIPs have active orders
-      const { data: orders } = await supabase.from("orders").select("table_no")
-        .like("table_no","GRP-%").not("status","in",'("cancelled","paid")');
       const active = new Set((orders||[]).map(o => o.table_no.split("·")[0].replace(/^GRP-/,"")));
       setActiveIds([...active]);
       setLoading(false);
@@ -5736,8 +5739,10 @@ function CashierScreen({ goHome }) {
   };
 
   const fetchAll = async () => {
-    const { data } = await supabase.from("orders").select("*").in("status",["pending","done"]).order("created_at",{ascending:true});
-    const { data:w } = await supabase.from("waiter_calls").select("*");
+    const [{ data }, { data:w }] = await Promise.all([
+      supabase.from("orders").select("*").in("status",["pending","done"]).order("created_at",{ascending:true}),
+      supabase.from("waiter_calls").select("*"),
+    ]);
     const newOrders = data||[];
     const newWaiters = w||[];
     setWaiterCalls(newWaiters);
