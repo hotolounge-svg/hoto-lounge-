@@ -2423,6 +2423,7 @@ function StockScreen({ goHome }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [menuItems, setMenuItems] = useState([]);
+  const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 2000); };
   const [confirmDelete, setConfirmDelete] = useState(null); // {id, name}
@@ -2573,6 +2574,8 @@ function StockScreen({ goHome }) {
     return <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", color:C.muted }}>Loading…</div>;
   }
 
+  const filteredItems = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
       {toast && (
@@ -2676,10 +2679,20 @@ function StockScreen({ goHome }) {
           <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
         </div>
       </div>
-      <div style={{ flex:1, padding:20, overflowY:"auto", maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
+      <div style={{ flex:1, overflowY:"auto" }}>
+        <div style={{ position:"sticky", top:0, zIndex:2, background:C.bg, padding:"20px 20px 12px", maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search stock items…"
+            style={{ width:"100%", background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"12px 14px", borderRadius:10, fontSize:15, boxSizing:"border-box" }} />
+          {items.length > 0 && (
+            <div style={{ fontSize:11, color:C.muted, marginTop:8 }}>{filteredItems.length} item{filteredItems.length===1?"":"s"}{search.trim() && ` matching "${search}"`}</div>
+          )}
+        </div>
+        <div style={{ padding:"0 20px 20px", maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
         {items.length === 0 ? (
           <div style={{ textAlign:"center", color:C.muted, padding:40 }}>No stock items yet — add one below.</div>
-        ) : items.map(item => {
+        ) : filteredItems.length === 0 ? (
+          <div style={{ textAlign:"center", color:C.muted, padding:40 }}>No items match "{search}".</div>
+        ) : filteredItems.map(item => {
           const linkedItem = menuItems.find(mi=>mi.id===item.menu_item_id);
           const low = item.low_stock_threshold != null && parseFloat(item.stock_qty) <= parseFloat(item.low_stock_threshold);
           const restockEquiv = item.restock_unit_size ? (item.stock_qty / item.restock_unit_size).toFixed(1) : null;
@@ -2732,79 +2745,80 @@ function StockScreen({ goHome }) {
             </div>
           );
         })}
-        <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginTop:16 }}>
-          {!showAddForm ? (
-            <button onClick={()=>setShowAddForm(true)} style={btn({ width:"100%", background:"#394c76", border:"none", color:"#fff", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>+ Add Stock Item</button>
-          ) : (
-            <>
-              <div style={{ fontSize:12, fontWeight:"bold", color:C.text, marginBottom:10 }}>{editingItemId ? "Edit Stock Item" : "Add New Stock Item"}</div>
-              <div style={{ marginBottom:10 }}>
-                <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Name</div>
-                <input value={newItem.name} onChange={e=>setNewItem(f=>({...f,name:e.target.value}))} placeholder="e.g. Tiger Beer"
-                  style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
-              </div>
-              {!editingItemId && (
-                <div style={{ marginBottom:10 }}>
-                  <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Starting quantity (optional — skips a separate Take In step)</div>
-                  <input type="number" min="0" value={newItem.initial_qty} onChange={e=>setNewItem(f=>({...f,initial_qty:e.target.value}))} placeholder="e.g. 30"
-                    style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
-                </div>
-              )}
-              <div style={{ display:"flex", gap:10, marginBottom:10 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Unit (e.g. bottle, pcs)</div>
-                  <input value={newItem.unit_label} onChange={e=>setNewItem(f=>({...f,unit_label:e.target.value}))}
-                    style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
-                </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Restock unit (e.g. bucket, tray)</div>
-                  <input value={newItem.restock_unit_label} onChange={e=>setNewItem(f=>({...f,restock_unit_label:e.target.value}))}
-                    style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
-                </div>
-              </div>
-              <div style={{ display:"flex", gap:10, marginBottom:10 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Units per restock (e.g. 5)</div>
-                  <input type="number" min="1" value={newItem.restock_unit_size} onChange={e=>setNewItem(f=>({...f,restock_unit_size:e.target.value}))}
-                    style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
-                </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Low stock warning below</div>
-                  <input type="number" min="0" value={newItem.low_stock_threshold} onChange={e=>setNewItem(f=>({...f,low_stock_threshold:e.target.value}))}
-                    style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
-                </div>
-              </div>
-              <div style={{ marginBottom:14 }}>
-                <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Link to Menu Item (optional — auto-deducts on order, e.g. for beer sold by the bottle)</div>
-                <select value={newItem.menu_item_id} onChange={e=>setNewItem(f=>({...f,menu_item_id:e.target.value,addon_name:""}))}
-                  style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
-                  <option value="">Not linked — track manually (e.g. eggs, sausage)</option>
-                  {menuItems.map(mi => <option key={mi.id} value={mi.id}>{mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}</option>)}
-                </select>
-                {(() => {
-                  const linked = newItem.menu_item_id ? menuItems.find(mi => mi.id === parseInt(newItem.menu_item_id)) : null;
-                  if (!linked || !linked.addon_required || !linked.addons || linked.addons.length === 0) return null;
-                  return (
-                    <div style={{ marginTop:8 }}>
-                      <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Which one? ("{linked.name}" has {linked.addons.length} choices — link a separate stock item for each brand)</div>
-                      <select value={newItem.addon_name} onChange={e=>setNewItem(f=>({...f,addon_name:e.target.value}))}
-                        style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
-                        <option value="">Whole item (don't distinguish by choice)</option>
-                        {linked.addons.map(a => <option key={a.name} value={a.name}>{a.name}</option>)}
-                      </select>
-                    </div>
-                  );
-                })()}
-              </div>
-              <div style={{ display:"flex", gap:10 }}>
-                <button onClick={resetItemForm}
-                  style={btn({ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>Cancel</button>
-                <button onClick={addStockItem} style={btn({ flex:2, background:"#394c76", border:"none", color:"#fff", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>{editingItemId ? "Save Changes" : "+ Add Stock Item"}</button>
-              </div>
-            </>
-          )}
+        <button onClick={()=>setShowAddForm(true)} style={btn({ width:"100%", background:"#394c76", border:"none", color:"#fff", padding:"13px 0", fontSize:13, fontWeight:"bold", borderRadius:14, marginTop:6 })}>+ Add Stock Item</button>
         </div>
       </div>
+      {showAddForm && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:99998, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+          onClick={resetItemForm}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, width:"100%", maxWidth:380, maxHeight:"85vh", overflowY:"auto" }}>
+            <div style={{ fontSize:16, fontWeight:"bold", color:"#1a1a1a", marginBottom:16, fontFamily:"Georgia,serif" }}>{editingItemId ? "Edit Stock Item" : "Add New Stock Item"}</div>
+            <div style={{ marginBottom:10 }}>
+              <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Name</div>
+              <input value={newItem.name} onChange={e=>setNewItem(f=>({...f,name:e.target.value}))} placeholder="e.g. Tiger Beer"
+                style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+            </div>
+            {!editingItemId && (
+              <div style={{ marginBottom:10 }}>
+                <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Starting quantity (optional — skips a separate Take In step)</div>
+                <input type="number" min="0" value={newItem.initial_qty} onChange={e=>setNewItem(f=>({...f,initial_qty:e.target.value}))} placeholder="e.g. 30"
+                  style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+              </div>
+            )}
+            <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Unit (e.g. bottle, pcs)</div>
+                <input value={newItem.unit_label} onChange={e=>setNewItem(f=>({...f,unit_label:e.target.value}))}
+                  style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Restock unit (e.g. bucket, tray)</div>
+                <input value={newItem.restock_unit_label} onChange={e=>setNewItem(f=>({...f,restock_unit_label:e.target.value}))}
+                  style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Units per restock (e.g. 5)</div>
+                <input type="number" min="1" value={newItem.restock_unit_size} onChange={e=>setNewItem(f=>({...f,restock_unit_size:e.target.value}))}
+                  style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Low stock warning below</div>
+                <input type="number" min="0" value={newItem.low_stock_threshold} onChange={e=>setNewItem(f=>({...f,low_stock_threshold:e.target.value}))}
+                  style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+              </div>
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Link to Menu Item (optional — auto-deducts on order, e.g. for beer sold by the bottle)</div>
+              <select value={newItem.menu_item_id} onChange={e=>setNewItem(f=>({...f,menu_item_id:e.target.value,addon_name:""}))}
+                style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
+                <option value="">Not linked — track manually (e.g. eggs, sausage)</option>
+                {menuItems.map(mi => <option key={mi.id} value={mi.id}>{mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}</option>)}
+              </select>
+              {(() => {
+                const linked = newItem.menu_item_id ? menuItems.find(mi => mi.id === parseInt(newItem.menu_item_id)) : null;
+                if (!linked || !linked.addon_required || !linked.addons || linked.addons.length === 0) return null;
+                return (
+                  <div style={{ marginTop:8 }}>
+                    <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>Which one? ("{linked.name}" has {linked.addons.length} choices — link a separate stock item for each brand)</div>
+                    <select value={newItem.addon_name} onChange={e=>setNewItem(f=>({...f,addon_name:e.target.value}))}
+                      style={{ width:"100%", background:"#f9f9f9", border:"1px solid #ddd", color:"#1a1a1a", padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
+                      <option value="">Whole item (don't distinguish by choice)</option>
+                      {linked.addons.map(a => <option key={a.name} value={a.name}>{a.name}</option>)}
+                    </select>
+                  </div>
+                );
+              })()}
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={resetItemForm}
+                style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Cancel</button>
+              <button onClick={addStockItem} style={{ flex:2, background:"#394c76", border:"none", color:"#fff", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>{editingItemId ? "Save Changes" : "+ Add Stock Item"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
