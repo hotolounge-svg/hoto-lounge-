@@ -531,6 +531,7 @@ export default function App() {
       {screen === "sales"   && <SalesScreen   goHome={() => setScreen("home")} />}
       {screen === "systemsettings" && <SystemSettingsScreen goHome={() => setScreen("home")} />}
       {screen === "members" && <MembersScreen goHome={() => setScreen("home")} />}
+      {screen === "stock"   && <StockScreen   goHome={() => setScreen("home")} />}
       {screen === "cashier" && <CashierScreen goHome={() => setScreen("home")} />}
       {screen === "join"    && <JoinScreen groupSlug={String(tableNo).replace("JOIN-","")} goHome={() => setScreen("home")} />}
       {screen === "joinmember" && <JoinMemberScreen goHome={() => setScreen("home")} />}
@@ -568,6 +569,7 @@ function Icon({ name, size=24, color="currentColor", stroke=1.8, style }) {
     arrowLeft: <><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></>,
     search: <><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></>,
     calendar: <><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18"/><path d="M8 2.5v4M16 2.5v4"/></>,
+    box: <><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
@@ -684,6 +686,7 @@ function HomeScreen({ setScreen, setTableNo }) {
               { name:"sliders", label:"Admin — Manage Menu", screen:"admin" },
               { name:"lock", label:"System Settings", screen:"systemsettings" },
               { name:"crown", label:"Members", screen:"members" },
+              { name:"box", label:"Stock Take-In", screen:"stock" },
             ].map(item => (
               <button key={item.screen} onClick={() => { setMoreOpen(false); setScreen(item.screen); }}
                 style={{ fontFamily:"Georgia,serif", cursor:"pointer", width:"100%", background:"#f4f6f9", border:`1px solid ${HP.line}`, color:HP.ink, padding:"13px 16px", fontSize:15, fontWeight:600, borderRadius:14, textAlign:"left", marginBottom:10, display:"flex", alignItems:"center", gap:14 }}>
@@ -2387,6 +2390,211 @@ function MembersScreen({ goHome }) {
   );
 }
 
+// ── StockScreen — take-in and manual/auto stock tracking (beer bottles,
+// ingredients like eggs/sausage, etc.) ──
+function StockScreen({ goHome }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [menuItems, setMenuItems] = useState([]);
+  const [toast, setToast] = useState("");
+  const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""), 2000); };
+  const [confirmDelete, setConfirmDelete] = useState(null); // {id, name}
+  const [takeInModal, setTakeInModal] = useState(null); // stock item being taken in
+  const [takeInUnits, setTakeInUnits] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newItem, setNewItem] = useState({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"" });
+
+  const load = () => supabase.from("stock_items").select("*").order("name",{ ascending:true })
+    .then(({ data }) => { setItems(data||[]); setLoading(false); });
+
+  useEffect(() => {
+    load();
+    const ch = supabase.channel("stock-items-watch")
+      .on("postgres_changes", { event:"*", schema:"public", table:"stock_items" }, load)
+      .subscribe();
+    supabase.from("menu_items").select("id,name,item_no").order("item_no",{ ascending:true })
+      .then(({ data }) => setMenuItems(data||[]));
+    return () => supabase.removeChannel(ch);
+  }, []);
+
+  const addStockItem = async () => {
+    const name = newItem.name.trim();
+    if (!name) return;
+    await supabase.from("stock_items").insert({
+      name,
+      unit_label: newItem.unit_label.trim() || "unit",
+      restock_unit_label: newItem.restock_unit_label.trim() || null,
+      restock_unit_size: newItem.restock_unit_size ? parseFloat(newItem.restock_unit_size) : null,
+      low_stock_threshold: newItem.low_stock_threshold ? parseFloat(newItem.low_stock_threshold) : null,
+      menu_item_id: newItem.menu_item_id ? parseInt(newItem.menu_item_id) : null,
+    });
+    setNewItem({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"" });
+    setShowAddForm(false);
+    showToast("Stock item added");
+  };
+
+  const deleteStockItem = async (id) => {
+    await supabase.from("stock_items").delete().eq("id", id);
+    setConfirmDelete(null);
+    showToast("Stock item removed");
+  };
+
+  // Manual +/- correction — works for any item, including auto-deducted ones
+  // (e.g. to account for breakage/spillage that a normal order wouldn't catch).
+  const adjustStock = async (item, delta) => {
+    const next = Math.max(0, parseFloat(item.stock_qty) + delta);
+    await supabase.from("stock_items").update({ stock_qty: next }).eq("id", item.id);
+    await supabase.from("stock_transactions").insert({ stock_item_id:item.id, type:"adjust", qty_delta:delta });
+  };
+
+  const doTakeIn = async () => {
+    if (!takeInModal) return;
+    const units = parseFloat(takeInUnits);
+    if (!units || units <= 0) return;
+    const size = parseFloat(takeInModal.restock_unit_size) || 1;
+    const added = units * size;
+    const next = parseFloat(takeInModal.stock_qty) + added;
+    await supabase.from("stock_items").update({ stock_qty: next }).eq("id", takeInModal.id);
+    await supabase.from("stock_transactions").insert({ stock_item_id:takeInModal.id, type:"take_in", qty_delta:added, note:`${units} ${takeInModal.restock_unit_label||"unit"}(s)` });
+    showToast(`+${added} ${takeInModal.unit_label} added`);
+    setTakeInModal(null); setTakeInUnits("");
+  };
+
+  if (loading) {
+    return <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", color:C.muted }}>Loading…</div>;
+  }
+
+  return (
+    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column" }}>
+      {toast && (
+        <div style={{ position:"fixed", top:24, left:"50%", transform:"translateX(-50%)", zIndex:99999, background:"#394c76", color:"#fff", padding:"14px 28px", borderRadius:12, fontSize:14, fontWeight:"bold", boxShadow:"0 6px 22px rgba(57,76,118,0.3)" }}>
+          {toast}
+        </div>
+      )}
+      {confirmDelete && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:99998, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, width:"100%", maxWidth:320, textAlign:"center" }}>
+            <div style={{ fontSize:15, color:C.text, marginBottom:20, fontWeight:600 }}>Remove "{confirmDelete.name}" from stock tracking?</div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Cancel</button>
+              <button onClick={() => deleteStockItem(confirmDelete.id)} style={{ flex:1, background:"#c0392b", border:"none", color:"#fff", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {takeInModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:99998, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+          onClick={()=>{setTakeInModal(null);setTakeInUnits("");}}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, width:"100%", maxWidth:340 }}>
+            <div style={{ fontSize:16, fontWeight:"bold", color:"#1a1a1a", marginBottom:4, fontFamily:"Georgia,serif" }}>Take In: {takeInModal.name}</div>
+            <div style={{ fontSize:12, color:"#888", marginBottom:16, fontFamily:"Georgia,serif" }}>Current: {takeInModal.stock_qty} {takeInModal.unit_label}</div>
+            <div style={{ fontSize:11, color:"#888", marginBottom:5 }}>{takeInModal.restock_unit_label || "Units"} received {takeInModal.restock_unit_size ? `(1 = ${takeInModal.restock_unit_size} ${takeInModal.unit_label})` : ""}</div>
+            <input type="number" autoFocus value={takeInUnits} onChange={e=>setTakeInUnits(e.target.value)} placeholder="e.g. 3"
+              style={{ width:"100%", border:"1px solid #ddd", borderRadius:8, padding:"10px 12px", fontSize:15, fontFamily:"Georgia,serif", color:"#1a1a1a", boxSizing:"border-box", marginBottom:6 }} />
+            {takeInUnits && takeInModal.restock_unit_size && (
+              <div style={{ fontSize:12, color:"#2e7d32", marginBottom:12 }}>= +{(parseFloat(takeInUnits)||0) * takeInModal.restock_unit_size} {takeInModal.unit_label}</div>
+            )}
+            <div style={{ display:"flex", gap:10, marginTop:10 }}>
+              <button onClick={()=>{setTakeInModal(null);setTakeInUnits("");}} style={{ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>Cancel</button>
+              <button onClick={doTakeIn} style={{ flex:1, background:"#394c76", border:"none", color:"#fff", padding:"11px 0", borderRadius:9, cursor:"pointer", fontFamily:"Georgia,serif", fontWeight:"bold" }}>+ Add Stock</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div style={{ background:"linear-gradient(150deg,#394c76,#2c3b5e)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 4px 16px rgba(57,76,118,0.25)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="box" size={19} color="#fff" /></div>
+          <div className="hl-title" style={{ fontSize:19, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Stock</div>
+        </div>
+        <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
+      </div>
+      <div style={{ flex:1, padding:20, overflowY:"auto", maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
+        {items.length === 0 ? (
+          <div style={{ textAlign:"center", color:C.muted, padding:40 }}>No stock items yet — add one below.</div>
+        ) : items.map(item => {
+          const linkedItem = menuItems.find(mi=>mi.id===item.menu_item_id);
+          const low = item.low_stock_threshold != null && parseFloat(item.stock_qty) <= parseFloat(item.low_stock_threshold);
+          const restockEquiv = item.restock_unit_size ? (item.stock_qty / item.restock_unit_size).toFixed(1) : null;
+          return (
+            <div key={item.id} style={{ background:C.panel, border:`1px solid ${low ? "#e6c3c3" : C.border}`, borderRadius:14, padding:16, marginBottom:10 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                <div>
+                  <div style={{ fontSize:15, fontWeight:"bold", color:C.text }}>
+                    {item.name}
+                    {linkedItem && <span style={{ marginLeft:8, fontSize:10, color:"#394c76", background:"#eef1f6", borderRadius:6, padding:"2px 8px", fontWeight:"bold", letterSpacing:0.5 }}>Auto-deducts</span>}
+                  </div>
+                  {low && <div style={{ fontSize:11, color:"#c0392b", fontWeight:"bold", marginTop:2 }}>⚠ Low stock</div>}
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ fontSize:18, fontWeight:"bold", color:low?"#c0392b":"#394c76" }}>{item.stock_qty} {item.unit_label}</div>
+                  {restockEquiv && <div style={{ fontSize:10, color:C.muted }}>≈ {restockEquiv} {item.restock_unit_label}</div>}
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                <button onClick={()=>setTakeInModal(item)} style={{ flex:1, background:"#eaf5ea", border:"1px solid #cde6cd", color:"#2e7d32", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>+ Take In</button>
+                <button onClick={()=>adjustStock(item,-1)} style={{ background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 12px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>-1</button>
+                <button onClick={()=>adjustStock(item,1)} style={{ background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 12px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>+1</button>
+                <button onClick={()=>setConfirmDelete({ id:item.id, name:item.name })} style={{ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", borderRadius:8, padding:"8px 14px", fontSize:13, cursor:"pointer" }}>✕</button>
+              </div>
+            </div>
+          );
+        })}
+        <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginTop:16 }}>
+          {!showAddForm ? (
+            <button onClick={()=>setShowAddForm(true)} style={btn({ width:"100%", background:"#394c76", border:"none", color:"#fff", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>+ Add Stock Item</button>
+          ) : (
+            <>
+              <div style={{ fontSize:12, fontWeight:"bold", color:C.text, marginBottom:10 }}>Add New Stock Item</div>
+              <div style={{ marginBottom:10 }}>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Name</div>
+                <input value={newItem.name} onChange={e=>setNewItem(f=>({...f,name:e.target.value}))} placeholder="e.g. Tiger Beer"
+                  style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+              </div>
+              <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Unit (e.g. bottle, pcs)</div>
+                  <input value={newItem.unit_label} onChange={e=>setNewItem(f=>({...f,unit_label:e.target.value}))}
+                    style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Restock unit (e.g. bucket, tray)</div>
+                  <input value={newItem.restock_unit_label} onChange={e=>setNewItem(f=>({...f,restock_unit_label:e.target.value}))}
+                    style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Units per restock (e.g. 5)</div>
+                  <input type="number" min="1" value={newItem.restock_unit_size} onChange={e=>setNewItem(f=>({...f,restock_unit_size:e.target.value}))}
+                    style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Low stock warning below</div>
+                  <input type="number" min="0" value={newItem.low_stock_threshold} onChange={e=>setNewItem(f=>({...f,low_stock_threshold:e.target.value}))}
+                    style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }} />
+                </div>
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Link to Menu Item (optional — auto-deducts on order, e.g. for beer sold by the bottle)</div>
+                <select value={newItem.menu_item_id} onChange={e=>setNewItem(f=>({...f,menu_item_id:e.target.value}))}
+                  style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"10px 12px", borderRadius:9, fontSize:14, boxSizing:"border-box" }}>
+                  <option value="">Not linked — track manually (e.g. eggs, sausage)</option>
+                  {menuItems.map(mi => <option key={mi.id} value={mi.id}>{mi.item_no ? `#${mi.item_no} ` : ""}{mi.name}</option>)}
+                </select>
+              </div>
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={()=>{setShowAddForm(false);setNewItem({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"" });}}
+                  style={btn({ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>Cancel</button>
+                <button onClick={addStockItem} style={btn({ flex:2, background:"#394c76", border:"none", color:"#fff", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>+ Add Stock Item</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminScreen({ goHome }) {
   const [authed, setAuthed] = useState(true); // no password needed
   const [toast, setToast] = useState(null);
@@ -3150,6 +3358,16 @@ function TabletScreen({ tableNo, goHome, isStaff }) {
 
       const { error } = await supabase.from("orders").insert(ordersToInsert);
       if (error) throw error;
+
+      // Fire-and-forget stock deduction for any ordered item linked to a stock
+      // item (e.g. beer sold by the bottle) — not awaited, so it never adds
+      // latency to placing the order. Free-drink items use a synthetic string
+      // id ("free_123"), not a real menu_items id, so only numeric ids qualify.
+      [...drinkItems, ...foodItems].forEach(item => {
+        if (typeof item.id === "number") {
+          supabase.rpc("deduct_stock", { p_menu_item_id: item.id, p_qty: item.qty }).then(()=>{}, ()=>{});
+        }
+      });
     } catch(e) {
       // Restore cart if insert failed so customer doesn't lose their order
       setCart(snapCart);
