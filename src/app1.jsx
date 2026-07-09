@@ -2403,6 +2403,9 @@ function StockScreen({ goHome }) {
   const [takeInUnits, setTakeInUnits] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [newItem, setNewItem] = useState({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"" });
+  const [editingItemId, setEditingItemId] = useState(null); // stock_items.id currently being edited, or null when adding new
+  const [editingQtyId, setEditingQtyId] = useState(null); // stock_items.id currently adjusting quantity
+  const [qtyAdjustInput, setQtyAdjustInput] = useState("");
 
   const load = () => supabase.from("stock_items").select("*").order("name",{ ascending:true })
     .then(({ data }) => { setItems(data||[]); setLoading(false); });
@@ -2417,20 +2420,36 @@ function StockScreen({ goHome }) {
     return () => supabase.removeChannel(ch);
   }, []);
 
+  const resetItemForm = () => {
+    setNewItem({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"" });
+    setEditingItemId(null);
+    setShowAddForm(false);
+  };
+  const startEditItem = (item) => {
+    setNewItem({
+      name:item.name, unit_label:item.unit_label, restock_unit_label:item.restock_unit_label||"",
+      restock_unit_size:item.restock_unit_size!=null?String(item.restock_unit_size):"",
+      low_stock_threshold:item.low_stock_threshold!=null?String(item.low_stock_threshold):"",
+      menu_item_id:item.menu_item_id!=null?String(item.menu_item_id):"",
+    });
+    setEditingItemId(item.id);
+    setShowAddForm(true);
+  };
   const addStockItem = async () => {
     const name = newItem.name.trim();
     if (!name) return;
-    await supabase.from("stock_items").insert({
+    const payload = {
       name,
       unit_label: newItem.unit_label.trim() || "unit",
       restock_unit_label: newItem.restock_unit_label.trim() || null,
       restock_unit_size: newItem.restock_unit_size ? parseFloat(newItem.restock_unit_size) : null,
       low_stock_threshold: newItem.low_stock_threshold ? parseFloat(newItem.low_stock_threshold) : null,
       menu_item_id: newItem.menu_item_id ? parseInt(newItem.menu_item_id) : null,
-    });
-    setNewItem({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"" });
-    setShowAddForm(false);
-    showToast("Stock item added");
+    };
+    if (editingItemId) await supabase.from("stock_items").update(payload).eq("id", editingItemId);
+    else await supabase.from("stock_items").insert(payload);
+    resetItemForm();
+    showToast(editingItemId ? "Stock item updated" : "Stock item added");
   };
 
   const deleteStockItem = async (id) => {
@@ -2439,12 +2458,37 @@ function StockScreen({ goHome }) {
     showToast("Stock item removed");
   };
 
-  // Manual +/- correction — works for any item, including auto-deducted ones
-  // (e.g. to account for breakage/spillage that a normal order wouldn't catch).
-  const adjustStock = async (item, delta) => {
+  // Type any +/- amount to correct a mistyped or miscounted quantity in one
+  // go, instead of tapping a fixed -1/+1 many times — same pattern as the
+  // Members screen's "Adjust Points".
+  const adjustStock = async (item) => {
+    const delta = parseFloat(qtyAdjustInput);
+    if (!delta) { setEditingQtyId(null); setQtyAdjustInput(""); return; }
     const next = Math.max(0, parseFloat(item.stock_qty) + delta);
     await supabase.from("stock_items").update({ stock_qty: next }).eq("id", item.id);
     await supabase.from("stock_transactions").insert({ stock_item_id:item.id, type:"adjust", qty_delta:delta });
+    setEditingQtyId(null); setQtyAdjustInput("");
+    showToast(delta > 0 ? `+${delta} ${item.unit_label}` : `${delta} ${item.unit_label}`);
+  };
+
+  const exportCSV = () => {
+    const header = ["Name","Current Qty","Unit","Restock Unit","Units per Restock","Low Stock Threshold","Linked Menu Item"];
+    const escape = (v) => `"${String(v).replace(/"/g,'""')}"`;
+    const rows = items.map(item => {
+      const linked = menuItems.find(mi=>mi.id===item.menu_item_id);
+      return [
+        item.name, item.stock_qty, item.unit_label, item.restock_unit_label||"", item.restock_unit_size||"",
+        item.low_stock_threshold!=null?item.low_stock_threshold:"", linked?linked.name:"",
+      ].map(escape).join(",");
+    });
+    const csv = [header.map(escape).join(","), ...rows].join("\r\n");
+    const BOM = String.fromCharCode(0xFEFF);
+    const blob = new Blob([BOM+csv], { type:"text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `stock-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const doTakeIn = async () => {
@@ -2506,7 +2550,13 @@ function StockScreen({ goHome }) {
           <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="box" size={19} color="#fff" /></div>
           <div className="hl-title" style={{ fontSize:19, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Stock</div>
         </div>
-        <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={exportCSV} disabled={items.length===0}
+            style={btn({ background:items.length?"rgba(255,255,255,0.14)":"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14, whiteSpace:"nowrap" })}>
+            ⬇️ Export
+          </button>
+          <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
+        </div>
       </div>
       <div style={{ flex:1, padding:20, overflowY:"auto", maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
         {items.length === 0 ? (
@@ -2530,12 +2580,22 @@ function StockScreen({ goHome }) {
                   {restockEquiv && <div style={{ fontSize:10, color:C.muted }}>≈ {restockEquiv} {item.restock_unit_label}</div>}
                 </div>
               </div>
-              <div style={{ display:"flex", gap:8, marginTop:12 }}>
-                <button onClick={()=>setTakeInModal(item)} style={{ flex:1, background:"#eaf5ea", border:"1px solid #cde6cd", color:"#2e7d32", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>+ Take In</button>
-                <button onClick={()=>adjustStock(item,-1)} style={{ background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 12px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>-1</button>
-                <button onClick={()=>adjustStock(item,1)} style={{ background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 12px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>+1</button>
-                <button onClick={()=>setConfirmDelete({ id:item.id, name:item.name })} style={{ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", borderRadius:8, padding:"8px 14px", fontSize:13, cursor:"pointer" }}>✕</button>
-              </div>
+              {editingQtyId === item.id ? (
+                <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                  <input type="number" autoFocus value={qtyAdjustInput} onChange={e=>setQtyAdjustInput(e.target.value)}
+                    placeholder="e.g. -3 or 10"
+                    style={{ flex:1, minWidth:0, background:C.bg, border:`1px solid ${C.border}`, color:C.text, padding:"8px 12px", borderRadius:8, fontSize:14, boxSizing:"border-box" }} />
+                  <button onClick={()=>adjustStock(item)} style={{ background:"#394c76", color:"#fff", border:"none", borderRadius:8, padding:"8px 16px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Apply</button>
+                  <button onClick={()=>{setEditingQtyId(null);setQtyAdjustInput("");}} style={{ background:"#f5f5f5", border:"1px solid #ddd", color:"#888", borderRadius:8, padding:"8px 12px", fontSize:13, cursor:"pointer" }}>✕</button>
+                </div>
+              ) : (
+                <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                  <button onClick={()=>setTakeInModal(item)} style={{ flex:1, background:"#eaf5ea", border:"1px solid #cde6cd", color:"#2e7d32", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>+ Take In</button>
+                  <button onClick={()=>{setEditingQtyId(item.id);setQtyAdjustInput("");}} style={{ flex:1, background:"#f7f8fa", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 0", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Adjust Qty</button>
+                  <button onClick={()=>startEditItem(item)} style={{ background:"#eef1f6", border:`1px solid ${C.border}`, color:"#394c76", borderRadius:8, padding:"8px 12px", fontSize:13, fontWeight:"bold", cursor:"pointer" }}>Edit</button>
+                  <button onClick={()=>setConfirmDelete({ id:item.id, name:item.name })} style={{ background:"#fbeaea", border:"1px solid #e6c3c3", color:"#c0392b", borderRadius:8, padding:"8px 14px", fontSize:13, cursor:"pointer" }}>✕</button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -2544,7 +2604,7 @@ function StockScreen({ goHome }) {
             <button onClick={()=>setShowAddForm(true)} style={btn({ width:"100%", background:"#394c76", border:"none", color:"#fff", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>+ Add Stock Item</button>
           ) : (
             <>
-              <div style={{ fontSize:12, fontWeight:"bold", color:C.text, marginBottom:10 }}>Add New Stock Item</div>
+              <div style={{ fontSize:12, fontWeight:"bold", color:C.text, marginBottom:10 }}>{editingItemId ? "Edit Stock Item" : "Add New Stock Item"}</div>
               <div style={{ marginBottom:10 }}>
                 <div style={{ fontSize:11, color:C.muted, marginBottom:5 }}>Name</div>
                 <input value={newItem.name} onChange={e=>setNewItem(f=>({...f,name:e.target.value}))} placeholder="e.g. Tiger Beer"
@@ -2583,9 +2643,9 @@ function StockScreen({ goHome }) {
                 </select>
               </div>
               <div style={{ display:"flex", gap:10 }}>
-                <button onClick={()=>{setShowAddForm(false);setNewItem({ name:"", unit_label:"bottle", restock_unit_label:"bucket", restock_unit_size:"", low_stock_threshold:"", menu_item_id:"" });}}
+                <button onClick={resetItemForm}
                   style={btn({ flex:1, background:"#f5f5f5", border:"1px solid #ddd", color:"#555", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>Cancel</button>
-                <button onClick={addStockItem} style={btn({ flex:2, background:"#394c76", border:"none", color:"#fff", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>+ Add Stock Item</button>
+                <button onClick={addStockItem} style={btn({ flex:2, background:"#394c76", border:"none", color:"#fff", padding:"11px 0", fontSize:13, fontWeight:"bold" })}>{editingItemId ? "Save Changes" : "+ Add Stock Item"}</button>
               </div>
             </>
           )}
