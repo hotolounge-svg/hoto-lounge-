@@ -423,6 +423,10 @@ async function ensureAppSettings() {
 export default function App() {
   const [screen, setScreen] = useState("home");
   const [tableNo, setTableNo] = useState(null);
+  // Lifted out of HomeScreen so a screen reached via the More Options sheet
+  // can reopen it on the way back, instead of always landing on plain Home.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const goHomeToMore = () => { setScreen("home"); setMoreOpen(true); };
   const [staffPin, setStaffPin] = useState("Jack@126");
   useEffect(() => {
     const loadPin = () => supabase.from("app_settings").select("staff_pin").eq("id", 1).maybeSingle()
@@ -525,18 +529,18 @@ export default function App() {
           </div>
         </div>
       )}
-      {screen === "home"    && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} />}
+      {screen === "home"    && <HomeScreen    setScreen={setScreen} setTableNo={setTableNo} moreOpen={moreOpen} setMoreOpen={setMoreOpen} />}
       {screen === "group"      && <GroupWrapper  tableNo={tableNo} />}
-      {screen === "groupadmin" && <GroupAdminScreen goHome={() => setScreen("home")} />}
+      {screen === "groupadmin" && <GroupAdminScreen goHome={goHomeToMore} />}
       {screen === "tablet"  && <TabletScreen  tableNo={tableNo} isStaff={tableNo !== null && !window.location.search.includes("table=")} goHome={() => setScreen(String(tableNo).startsWith("TW-") ? "takeaway" : String(tableNo).startsWith("GRP-") ? "vipscreen" : "home")} />}
       {screen === "takeaway" && <TakeawayScreen setScreen={setScreen} setTableNo={setTableNo} goHome={() => setScreen("home")} />}
       {screen === "kitchen" && <KitchenScreen goHome={() => setScreen("home")} />}
-      {screen === "qrcodes" && <QRScreen      goHome={() => setScreen("home")} />}
-      {screen === "admin"   && <AdminScreen   goHome={() => setScreen("home")} />}
-      {screen === "sales"   && <SalesScreen   goHome={() => setScreen("home")} />}
-      {screen === "systemsettings" && <SystemSettingsScreen goHome={() => setScreen("home")} />}
-      {screen === "members" && <MembersScreen goHome={() => setScreen("home")} />}
-      {screen === "stock"   && <StockScreen   goHome={() => setScreen("home")} />}
+      {screen === "qrcodes" && <QRScreen      goHome={goHomeToMore} />}
+      {screen === "admin"   && <AdminScreen   goHome={goHomeToMore} />}
+      {screen === "sales"   && <SalesScreen   goHome={goHomeToMore} />}
+      {screen === "systemsettings" && <SystemSettingsScreen goHome={goHomeToMore} />}
+      {screen === "members" && <MembersScreen goHome={goHomeToMore} />}
+      {screen === "stock"   && <StockScreen   goHome={goHomeToMore} />}
       {screen === "cashier" && <CashierScreen goHome={() => setScreen("home")} />}
       {screen === "join"    && <JoinScreen groupSlug={String(tableNo).replace("JOIN-","")} goHome={() => setScreen("home")} />}
       {screen === "joinmember" && <JoinMemberScreen goHome={() => setScreen("home")} />}
@@ -587,8 +591,7 @@ function Icon({ name, size=24, color="currentColor", stroke=1.8, style }) {
 // Home page palette — slate blue / grey (self-contained; other pages unaffected)
 const HP = { bg:"#e8ecef", card:"#ffffff", line:"#d6dbe2", navy:"#394c76", navy2:"#4a5f92", grey:"#8c8c8c", ink:"#2b3346", tint:"#eef1f6" };
 
-function HomeScreen({ setScreen, setTableNo }) {
-  const [moreOpen, setMoreOpen] = useState(false);
+function HomeScreen({ setScreen, setTableNo, moreOpen, setMoreOpen }) {
   const hCard = { background:HP.card, border:`1px solid ${HP.line}`, borderRadius:18, boxShadow:"0 6px 22px rgba(57,76,118,0.08)", overflow:"hidden" };
   const hLabel = { fontSize:11, color:HP.grey, fontWeight:700, letterSpacing:2.5, textTransform:"uppercase" };
 
