@@ -715,7 +715,11 @@ function HomeScreen({ setScreen, setTableNo, moreOpen, setMoreOpen }) {
           onClick={() => setMoreOpen(false)}>
           <div onClick={e=>e.stopPropagation()} style={{ background:HP.card, borderTop:`3px solid ${HP.navy}`, borderRadius:"22px 22px 0 0", width:"100%", maxWidth:460, maxHeight:"85vh", overflowY:"auto", padding:"18px 18px 34px", boxShadow:"0 -12px 40px rgba(43,51,70,0.25)" }}>
             <div style={{ width:44, height:4, background:HP.line, borderRadius:4, margin:"0 auto 18px" }} />
-            <div style={{ marginBottom:14, textAlign:"center" }}><span style={hLabel}>More Options</span></div>
+            <div style={{ marginBottom:14, display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
+              <span style={hLabel}>More Options</span>
+              <button onClick={() => setMoreOpen(false)}
+                style={{ position:"absolute", right:0, top:"50%", transform:"translateY(-50%)", background:HP.tint, border:"none", color:HP.grey, width:28, height:28, borderRadius:14, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            </div>
             {[
               { name:"grid", label:"View & Print QR Codes", screen:"qrcodes" },
               { name:"users", label:"Manage VIP Groups", screen:"groupadmin" },
