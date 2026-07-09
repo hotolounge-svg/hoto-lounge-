@@ -1999,7 +1999,7 @@ function SystemSettingsScreen({ goHome }) {
           <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="lock" size={19} color="#fff" /></div>
           <div className="hl-title" style={{ fontSize:19, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>System Settings</div>
         </div>
-        <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
+        <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"8px 16px", fontSize:13 })}>← Back</button>
       </div>
       <div style={{ flex:1, padding:20, overflowY:"auto", maxWidth:520, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
         <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginBottom:16 }}>
@@ -2313,7 +2313,7 @@ function MembersScreen({ goHome }) {
           <div style={{ width:36, height:36, borderRadius:10, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="crown" size={19} color="#fff" /></div>
           <div className="hl-title" style={{ fontSize:19, color:"#fff", fontWeight:700, letterSpacing:0.3 }}>Members</div>
         </div>
-        <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
+        <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"8px 16px", fontSize:13 })}>← Back</button>
       </div>
       <div style={{ flex:1, overflowY:"auto" }}>
         <div style={{ position:"sticky", top:0, zIndex:2, background:C.bg, padding:"20px 20px 12px", maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
@@ -2757,7 +2757,7 @@ function StockScreen({ goHome }) {
             style={btn({ background:items.length?"rgba(255,255,255,0.14)":"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14, whiteSpace:"nowrap" })}>
             ⬇️ Export
           </button>
-          <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
+          <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"8px 16px", fontSize:13 })}>← Back</button>
         </div>
       </div>
       <div style={{ flex:1, overflowY:"auto" }}>
@@ -5288,7 +5288,7 @@ function KitchenScreen({ goHome }) {
             </button>
           )}
           {cancelled.length>0 && <button onClick={clearFinished} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"rgba(255,255,255,0.8)", padding:"7px 12px", fontSize:12 })}>Clear Cancelled</button>}
-          <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.28)", color:"#fff", padding:"7px 12px", fontSize:14 })}>✕</button>
+          <button onClick={goHome} style={btn({ background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", padding:"8px 16px", fontSize:13 })}>← Back</button>
         </div>
       </div>
       {printBlocked && (
@@ -5298,7 +5298,13 @@ function KitchenScreen({ goHome }) {
       )}
       <div style={{ flex:1, padding:16, overflowY:"auto" }}>
         <div style={{ fontSize:12, color:C.muted, letterSpacing:2, textTransform:"uppercase", marginBottom:10, fontWeight:700 }}>Pending Food ({pending.length})</div>
-        {pending.length===0 && <div style={{ color:C.muted, textAlign:"center", padding:40 }}>All clear!</div>}
+        {pending.length===0 && (
+          <div style={{ textAlign:"center", color:C.muted, padding:60 }}>
+            <div style={{ fontSize:48, marginBottom:16 }}>✅</div>
+            <div style={{ fontSize:18, color:"#394c76", fontWeight:"bold" }}>All Clear!</div>
+            <div style={{ fontSize:14, marginTop:8 }}>No pending food right now</div>
+          </div>
+        )}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(260px,1fr))", gap:14, marginBottom:24 }}>
           {pending.map(order => (
             <div key={order.id} onClick={() => setKitchenDetailModal(order.id)}
